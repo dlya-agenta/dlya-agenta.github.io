@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=4.1">
+<link rel="stylesheet" href="style.css?v=4.2">
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 </head>
 <body>
@@ -23,8 +23,10 @@
     </div>
     <nav class="menu">
       <button class="link" data-go="favs">★ Избранное</button>
-      <button class="link" data-go="sels">📄 Мои подборки</button>
-      <button class="link" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
+      <button class="link agent-only" data-go="deals" hidden>🤝 <span class="lbl-long">Контакт и рукопожатие</span><span class="lbl-short">Контакты</span></button>
+      <button class="link agent-only" data-go="sels">📄 Мои подборки</button>
+      <button class="link client-btn" data-go="client" id="go-client">👤 С клиентом</button>
+      <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
       <button class="link" data-go="pay" id="go-pay" hidden>Продлить доступ</button>
       <span class="who"><span id="who"></span><small id="until"></small></span>
       <button class="link" id="logout" hidden>Выйти</button>
@@ -50,6 +52,7 @@
             <div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off"></div></div>
           <div class="fcell"><div class="fl">Район и ЖК</div>
             <div class="chips"><button type="button" class="chip pick-btn" id="open-areas">Район</button><button type="button" class="chip pick-btn" id="open-zk">ЖК</button></div></div>
+          <div class="fcell"><div class="fl">До моря (по прямой)</div><select id="sea" aria-label="Расстояние до моря по прямой"></select></div>
         </div>
         <div class="fcol">
           <div class="fcell"><div class="fl">Этаж</div>
@@ -121,6 +124,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="app.js?v=4.1" defer></script>
+<script src="app.js?v=4.2" defer></script>
 </body>
 </html>

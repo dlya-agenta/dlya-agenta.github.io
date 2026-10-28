@@ -358,3 +358,33 @@ details p { white-space: pre-line; margin: 6px 0 0; }
   .foot a { display: inline-block; padding: 9px 4px; }
   .leaflet-container a.leaflet-popup-close-button { width: 36px; height: 36px; font: 22px/36px sans-serif; }
 }
+
+/* v4.2: районы деревом (как в YGROUP), «До моря», «Контакт и рукопожатие», режим «С клиентом» */
+#sea { width: 100%; padding: 9px 10px; }
+.tree { display: flex; flex-direction: column; }
+.tr { border-bottom: 1px solid var(--line); }
+.tr-h { display: flex; align-items: center; gap: 2px; }
+.tr-h .opt { flex: 1; border-bottom: 0; font-weight: 600; }
+.tr-t { flex: none; width: 34px; height: 34px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; position: relative; }
+.tr-t::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0;
+  transform: translate(-60%, -50%) rotate(-45deg); transition: transform .15s; }
+.tr.open .tr-t::before { transform: translate(-50%, -70%) rotate(45deg); }
+.tr-t.none::before { display: none; }
+@media (hover: hover) { .tr-t:not(.none):hover { background: var(--soft); color: var(--link); } }
+.tr-subs { display: none; padding: 0 0 6px 36px; }
+.tr.open .tr-subs { display: block; }
+.tr-subs .opt { padding: 7px 2px; border-bottom: 0; }
+.opt.dis { opacity: .6; cursor: default; }
+#ar-find { margin-bottom: 4px; }
+.tag.sea { background: color-mix(in srgb, #0ea5e9 13%, var(--card)); color: color-mix(in srgb, #0369a1 85%, var(--text)); }
+.deal { position: absolute; top: 8px; right: 50px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(15,18,24,.55); font-size: 18px;
+  line-height: 36px; padding: 0; cursor: pointer; filter: grayscale(1); opacity: .85; }
+.deal.on { filter: none; opacity: 1; background: rgba(19, 138, 74, .88); }
+.lbl-short { display: none; }
+.client-btn.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+body.client .agent-only { display: none !important; }
+@media (max-width: 560px) {
+  .lbl-long { display: none; }
+  .lbl-short { display: inline; }
+}
+@media (max-width: 720px) { .list.l6 .fav, .list.l6 .deal { width: 30px; height: 30px; font-size: 15px; line-height: 30px; top: 6px; } .list.l6 .fav { right: 6px; } .list.l6 .deal { right: 40px; } }

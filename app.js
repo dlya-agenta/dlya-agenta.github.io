@@ -15,6 +15,18 @@ const FIN = [['repair', 'С ремонтом'], ['clean', 'Чистовая'], [
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 10;   // объектов в одной подборке PDF
 const isNew = x => x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц
+// до моря по прямой (сервер считает по береговой линии): один выбор из списка
+const SEA = [[300, 'до 300 м'], [500, 'до 500 м'], [1000, 'до 1 км'], [2000, 'до 2 км'], [3000, 'до 3 км']];
+const seaTxt = m => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} м` : `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`;
+// районы прежних версий сайта → ключи дерева «район → микрорайон»
+const OLD_AREAS = { c: 'd:Центральный', h: 'd:Хостинский', a: 'd:Адлерский', l: 'd:Лазаревский', s: 'd:Сириус', k: 'd:Красная Поляна', gt: 'z:gt', m1: 'z:center',
+  m2: 's:Донская', m3: 's:Макаренко', m4: 's:Мамайка', m5: 's:Новый Сочи', m6: 's:Светлана', m7: 's:Завокзальный', m8: 's:Заречный', m9: 's:Бытха', m10: 's:Мацеста',
+  m11: 's:Хоста', m12: 's:Кудепста', m13: 's:Курортный городок', m14: 's:Центр Адлера', m15: 's:Имеретинка', m16: 's:Дагомыс', m17: 's:Лазаревское', m18: 's:Лоо',
+  'mkr:Сочи Центр': 'z:center' };
+// «С клиентом»: цены с комиссией агента сверху (как в PDF клиенту — до 10 000 ₽), без источников, заметок, телефонов и «рукопожатий»
+let client = store.get('client', { on: false, cm: 3 });
+const cmOn = () => client.on ? +client.cm || 0 : 0;
+const priceOf = v => cmOn() ? Math.round(v * (1 + cmOn() / 100) / 10000) * 10000 : v;
 
 let token = store.get('token', null);
 let auth = token ? { token } : tg?.initData || null;
@@ -23,15 +35,15 @@ let f = store.get('f2', {}), text = store.get('text', ''), sort = store.get('sor
 const mobile = () => innerWidth <= 760;
 let lays = store.get('lay', {}), fclosed = store.get('fclosed', false);   // вид выдачи — свой для телефона и компьютера
 const lay = () => lays[mobile() ? 'm' : 'd'] ?? (mobile() ? '3' : '6');
-let favMode = false, beforeFav = null;   // «Избранное» не затирает сохранённые фильтры
+let favMode = null, beforeFav = null;   // «Избранное» / «Контакт и рукопожатие» не затирают сохранённые фильтры
 let sel = new Set(store.get('sel', []));
 let offset = 0, total = 0, busy = false, view = 'list', items = new Map();
 
 // настройки — в браузере и на сервере (в Telegram браузерное хранилище бывает пустым при каждом запуске)
 function savePrefs() {
-  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed);
+  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed); store.set('client', client);
   clearTimeout(savePrefs.t);
-  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed } }).catch(() => {}), 700);
+  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, client } }).catch(() => {}), 700);
 }
 
 async function call(action, extra = {}) {
@@ -109,10 +121,17 @@ async function start() {
     if (typeof p.sort === 'string') sort = p.sort;
     if (p.lay && typeof p.lay === 'object') lays = p.lay;
     if (typeof p.fclosed === 'boolean') fclosed = p.fclosed;
+    if (p.client && typeof p.client === 'object') client = { on: !!p.client.on, cm: +p.client.cm || 0 };
   }
   if (Array.isArray(f.fin)) {   // старые сохранённые «дизайнерский / евро / современный» → «С ремонтом»
     f.fin = [...new Set(f.fin.map(x => ['designer', 'euro', 'modern'].includes(x) ? 'repair' : x))].filter(x => FIN.some(([k]) => k === x));
     if (!f.fin.length) delete f.fin;
+  }
+  if (Array.isArray(f.d)) {   // районы прежних версий («c», «m4», «mkr:Сочи Мамайка мкр») → ключи нового дерева; неизвестные убираем
+    const known = new Set((meta.regions ?? []).flatMap(r => [r.k, ...r.subs.map(s => s[0])]));
+    const subOf = m => { const s = String(m).replace(/^mkr:\S+\s+/, '').replace(/\s+мкр$/, '').replace(/\s+(Целинная|Теневой)$/, ''); return known.has('s:' + s) ? 's:' + s : null; };
+    f.d = [...new Set(f.d.map(k => OLD_AREAS[k] ?? (String(k).startsWith('mkr:') ? subOf(k) : k)).filter(k => k && known.has(k)))];
+    if (!f.d.length) delete f.d;
   }
   document.title = 'Для Агента — объекты от собственников Сочи';
   $('#gate').hidden = true; $('#app').hidden = false;
@@ -127,7 +146,9 @@ async function start() {
   $('#go-pay').hidden = !meta.pay?.enabled;
   $('#go-map').hidden = !meta.features.map;
   document.querySelectorAll('[data-go="favs"]').forEach(b => b.hidden = !meta.features.favorites);
+  document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
+  clientUi();
   $('#q').value = text; $('#sort').value = sort;
   $('#filters').classList.toggle('closed', mobile() || fclosed);
   renderFilters(); selbar(); applyLay();
@@ -151,13 +172,14 @@ function renderFilters() {
   $('#f-fin').insertAdjacentHTML('beforeend', `<button type="button" class="chip${f.m ? ' on' : ''}" data-k="m" ${modernOn ? '' : 'disabled title="Скоро: дизайнерский ремонт будет определяться по фото"'}>Дизайнерский${modernOn ? '' : '<small>скоро</small>'}</button>`);
   const finClick = $('#f-fin').onclick;
   $('#f-fin').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return finClick(e); if (!b.disabled) { f.m = !f.m || undefined; renderFilters(); } };
-  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное']]
-    .filter(([k]) => k !== 'fav' || meta.features.favorites);
+  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Рукопожатие']]
+    .filter(([k]) => (k !== 'fav' || meta.features.favorites) && (k !== 'deal' || (meta.features.deals && !client.on)));
   $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}">${t}</button>`).join('');
   $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; renderFilters(); };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) $('#' + k).value = f[k] ?? '';
   $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl;
   for (const k of ['pmin', 'pmax']) $('#' + k).value = f[k] ? dots(Math.round(f[k] * 1e6)) : '';
+  $('#sea').value = f.sea ?? '';
   const nd = arr('d').length, nz = arr('zk').length;
   $('#open-areas').textContent = nd ? `${arr('d').map(areaName).slice(0, 2).join(', ')}${nd > 2 ? ` +${nd - 2}` : ''}` : 'Район';
   $('#open-areas').classList.toggle('on', !!nd);
@@ -173,6 +195,7 @@ function readInputs() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) { const v = +$('#' + k).value; if (v > 0) f[k] = v; else delete f[k]; }
   for (const k of ['pmin', 'pmax']) { const v = rubOf($('#' + k).value); if (v > 0) f[k] = v / 1e6; else delete f[k]; }
   f.nf = $('#nf').checked || undefined; f.nl = $('#nl').checked || undefined;
+  f.sea = +$('#sea').value || undefined;
 }
 for (const k of ['pmin', 'pmax']) {
   $('#' + k).addEventListener('input', e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d ? dots(+d) : ''; });
@@ -180,7 +203,8 @@ for (const k of ['pmin', 'pmax']) {
 }
 // поля сразу попадают в фильтр: иначе нажатие на любую кнопку фильтра стирало набранную площадь, этаж и цену
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', readInputs);
-for (const k of ['nf', 'nl']) $('#' + k).addEventListener('change', readInputs);
+for (const k of ['nf', 'nl', 'sea']) $('#' + k).addEventListener('change', readInputs);
+$('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
 function openF(on) { $('#filters').classList.toggle('closed', !on); document.body.classList.toggle('fopen', on && mobile()); }
 $('#toggle-f').onclick = () => { const on = $('#filters').classList.contains('closed'); openF(on); fclosed = !on; if (!mobile()) savePrefs(); };
@@ -189,14 +213,17 @@ $('#apply').onclick = () => { readInputs(); if (mobile()) openF(false); changed(
 $('#reset').onclick = () => { f = {}; text = ''; $('#q').value = ''; leaveFav(); renderFilters(); changed(); };
 $('#status').addEventListener('click', e => { if (e.target.id === 'drop-f') { f = {}; leaveFav(); renderFilters(); changed(); } });   // текст запроса оставить
 $('#sort').onchange = () => { sort = $('#sort').value; savePrefs(); view === 'map' ? mapList() : search(); };
-$('#qform').addEventListener('submit', e => { e.preventDefault(); text = $('#q').value.trim(); readInputs(); $('#q').blur(); changed(); });
+$('#qform').addEventListener('submit', e => { e.preventDefault(); readInputs(); $('#q').blur(); changed(); });
+// поле запроса очистили (крестиком или стёрли) — сразу ищем без текста: раньше при пустом поле продолжал работать прошлый запрос
+$('#q').addEventListener('input', () => { if (!$('#q').value.trim() && text) changed(); });
 function changed() {
+  text = $('#q').value.trim();   // запрос — всегда то, что сейчас в поле
   f = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined && !(Array.isArray(v) && !v.length)));
   if (!favMode) savePrefs();
   renderFilters();
   view === 'map' ? loadMap() : search();
 }
-function leaveFav() { favMode = false; beforeFav = null; document.querySelectorAll('[data-go="favs"]').forEach(b => b.classList.remove('on')); }
+function leaveFav() { favMode = null; beforeFav = null; document.querySelectorAll('[data-go="favs"], [data-go="deals"]').forEach(b => b.classList.remove('on')); }
 function applyLay() {
   const l = lay();
   $('#list').classList.remove('l1', 'l3', 'l6'); $('#list').classList.add('l' + l);
@@ -212,22 +239,43 @@ function sheet(title, html, wide = false) {
 function closeSheet() { if ($('#sheet').hidden) return; $('#sheet').hidden = true; if ($('#viewer').hidden) tg?.BackButton.hide(); }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet' || e.target.closest('[data-close]')) closeSheet(); });
 tg?.BackButton.onClick(() => $('#viewer').hidden ? closeSheet() : closeViewer());
-const opt = (name, value, label, checked, note = '') =>
-  `<label class="opt"><input type="checkbox" name="${name}" value="${esc(value)}"${checked ? ' checked' : ''}><span>${esc(label)}</span>${note !== '' ? `<em>${esc(note)}</em>` : ''}</label>`;
+const opt = (name, value, label, checked, note = '', disabled = false) =>
+  `<label class="opt${disabled ? ' dis' : ''}"><input type="checkbox" name="${name}" value="${esc(value)}"${checked ? ' checked' : ''}${disabled ? ' disabled' : ''}><span>${esc(label)}</span>${note !== '' ? `<em>${esc(note)}</em>` : ''}</label>`;
 // названия районов и микрорайонов для кнопки «Район»
 function areaName(k) {
   for (const r of meta.regions ?? []) { if (r.k === k) return r.name; const s = r.subs.find(x => x[0] === k); if (s) return s[1]; }
-  return meta.areas.find(a => a[0] === k)?.[1] ?? k.replace(/^mkr:/, '');
+  return String(k).replace(/^(mkr|[dsz]):/, '');
 }
-// район — галочкой целиком или раскрыть и выбрать микрорайоны
+// районы как в YGROUP: поиск, район раскрывается стрелкой, галочка на районе — весь район (его микрорайоны отмечены сами)
 $('#open-areas').onclick = () => {
-  const on = k => arr('d').includes(k);
-  sheet('Район и микрорайон', (meta.regions ?? []).map(r => `<div class="reg">
-      <div class="reg-h">${opt('d', r.k, r.name, on(r.k), r.n || '')}${r.subs.length ? `<button type="button" class="reg-t" data-t>Микрорайоны ▾</button>` : ''}</div>
-      <div class="reg-subs" ${r.subs.some(x => on(x[0])) ? '' : 'hidden'}>${r.subs.map(([k, name, n]) => opt('d', k, name, on(k), n ?? '')).join('')}</div></div>`).join('')
-    + `<div class="sheet-foot"><button class="btn ghost" id="s-clear">Сбросить</button><button class="btn primary" data-close>Готово</button></div>`);
-  $('#sheet-body').onclick = e => { const t = e.target.closest('[data-t]'); if (t) { const s = t.closest('.reg').querySelector('.reg-subs'); s.hidden = !s.hidden; } };
-  bindChecks('d', false);
+  const on = k => arr('d').includes(k), regs = meta.regions ?? [];
+  const open = new Set(regs.filter(r => r.subs.some(s => on(s[0]))).map(r => r.k));
+  sheet('Районы', `<input id="ar-find" type="search" placeholder="Поиск района" autocomplete="off"><div id="ar-tree" class="tree"></div>
+    <div class="sheet-foot"><button class="btn ghost" id="s-clear">Сбросить</button><button class="btn primary" data-close>Применить</button></div>`);
+  const draw = () => {
+    const q = $('#ar-find').value.trim().toLowerCase().replace(/ё/g, 'е'), has = s => s.toLowerCase().replace(/ё/g, 'е').includes(q);
+    $('#ar-tree').innerHTML = regs.map(r => {
+      const subs = q && !has(r.name) ? r.subs.filter(s => has(s[1])) : r.subs;
+      if (q && !subs.length && !has(r.name)) return '';
+      const all = on(r.k);
+      return `<div class="tr${q || open.has(r.k) ? ' open' : ''}" data-r="${esc(r.k)}"><div class="tr-h">
+        ${r.subs.length ? '<button type="button" class="tr-t" data-t aria-label="Микрорайоны"></button>' : '<span class="tr-t none"></span>'}${opt('d', r.k, r.name, all, r.n || '')}</div>
+        ${subs.length ? `<div class="tr-subs">${subs.map(([k, name, n]) => opt('d', k, name, all || on(k), n ?? '', all)).join('')}</div>` : ''}</div>`;
+    }).join('') || '<p class="muted">Не нашёл такой район</p>';
+  };
+  $('#ar-find').oninput = draw; draw();
+  $('#sheet-body').onclick = e => {
+    const t = e.target.closest('[data-t]'); if (!t) return;
+    const k = t.closest('.tr').dataset.r; open.has(k) ? open.delete(k) : open.add(k); draw();
+  };
+  $('#sheet-body').onchange = e => {
+    const i = e.target; if (i.name !== 'd') return;
+    toggleIn('d', i.value);
+    const r = regs.find(x => x.k === i.value);   // весь район отмечен — его микрорайоны отдельно не нужны
+    if (r && on(r.k)) { f.d = arr('d').filter(k => !r.subs.some(s => s[0] === k)); if (!f.d.length) delete f.d; }
+    renderFilters(); draw();
+  };
+  $('#s-clear').onclick = () => { delete f.d; renderFilters(); draw(); };
 };
 $('#open-zk').onclick = () => {
   sheet('ЖК', `<input id="zk-find" type="search" placeholder="Найти ЖК"><div id="zk-list"></div>
@@ -264,7 +312,7 @@ async function search(more = false) {
   if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; $('#status').textContent = 'Ищу…'; $('#more').hidden = true; }
   $('#more').disabled = true;
   try {
-    const r = await call('search', { f, text, offset, sort });
+    const r = await call('search', { f, text, offset, sort, cm: cmOn() });
     total = r.count;
     r.items.forEach(x => items.set(x.num, x));
     $('#list').insertAdjacentHTML('beforeend', r.items.map(card).join(''));
@@ -289,6 +337,7 @@ function gallery(x) {
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
     ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
+    ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт и рукопожатие" title="Контакт и рукопожатие — договорились с собственником">🤝</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
   </div>`;
 }
@@ -301,26 +350,30 @@ document.addEventListener('load', e => {
 function tags(x) {
   return [...[...new Set((x.finish || []).map(t => FINL[t] ?? t))].map(t => `<span class="tag">${esc(t)}</span>`),
     x.fz214 ? '<span class="tag">ФЗ-214</span>' : '', x.pool ? '<span class="tag">Бассейн</span>' : '',
-    x.ad_state === 'unique' ? '<span class="tag ok">Уникальна</span>' : x.ad_state === 'ads' ? '<span class="tag grey">Есть в рекламе</span>' : ''].join('');
+    x.sea_m != null && x.sea_m <= 5000 ? `<span class="tag sea" title="По прямой до берега">≈ ${seaTxt(x.sea_m)} до моря</span>` : '',
+    x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : x.ad_state === 'ads' ? '<span class="tag grey agent-only">Есть в рекламе</span>' : ''].join('');
 }
+// микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
+const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
 function card(x) {
-  const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
+  const price = x.price ? priceOf(x.price) : 0;
+  const ppm = price && x.area ? `${Math.round(price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
   const zk = x.zk ?? zkName(x.complex);   // заголовок — название ЖК, если известно (по объявлению или по адресу дома)
-  const where = [x.street || x.address, x.mkr].filter(Boolean).join(' · ');
+  const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
   const date = x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
   return `<article class="card${x.seen ? ' seen' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
-      <div class="price${x.ad_state === 'unique' ? ' uniq' : ''}"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : ''}
       <div class="title" data-open>${esc(what(x))}</div>
       <div class="addr">${esc(where)}</div>
       <div class="tags">${tags(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${x.descr ? `<div class="descr" data-d><p>${esc(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
-      ${x.src?.length ? `<div class="src">Источники: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : ''}
-      ${x.note ? `<div class="note">📝 ${esc(x.note)}</div>` : ''}
-      <div class="actions">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
+      ${x.src?.length ? `<div class="src agent-only">Источники: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : ''}
+      ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
+      <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
     </div>
   </article>`;
@@ -356,6 +409,12 @@ async function onCard(e, cardEl) {
     const b = t.closest('[data-fav]'), on = !b.classList.contains('on');
     b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; if (x) x.fav = on;
     call('fav', { num, on }).catch(err => toast(err.message));
+    return;
+  }
+  if (t.closest('[data-deal]')) {   // «Контакт и рукопожатие»: с собственником договорились — объект в своём разделе
+    const b = t.closest('[data-deal]'), on = !b.classList.contains('on');
+    b.classList.toggle('on', on); if (x) x.deal = on;
+    call('deal', { num, on }).then(() => toast(on ? 'В разделе «Контакт и рукопожатие»' : 'Убрано из «Контакт и рукопожатие»')).catch(err => toast(err.message));
     return;
   }
   if (t.matches('.strip img')) { openViewer(t.closest('.strip'), +t.dataset.k); markSeen(cardEl, num); return; }
@@ -462,9 +521,9 @@ $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   sheet('Подборка в PDF', `
     <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
-    <div class="hint">Сразу два PDF: <b>клиенту</b> — без контактов собственника, цены с вашей комиссией; <b>агенту</b> — цены собственника, телефоны и пометка «Уникальна».
+    <div class="hint">Сразу два PDF: <b>клиенту</b> — без контактов собственника, цены с вашей комиссией; <b>агенту</b> — цены собственника, на первой странице список с телефонами собственников, пометка «Уникальна».
       Перед сборкой сайт откроет телефоны и проверит рекламу по каждому объекту (в пределах ваших лимитов) — это 10–15 секунд на объект.</div>
-    <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">5%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="5"></label>
+    <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
     <div class="hint">Цены в PDF клиенту будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
     <label class="field">Ваше имя в PDF<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон в PDF<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
@@ -495,7 +554,7 @@ $('#sel-make').onclick = () => {
         agent: $('#s-name').value, agent_phone: $('#s-phone').value, hide_addr: $('#s-hide').checked });
       $('#sheet-body').innerHTML = `<p>Подборка готова — два PDF.</p>
         <div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a>
-        <a class="btn soft" href="${esc(r.url_agent)}" target="_blank" rel="noopener" data-url="${esc(r.url_agent)}">PDF агенту (с телефонами)</a></div>
+        <a class="btn soft agent-only" href="${esc(r.url_agent)}" target="_blank" rel="noopener" data-url="${esc(r.url_agent)}">PDF агенту (с телефонами)</a></div>
         ${r.phones < r.total ? `<p class="hint">Телефоны в PDF агенту: ${r.phones} из ${r.total} — остальные не открылись (${limit ? 'лимит номеров' : 'у объявления нет мобильного или сервис телефонов не ответил'}).</p>` : ''}
         <p class="hint">Ссылки действуют час; сама подборка хранится 7 дней во вкладке «Мои подборки».</p>`;
       if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
@@ -532,10 +591,12 @@ async function loadMap() {
   [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
   $('#status').textContent = 'Загружаю точки…';
   try {
-    const r = await call('map', { f, text });
+    const r = await call('map', { f, text, cm: cmOn() });
     cluster?.remove();
-    // несколько объявлений в одном доме (точки ближе 40 м) — открываются списком, а не разлетаются по карте
-    cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: false, zoomToBoundsOnClick: false });
+    // несколько объявлений в одном доме (точки ближе 40 м) — открываются списком, а не разлетаются по карте;
+    // без анимации «разлёта» при увеличении: кружки просто пересобираются, карта не дёргается; точки добавляются частями
+    cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: z => z >= 15 ? 35 : 50, spiderfyOnMaxZoom: false, zoomToBoundsOnClick: false,
+      animate: false, chunkedLoading: true, chunkInterval: 120, removeOutsideVisibleBounds: true });
     cluster.on('clusterclick', e => {
       const b = e.layer.getBounds();
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
@@ -544,18 +605,19 @@ async function loadMap() {
         .setContent(`<div class="mlist"><b>${ps.length} объявл. здесь</b>${ps.map(p => `<a href="#" class="mrow" data-num="${p.num}">
           ${p.ph ? `<img src="${esc(photoUrl(p, 0))}" alt="">` : '<span class="noph"></span>'}<span><b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${esc(what(p))}</span></a>`).join('')}</div>`).openOn(map);
     });
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) => ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw }));
-    for (const p of mapPts) {
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) => ({ i, num, lat, lng, price: price ? priceOf(price) : price, rooms, kind, area, floor, floors, addr, ph, nw }));
+    const marks = mapPts.map(p => {
       const m = L.marker([p.lat, p.lng]);
       m.p = p;
       m.bindPopup(() => `<div class="mpop">${p.ph ? `<img src="${esc(photoUrl(p, 0))}" alt="" data-num="${p.num}">` : ''}
         ${p.nw ? '<span class="mnew">Новое</span> ' : ''}<b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${p.addr ? `<br><b class="zkline">${esc(p.addr)}</b>` : ''}<br>${esc(what(p))}
         <br><a href="#" data-num="${p.num}">Открыть № ${p.num}</a></div>`, { minWidth: 220, maxWidth: 240 });
-      cluster.addLayer(m);
-    }
+      return m;
+    });
     map.addLayer(cluster);
-    if (r.points.length) map.fitBounds(cluster.getBounds(), { maxZoom: 15, padding: [20, 20] });
-    $('#status').textContent = `На карте: ${r.points.length.toLocaleString('ru-RU')}${r.points.length >= 4000 ? ' (первые 4000 — уточните фильтры)' : ''}`;
+    cluster.addLayers(marks);
+    if (marks.length) map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] });
+    $('#status').textContent = `На карте: ${r.points.length.toLocaleString('ru-RU')}`;
     mapList();
   } catch (e) { if (e.gate) return showLogin(e.gate); $('#status').textContent = `Ошибка карты: ${e.message}`; }
 }
@@ -590,22 +652,51 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 });
 
 // ---------- меню ----------
+// «Избранное» и «Контакт и рукопожатие» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
+const LISTS = { favs: ['fav', 'Показано избранное — нажмите «★ Избранное» ещё раз, чтобы вернуться к поиску'],
+  deals: ['deal', 'Показаны объекты с контактом и рукопожатием — нажмите на раздел ещё раз, чтобы вернуться к поиску'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
-  if (g === 'favs') {
-    if (favMode) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); return; }
-    beforeFav = { f, text }; favMode = true; b.classList.add('on');
-    f = { fav: true }; text = ''; $('#q').value = ''; changed();
-    toast('Показано избранное — нажмите «★ Избранное» ещё раз, чтобы вернуться к поиску', 4000);
+  if (LISTS[g]) {
+    const was = favMode;
+    if (was) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); if (was === g) { changed(); return; } }
+    beforeFav = { f, text }; favMode = g; document.querySelectorAll(`[data-go="${g}"]`).forEach(x => x.classList.add('on'));
+    f = { [LISTS[g][0]]: true }; $('#q').value = ''; changed();
+    toast(LISTS[g][1], 4000);
   }
+  if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
   if (g === 'admin') admin();
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
 $('#logout').onclick = logout;
 
+// ---------- режим «С клиентом» ----------
+function clientUi() {
+  document.body.classList.toggle('client', client.on);
+  const b = $('#go-client');
+  b.classList.toggle('on', client.on);
+  b.textContent = client.on ? '👤 С клиентом ✓' : '👤 С клиентом';
+}
+function clientSheet() {
+  sheet('Показ клиенту', `
+    <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «рукопожатия» скрыты: экран можно показывать клиенту.</p>
+    <label class="field">Комиссия сверху цены: <b id="c-cm-v">${client.cm}%</b><input id="c-cm" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>
+    <div class="hint">Цена округляется до 10 000 ₽, как в PDF клиенту. Фильтр цены тоже с комиссией: «до 15 млн» — до 15 млн вместе с ней.</div>
+    <div class="sheet-foot">${client.on ? '<button class="btn ghost" id="c-off">Выключить</button>' : '<button class="btn ghost" data-close>Отмена</button>'}
+      <button class="btn primary" id="c-on">${client.on ? 'Сохранить' : 'Включить'}</button></div>`);
+  $('#c-cm').oninput = () => $('#c-cm-v').textContent = `${$('#c-cm').value}%`;
+  const set = on => {
+    client = { on, cm: +$('#c-cm').value };
+    if (on && favMode === 'deals') { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); }   // список «рукопожатий» клиенту не показываем
+    savePrefs(); clientUi(); closeSheet(); renderFilters(); changed();
+  };
+  $('#c-on').onclick = () => set(true);
+  $('#c-off')?.addEventListener('click', () => set(false));
+}
+
 // ---------- админ-панель ----------
-const FEAT = { map: 'Карта', favorites: 'Избранное', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
+const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт и рукопожатие', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
   modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
 const LIM = { phone_hour: 'Телефонов в час', phone_day: 'Телефонов в сутки', sel_hour: 'Подборок в час', max_sessions: 'Одновременных входов', access_days: 'Дней доступа по умолчанию' };
 async function admin() {
