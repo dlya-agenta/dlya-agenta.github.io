@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=4.2">
+<link rel="stylesheet" href="style.css?v=4.3">
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 </head>
 <body>
@@ -23,8 +23,9 @@
     </div>
     <nav class="menu">
       <button class="link" data-go="favs">★ Избранное</button>
-      <button class="link agent-only" data-go="deals" hidden>🤝 <span class="lbl-long">Контакт и рукопожатие</span><span class="lbl-short">Контакты</span></button>
+      <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
       <button class="link agent-only" data-go="sels">📄 Мои подборки</button>
+      <button class="link agent-only" data-go="rk" id="go-rk" hidden>📣 Реклама</button>
       <button class="link client-btn" data-go="client" id="go-client">👤 С клиентом</button>
       <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
       <button class="link" data-go="pay" id="go-pay" hidden>Продлить доступ</button>
@@ -42,6 +43,7 @@
 
     <section id="filters" class="filters closed" aria-label="Фильтры">
       <div class="fhead"><b>Фильтры</b><button type="button" class="x" id="f-close" aria-label="Закрыть фильтры">✕</button></div>
+      <div class="fside-row"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇦ Фильтр слева</button></div>
       <div class="fcols">
         <div class="fcol">
           <div class="fcell"><div class="fl">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
@@ -60,6 +62,8 @@
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label></div></div>
           <div class="fcell"><div class="fl">Отделка</div><div class="chips" id="f-fin"></div></div>
           <div class="fcell"><div class="fl">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
+          <div class="fcell agent-only"><div class="fl">Собственники напрямую с площадок</div><div class="chips" id="f-ext"></div>
+            <div class="fnote">Галочка снята — объявления с этой площадки не показываются. Проверенная база собственников видна всегда.</div></div>
           <div class="fcell"><div class="fl">Сортировка</div>
             <select id="sort" aria-label="Сортировка">
               <option value="new">Сначала новые</option>
@@ -78,7 +82,7 @@
     <div class="bar">
       <p id="status" class="status muted"></p>
       <div class="bar-r">
-        <div class="views" id="layouts" title="Сколько объявлений на экране"><button class="seg ic" data-lay="6" title="По 6 на экране">▦ 6</button><button class="seg ic" data-lay="3" title="По 3 в ряд">▥ 3</button><button class="seg ic" data-lay="1" title="По одному, крупно">▭ 1</button></div>
+        <div class="views" id="layouts" title="Сколько объявлений на экране"><button class="seg ic" data-lay="3" title="3 объявления на экране">▥ 3</button><button class="seg ic" data-lay="6" title="6 объявлений на экране, миниатюры">▦ 6</button></div>
         <div class="views"><button class="seg on" data-view="list">Список</button><button class="seg" data-view="map" id="go-map">Карта</button></div>
       </div>
     </div>
@@ -124,6 +128,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="app.js?v=4.2" defer></script>
+<script src="app.js?v=4.3" defer></script>
 </body>
 </html>

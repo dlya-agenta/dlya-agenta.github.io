@@ -14,6 +14,7 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 const FIN = [['repair', 'С ремонтом'], ['clean', 'Чистовая'], ['rough', 'Черновая']];
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 10;   // объектов в одной подборке PDF
+const EXT = [['avito', 'Авито'], ['cian', 'ЦИАН'], ['domclick', 'ДомКлик']];   // собственники напрямую с площадок (колонка source)
 const isNew = x => x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц
 // до моря по прямой (сервер считает по береговой линии): один выбор из списка
 const SEA = [[300, 'до 300 м'], [500, 'до 500 м'], [1000, 'до 1 км'], [2000, 'до 2 км'], [3000, 'до 3 км']];
@@ -23,7 +24,7 @@ const OLD_AREAS = { c: 'd:Центральный', h: 'd:Хостинский', 
   m2: 's:Донская', m3: 's:Макаренко', m4: 's:Мамайка', m5: 's:Новый Сочи', m6: 's:Светлана', m7: 's:Завокзальный', m8: 's:Заречный', m9: 's:Бытха', m10: 's:Мацеста',
   m11: 's:Хоста', m12: 's:Кудепста', m13: 's:Курортный городок', m14: 's:Центр Адлера', m15: 's:Имеретинка', m16: 's:Дагомыс', m17: 's:Лазаревское', m18: 's:Лоо',
   'mkr:Сочи Центр': 'z:center' };
-// «С клиентом»: цены с комиссией агента сверху (как в PDF клиенту — до 10 000 ₽), без источников, заметок, телефонов и «рукопожатий»
+// «С клиентом»: цены с комиссией агента сверху (как в PDF клиенту — до 10 000 ₽), без источников, заметок, телефонов и «Контакт»
 let client = store.get('client', { on: false, cm: 3 });
 const cmOn = () => client.on ? +client.cm || 0 : 0;
 const priceOf = v => cmOn() ? Math.round(v * (1 + cmOn() / 100) / 10000) * 10000 : v;
@@ -34,16 +35,20 @@ let me = null, meta = null;
 let f = store.get('f2', {}), text = store.get('text', ''), sort = store.get('sort', 'new');
 const mobile = () => innerWidth <= 760;
 let lays = store.get('lay', {}), fclosed = store.get('fclosed', false);   // вид выдачи — свой для телефона и компьютера
-const lay = () => lays[mobile() ? 'm' : 'd'] ?? (mobile() ? '3' : '6');
-let favMode = null, beforeFav = null;   // «Избранное» / «Контакт и рукопожатие» не затирают сохранённые фильтры
+let fside = store.get('fside', false);   // фильтр слева колонкой (на компьютере) или сверху
+// вид 3 или 6 объектов на экране, по умолчанию 3 (прежний «1» и сохранённые до v4.3 значения — снова 3)
+const fixLays = l => l && l.v === 3 ? l : { v: 3 };
+lays = fixLays(lays);
+const lay = () => ['3', '6'].includes(lays[mobile() ? 'm' : 'd']) ? lays[mobile() ? 'm' : 'd'] : '3';
+let favMode = null, beforeFav = null;   // «Избранное» / «Контакт» не затирают сохранённые фильтры
 let sel = new Set(store.get('sel', []));
 let offset = 0, total = 0, busy = false, view = 'list', items = new Map();
 
 // настройки — в браузере и на сервере (в Telegram браузерное хранилище бывает пустым при каждом запуске)
 function savePrefs() {
-  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed); store.set('client', client);
+  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed); store.set('fside', fside); store.set('client', client);
   clearTimeout(savePrefs.t);
-  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, client } }).catch(() => {}), 700);
+  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, fside, client } }).catch(() => {}), 700);
 }
 
 async function call(action, extra = {}) {
@@ -119,8 +124,9 @@ async function start() {
     if (p.f && typeof p.f === 'object') f = p.f;
     if (typeof p.text === 'string') text = p.text;
     if (typeof p.sort === 'string') sort = p.sort;
-    if (p.lay && typeof p.lay === 'object') lays = p.lay;
+    if (p.lay && typeof p.lay === 'object') lays = fixLays(p.lay);
     if (typeof p.fclosed === 'boolean') fclosed = p.fclosed;
+    if (typeof p.fside === 'boolean') fside = p.fside;
     if (p.client && typeof p.client === 'object') client = { on: !!p.client.on, cm: +p.client.cm || 0 };
   }
   if (Array.isArray(f.fin)) {   // старые сохранённые «дизайнерский / евро / современный» → «С ремонтом»
@@ -148,9 +154,10 @@ async function start() {
   document.querySelectorAll('[data-go="favs"]').forEach(b => b.hidden = !meta.features.favorites);
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
+  $('#go-rk').hidden = !me.can_rk;   // «Реклама» — только тем, кому включил администратор
   clientUi();
   $('#q').value = text; $('#sort').value = sort;
-  $('#filters').classList.toggle('closed', mobile() || fclosed);
+  openF(!mobile() && !fclosed); sideUi();
   renderFilters(); selbar(); applyLay();
   search();
   if (location.hash === '#admin' && me.role === 'admin') admin();   // прямая ссылка на админ-панель: …/#admin
@@ -172,10 +179,13 @@ function renderFilters() {
   $('#f-fin').insertAdjacentHTML('beforeend', `<button type="button" class="chip${f.m ? ' on' : ''}" data-k="m" ${modernOn ? '' : 'disabled title="Скоро: дизайнерский ремонт будет определяться по фото"'}>Дизайнерский${modernOn ? '' : '<small>скоро</small>'}</button>`);
   const finClick = $('#f-fin').onclick;
   $('#f-fin').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return finClick(e); if (!b.disabled) { f.m = !f.m || undefined; renderFilters(); } };
-  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Рукопожатие']]
+  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Контакт']]
     .filter(([k]) => (k !== 'fav' || meta.features.favorites) && (k !== 'deal' || (meta.features.deals && !client.on)));
   $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}">${t}</button>`).join('');
   $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; renderFilters(); };
+  // объявления собственников, взятые напрямую с площадок: галочка снята — таких не показывать (база собственников — всегда)
+  $('#f-ext').innerHTML = EXT.map(([k, t]) => `<button type="button" class="chip${arr('noext').includes(k) ? '' : ' on'}" data-v="${k}">${arr('noext').includes(k) ? '' : '✓ '}${t}</button>`).join('');
+  $('#f-ext').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; toggleIn('noext', b.dataset.v); renderFilters(); };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) $('#' + k).value = f[k] ?? '';
   $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl;
   for (const k of ['pmin', 'pmax']) $('#' + k).value = f[k] ? dots(Math.round(f[k] * 1e6)) : '';
@@ -206,8 +216,18 @@ for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).add
 for (const k of ['nf', 'nl', 'sea']) $('#' + k).addEventListener('change', readInputs);
 $('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
-function openF(on) { $('#filters').classList.toggle('closed', !on); document.body.classList.toggle('fopen', on && mobile()); }
+function openF(on) {
+  $('#filters').classList.toggle('closed', !on); document.body.classList.toggle('fopen', on && mobile());
+  document.body.classList.toggle('fshown', on); map?.invalidateSize();
+}
 $('#toggle-f').onclick = () => { const on = $('#filters').classList.contains('closed'); openF(on); fclosed = !on; if (!mobile()) savePrefs(); };
+// фильтр колонкой слева или блоком сверху (на компьютере; на телефоне — всегда окно на весь экран)
+function sideUi() {
+  document.body.classList.toggle('fside', fside);
+  $('#f-side').textContent = fside ? '⇧ Фильтр сверху' : '⇦ Фильтр слева';
+  setTimeout(() => map?.invalidateSize(), 50);
+}
+$('#f-side').onclick = () => { fside = !fside; sideUi(); savePrefs(); };
 $('#f-close').onclick = () => { readInputs(); openF(false); };
 $('#apply').onclick = () => { readInputs(); if (mobile()) openF(false); changed(); };
 $('#reset').onclick = () => { f = {}; text = ''; $('#q').value = ''; leaveFav(); renderFilters(); changed(); };
@@ -229,7 +249,7 @@ function applyLay() {
   $('#list').classList.remove('l1', 'l3', 'l6'); $('#list').classList.add('l' + l);
   document.querySelectorAll('[data-lay]').forEach(b => b.classList.toggle('on', b.dataset.lay === l));
 }
-document.querySelectorAll('[data-lay]').forEach(b => b.onclick = () => { lays = { ...lays, [mobile() ? 'm' : 'd']: b.dataset.lay }; applyLay(); savePrefs(); });
+document.querySelectorAll('[data-lay]').forEach(b => b.onclick = () => { lays = { ...lays, v: 3, [mobile() ? 'm' : 'd']: b.dataset.lay }; applyLay(); savePrefs(); });
 
 // окна: районы, ЖК
 function sheet(title, html, wide = false) {
@@ -337,7 +357,7 @@ function gallery(x) {
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
     ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
-    ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт и рукопожатие" title="Контакт и рукопожатие — договорились с собственником">🤝</button>` : ''}
+    ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
   </div>`;
 }
@@ -371,13 +391,15 @@ function card(x) {
       <div class="tags">${tags(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${x.descr ? `<div class="descr" data-d><p>${esc(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
-      ${x.src?.length ? `<div class="src agent-only">Источники: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : ''}
+      ${srcHtml(x)}
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
     </div>
   </article>`;
 }
+// источник объявления ссылкой (Авито, Циан, ДомКлик…) — только агенту: в режиме «С клиентом» скрыт
+const srcHtml = x => x.src?.length ? `<div class="src agent-only">Источник: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : '';
 function phoneBox(p, owner) {
   const d = p.replace(/\D/g, ''), t = encodeURIComponent(MSG);
   return `<div class="phone"><div><a class="num" href="tel:${esc(p)}">${esc(p)}</a>${owner ? ` — ${esc(owner)}` : ''} <small>может быть подменный</small></div>
@@ -411,13 +433,14 @@ async function onCard(e, cardEl) {
     call('fav', { num, on }).catch(err => toast(err.message));
     return;
   }
-  if (t.closest('[data-deal]')) {   // «Контакт и рукопожатие»: с собственником договорились — объект в своём разделе
+  if (t.closest('[data-deal]')) {   // «Контакт»: с собственником договорились — объект в своём разделе
     const b = t.closest('[data-deal]'), on = !b.classList.contains('on');
     b.classList.toggle('on', on); if (x) x.deal = on;
-    call('deal', { num, on }).then(() => toast(on ? 'В разделе «Контакт и рукопожатие»' : 'Убрано из «Контакт и рукопожатие»')).catch(err => toast(err.message));
+    call('deal', { num, on }).then(() => toast(on ? 'В разделе «Контакт»' : 'Убрано из раздела «Контакт»')).catch(err => toast(err.message));
     return;
   }
-  if (t.matches('.strip img')) { openViewer(t.closest('.strip'), +t.dataset.k); markSeen(cardEl, num); return; }
+  // фото в карточке — объявление целиком, как на Авито: большое фото, лента миниатюр, рядом цена и описание
+  if (t.matches('.strip img')) { openItem(num, +t.dataset.k); markSeen(cardEl, num); return; }
   if (t.closest('[data-open]')) { openItem(num); return; }
   if (t.closest('summary')) { markSeen(cardEl, num); return; }
   if (t.closest('[data-copy]')) { copy(t.closest('[data-copy]').dataset.copy, 'Номер скопирован'); return; }
@@ -430,7 +453,8 @@ async function onCard(e, cardEl) {
     const p = await call('phone', { num });
     if (!p.phone) throw new Error(p.error || 'номер не найден');
     b.outerHTML = phoneBox(p.phone, p.owner);
-    if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; }
+    if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; if (p.src?.length) x.src = p.src; }
+    if (p.src?.length) { cardEl.querySelector('.src')?.remove(); box.insertAdjacentHTML('beforebegin', srcHtml({ src: p.src })); }
     markSeen(cardEl, num);
   } catch (err) {
     if (err.gate) return showLogin(err.gate);
@@ -466,39 +490,100 @@ function rerender(num) {
   if (el && x) el.outerHTML = card(x);
 }
 
-// объект целиком (карта, заголовок)
-async function openItem(num) {
+// объявление целиком — как на Авито: большое фото (не на весь экран) и лента миниатюр, рядом цена, адрес, телефон и описание
+async function openItem(num, k = 0) {
   let x = items.get(num);
-  try { const r = await call('item', { num }); x = r.item; items.set(num, x); } catch (e) { if (e.gate) return showLogin(e.gate); if (!x) return toast(e.message); }
-  sheet(`№ ${num}`, `<div class="list l1">${card({ ...x, seen: false }).replace('class="descr"', 'class="descr open"').replace('<span>Развернуть описание</span>', '<span>Свернуть</span>')}</div>`, true);
-  const el = $('#sheet-body .card');
-  el.addEventListener('click', e => onCard(e, el));
-  document.querySelector(`#list .card[data-num="${num}"]`) && markSeen(document.querySelector(`#list .card[data-num="${num}"]`), num);
+  if (!x?.descr) {   // с карты объявления может не быть в списке
+    if (!x) sheet(`№ ${num}`, '<p class="muted">Загрузка…</p>', true);
+    try { const r = await call('item', { num }); x = r.item; items.set(num, x); } catch (e) { if (e.gate) return showLogin(e.gate); if (!x) return toast(e.message); }
+  }
+  sheet(`№ ${num}`, itemView(x, k), true);
+  const el = $('#sheet-body .itemv');
+  el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
+  el.addEventListener('click', e => {
+    const t = e.target, n = x.web_photos || 0;
+    const th = t.closest('[data-th]'), st = t.closest('[data-step]');
+    if (th || st) { ivShow(el, x, th ? +th.dataset.th : (+el.dataset.k + +st.dataset.step + n) % n); return; }
+    if (t.matches('[data-big]')) { openViewer(Array.from({ length: n }, (_, i) => photoUrl(x, i)), +el.dataset.k); return; }
+    onCard(e, el);
+  });
+  const inList = document.querySelector(`#list .card[data-num="${num}"]`);
+  if (inList) markSeen(inList, num);
+}
+function itemView(x, k) {
+  const n = x.web_photos || 0, price = x.price ? priceOf(x.price) : 0;
+  const ppm = price && x.area ? `${Math.round(price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
+  const zk = x.zk ?? zkName(x.complex);
+  const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
+  const date = x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
+  k = Math.min(Math.max(0, k), Math.max(0, n - 1));
+  return `<article class="card itemv" data-num="${x.num}" data-k="${k}">
+    <div class="iv-media">
+      <div class="iv-main">${n ? `<div class="vc"><img src="${esc(photoUrl(x, k))}" alt="" data-big title="Открыть на весь экран"></div>` : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}
+        ${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
+        ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
+        ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}
+        ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
+        ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
+        ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
+      </div>
+      ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
+    </div>
+    <div class="iv-info">
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      ${zk ? `<div class="zk">${esc(zk)}</div>` : ''}
+      <div class="iv-title">${esc(what(x))}</div>
+      <div class="iv-addr">${esc(where)}</div>
+      <div class="tags">${tags(x)}</div>
+      <div class="meta">Добавлено ${date} · № ${x.num}</div>
+      ${srcHtml(x)}
+      ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
+      <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
+        ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
+      ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
+    </div>
+  </article>`;
+}
+// другое фото в окне объявления: большое фото, счётчик, выделенная миниатюра
+function ivShow(el, x, k) {
+  const n = x.web_photos || 0; if (!n) return;
+  el.dataset.k = k;
+  const im = el.querySelector('[data-big]');
+  im.addEventListener('load', () => fitCrop(im), { once: true });
+  im.src = photoUrl(x, k);
+  el.querySelector('.iv-count').textContent = `${k + 1} / ${n}`;
+  el.querySelectorAll('.iv-th').forEach((b, i) => b.classList.toggle('on', i === k));
+  el.querySelector('.iv-th.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
 
-// ---------- фото на весь экран ----------
-function openViewer(strip, i) {
-  const v = $('#viewer'), s = v.querySelector('.viewer-strip'), imgs = [...strip.querySelectorAll('img')];
-  s.innerHTML = imgs.map(im => `<div class="vs"><div class="vc"><img src="${esc(im.src)}" alt=""></div></div>`).join('');
+// ---------- фото на весь экран (из окна объявления — по нажатию на большое фото) ----------
+function openViewer(urls, i) {
+  const v = $('#viewer'), s = v.querySelector('.viewer-strip');
+  s.innerHTML = urls.map(u => `<div class="vs"><div class="vc"><img src="${esc(u)}" alt=""></div></div>`).join('');
   v.hidden = false;
   s.querySelectorAll('img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
   s.scrollLeft = i * s.clientWidth;
   const count = () => {
     const k = Math.round(s.scrollLeft / s.clientWidth);
-    v.querySelector('.viewer-count').textContent = `${k + 1} / ${imgs.length}`;
-    v.querySelector('.viewer-nav.l').hidden = k <= 0; v.querySelector('.viewer-nav.r').hidden = k >= imgs.length - 1;
+    v.querySelector('.viewer-count').textContent = `${k + 1} / ${urls.length}`;
+    v.querySelector('.viewer-nav.l').hidden = k <= 0; v.querySelector('.viewer-nav.r').hidden = k >= urls.length - 1;
   };
   s.onscroll = count; count();
   tg?.BackButton.show();
 }
-// фото на весь экран без нижней 1/20 (водяные знаки): рамка с пропорцией обрезанного фото, лишнее скрыто
+// фото без нижней 1/20 (водяные знаки): рамка с пропорцией обрезанного фото, лишнее скрыто
 function fitCrop(im) {
-  const box = im.closest('.vs'), r = im.naturalWidth / (im.naturalHeight * 0.95);
+  const box = im.closest('.vs, .iv-main, .iv-th'), r = im.naturalWidth / (im.naturalHeight * 0.95);
   if (!box || !r || !box.clientWidth) return;
-  const W = box.clientWidth, H = box.clientHeight, w = W / H > r ? H * r : W;
+  const W = box.clientWidth, H = box.clientHeight;
+  if (box.classList.contains('iv-th')) {   // миниатюра — заполняет квадрат целиком
+    const w = W / H > r ? W : H * r;
+    return Object.assign(im.parentElement.style, { width: `${w}px`, height: `${w / r}px` });
+  }
+  const w = W / H > r ? H * r : W;
   Object.assign(im.parentElement.style, { width: `${w}px`, height: `${w / r}px` });
 }
-addEventListener('resize', () => !$('#viewer').hidden && document.querySelectorAll('.viewer-strip img').forEach(fitCrop));
+addEventListener('resize', () => document.querySelectorAll($('#viewer').hidden ? '.iv-main img' : '.viewer-strip img').forEach(fitCrop));
 function closeViewer() { $('#viewer').hidden = true; if ($('#sheet').hidden) tg?.BackButton.hide(); }
 const viewerStep = d => { const s = $('.viewer-strip'); s.scrollBy({ left: s.clientWidth * d, behavior: 'smooth' }); };
 $('#viewer').addEventListener('click', e => {
@@ -507,8 +592,11 @@ $('#viewer').addEventListener('click', e => {
   if (e.target.closest('.viewer-close') || e.target.tagName !== 'IMG') closeViewer();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeViewer(); closeSheet(); }
-  if (!$('#viewer').hidden && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) viewerStep(e.key === 'ArrowRight' ? 1 : -1);
+  if (e.key === 'Escape') { $('#viewer').hidden ? closeSheet() : closeViewer(); }
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  if (!$('#viewer').hidden) return viewerStep(e.key === 'ArrowRight' ? 1 : -1);
+  const iv = !$('#sheet').hidden && !e.target.closest?.('input, textarea') && $('#sheet-body .itemv [data-step]');
+  if (iv) iv.parentElement.querySelector(`[data-step="${e.key === 'ArrowRight' ? 1 : -1}"]`).click();
 });
 
 // ---------- подборка ----------
@@ -528,7 +616,7 @@ $('#sel-make').onclick = () => {
     <label class="field">Ваше имя в PDF<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон в PDF<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома в PDF клиенту</span></label>
-    <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}). Фото и описания — из нашей базы, источники не указываются. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</div>
+    <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}). В PDF агенту — ссылка на источник объявления, в PDF клиенту источников нет. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</div>
     <p class="hint" id="s-prog"></p><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
@@ -652,9 +740,9 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 });
 
 // ---------- меню ----------
-// «Избранное» и «Контакт и рукопожатие» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
+// «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
 const LISTS = { favs: ['fav', 'Показано избранное — нажмите «★ Избранное» ещё раз, чтобы вернуться к поиску'],
-  deals: ['deal', 'Показаны объекты с контактом и рукопожатием — нажмите на раздел ещё раз, чтобы вернуться к поиску'] };
+  deals: ['deal', 'Показаны объекты из раздела «Контакт» — нажмите на раздел ещё раз, чтобы вернуться к поиску'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
   if (LISTS[g]) {
@@ -666,6 +754,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   }
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
+  if (g === 'rk') showReklama();
   if (g === 'admin') admin();
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
@@ -680,7 +769,7 @@ function clientUi() {
 }
 function clientSheet() {
   sheet('Показ клиенту', `
-    <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «рукопожатия» скрыты: экран можно показывать клиенту.</p>
+    <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «Контакт» скрыты: экран можно показывать клиенту.</p>
     <label class="field">Комиссия сверху цены: <b id="c-cm-v">${client.cm}%</b><input id="c-cm" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>
     <div class="hint">Цена округляется до 10 000 ₽, как в PDF клиенту. Фильтр цены тоже с комиссией: «до 15 млн» — до 15 млн вместе с ней.</div>
     <div class="sheet-foot">${client.on ? '<button class="btn ghost" id="c-off">Выключить</button>' : '<button class="btn ghost" data-close>Отмена</button>'}
@@ -688,15 +777,41 @@ function clientSheet() {
   $('#c-cm').oninput = () => $('#c-cm-v').textContent = `${$('#c-cm').value}%`;
   const set = on => {
     client = { on, cm: +$('#c-cm').value };
-    if (on && favMode === 'deals') { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); }   // список «рукопожатий» клиенту не показываем
+    if (on && favMode === 'deals') { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); }   // список «Контакт» клиенту не показываем
     savePrefs(); clientUi(); closeSheet(); renderFilters(); changed();
   };
   $('#c-on').onclick = () => set(true);
   $('#c-off')?.addEventListener('click', () => set(false));
 }
 
+// ---------- «Реклама»: перенос объектов в черновики рекламы (вкладку включает администратор участнику) ----------
+const RKST = { new: 'в очереди', work: 'переношу', done: 'черновик создан', dup: 'уже есть (дубль)', error: 'ошибка' };
+async function showReklama() {
+  sheet('Реклама', '<p class="muted">Загрузка…</p>', true);
+  let r;
+  try { r = await call('rk_list'); } catch (e) { if (e.gate) return showLogin(e.gate); $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const nums = [...sel];
+  $('#sheet-body').innerHTML = `
+    <p>Объекты переносятся в <b>черновики</b> рекламного кабинета: фото, адрес, цена, описание (без фраз «звоните через Авито» и т. п.). Сами объявления не публикуются — проверяете и публикуете вы.</p>
+    <div class="hint">Отметьте объекты галочкой «В подборку» в списке и добавьте их сюда. Повторно один объект в очередь не встаёт.</div>
+    <div class="sheet-foot"><span class="muted">Отмечено: ${nums.length}</span><button class="btn primary" id="rk-add" ${nums.length ? '' : 'disabled'}>Добавить отмеченные в очередь</button></div>
+    <div class="group">Очередь и черновики (${r.items.length})</div>
+    ${r.items.length ? `<div class="ascroll"><table class="atable"><thead><tr><th>№</th><th>Объект</th><th>Статус</th><th>Добавлен</th><th></th></tr></thead><tbody>
+      ${r.items.map(j => `<tr><td>${j.num}</td><td>${esc(j.what || '')}</td><td>${esc(RKST[j.status] ?? j.status)}${j.error ? `<br><small class="err">${esc(j.error)}</small>` : ''}</td>
+        <td>${new Date(j.created_at).toLocaleString('ru-RU')}</td><td>${j.status === 'new' || j.status === 'error' ? `<button class="btn ghost" data-rkdel="${j.num}">Убрать</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="muted">Очередь пуста.</p>'}
+    <p class="hint">${r.worker ? '' : 'Вход в рекламный кабинет и автоматический перенос подключаются следующим шагом — пока объекты ждут в очереди.'}</p>`;
+  $('#rk-add').onclick = async () => {
+    try { const x = await call('rk_add', { nums }); toast(`В очередь добавлено: ${x.added}`); showReklama(); } catch (e) { toast(e.message); }
+  };
+  $('#sheet-body').onclick = async e => {
+    const d = e.target.closest('[data-rkdel]'); if (!d) return;
+    try { await call('rk_del', { num: +d.dataset.rkdel }); showReklama(); } catch (err) { toast(err.message); }
+  };
+}
+
 // ---------- админ-панель ----------
-const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт и рукопожатие', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
+const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
   modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
 const LIM = { phone_hour: 'Телефонов в час', phone_day: 'Телефонов в сутки', sel_hour: 'Подборок в час', max_sessions: 'Одновременных входов', access_days: 'Дней доступа по умолчанию' };
 async function admin() {
@@ -707,7 +822,7 @@ async function admin() {
   const pend = r.users.filter(u => u.status === 'pending');
   const row = u => `<tr data-login="${esc(u.login)}">
     <td><b>${esc(u.name || '')}</b><br><small>${esc(u.login)}${u.tg_id ? ' · Telegram' : ''}</small><br><small>${esc([u.phone, u.email, u.company].filter(Boolean).join(' · '))}</small></td>
-    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}</td>
+    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${u.can_rk ? '<br><small>📣 реклама</small>' : ''}</td>
     <td>${u.role === 'admin' ? '∞' : day(u.expires_at)}<br><small class="muted">вход: ${day(u.last_login)}</small></td>
     <td>${u.phones_day} тел. / ${u.pdfs_day} PDF<br><small class="muted">входов: ${u.sessions}</small></td>
     <td><input data-lim="lim_phone_hour" placeholder="${r.limits.phone_hour}" value="${u.lim_phone_hour ?? ''}" title="телефонов в час">
@@ -720,6 +835,7 @@ async function admin() {
       <button class="btn ghost" data-a="lims">Сохранить лимиты</button>
       <button class="btn ghost" data-a="pass">Новый пароль</button>
       <button class="btn ghost" data-a="kick">Выкинуть входы</button>
+      <button class="btn ghost" data-a="rk">${u.can_rk ? 'Выключить «Рекламу»' : 'Включить «Рекламу»'}</button>
       <button class="btn ghost" data-a="role">${u.role === 'admin' ? 'Снять админа' : 'Сделать админом'}</button>
       <input type="date" data-a="date" value="${u.expires_at ? u.expires_at.slice(0, 10) : ''}" title="доступ до">
     </td></tr>`;
@@ -767,6 +883,7 @@ async function admin() {
     if (a === 'plus') save(login, { add_days: 30 });
     if (a === 'off' && confirm(`Отключить ${login}?`)) save(login, { status: 'off' });
     if (a === 'kick') save(login, {}, true);
+    if (a === 'rk') save(login, { can_rk: b.textContent.startsWith('Включить') });
     if (a === 'role') save(login, { role: b.textContent.startsWith('Снять') ? 'user' : 'admin' });
     if (a === 'pass') { const p = prompt(`Новый пароль для ${login} (от 6 символов):`); if (p) save(login, { password: p }); }
     if (a === 'lims') save(login, Object.fromEntries([...tr.querySelectorAll('[data-lim]')].map(i => [i.dataset.lim, i.value])));

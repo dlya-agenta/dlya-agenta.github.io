@@ -118,7 +118,7 @@ button, .chip, label, input, select, a, summary { touch-action: manipulation; -w
 .list.l6 .card .tag:not(.ok) { display: none; }
 .list.l6 .card .addr { -webkit-line-clamp: 1; min-height: 0; }
 .list.l6 .card .actions { padding-top: 4px; }
-.list.l6 .gal { aspect-ratio: 16 / 9; }
+.list.l6 .gal { aspect-ratio: 4 / 3; }   /* миниатюры как у Авито: 4:3, на телефоне — квадрат */
 /* «по одному»: крупно, фото слева */
 .list.l1 { grid-template-columns: 1fr; max-width: 1100px; margin: 0 auto; }
 @media (min-width: 761px) {
@@ -127,8 +127,16 @@ button, .chip, label, input, select, a, summary { touch-action: manipulation; -w
   .list.l1 .card .body { padding: 16px 18px; }
   .list.l1 .card .price b { font-size: 26px; }
 }
-@media (max-width: 1100px) and (min-width: 721px) { .list.l3, .list.l6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .list.l3, .list.l1 { grid-template-columns: 1fr; } .list.l6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* «6 на экране» — миниатюры: 6 в ряд на широком экране, меньше — на узком */
+.list.l6 { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1240px) { .list.l6 { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (max-width: 1100px) and (min-width: 721px) { .list.l3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .list.l6 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) and (min-width: 721px) { .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.list.l6 .card .price b { font-size: 16.5px; } .list.l6 .card .price small, .list.l6 .card .src, .list.l6 .card [data-note] { display: none; }
+.list.l6 .card .title { font-size: 13.5px; } .list.l6 .card .addr { font-size: 12.5px; } .list.l6 .card .zk { -webkit-line-clamp: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list.l6 .pick { font-size: 11px; padding: 3px 6px; } .list.l6 .fav, .list.l6 .deal { width: 30px; height: 30px; font-size: 15px; line-height: 30px; top: 6px; } .list.l6 .fav { right: 6px; } .list.l6 .deal { right: 40px; }
+.list.l6 .card .actions .btn { padding: 6px 9px; font-size: 12.5px; }
+@media (max-width: 720px) { .list.l3, .list.l1 { grid-template-columns: 1fr; } .list.l6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .list.l6 .gal { aspect-ratio: 1 / 1; }
   .list.l6 .card .body { padding: 7px 8px 9px; } .list.l6 .card .price b { font-size: 15px; } .list.l6 .card .price small, .list.l6 .card .addr { font-size: 12px; }
   .list.l6 .card .title { font-size: 13px; } .list.l6 .card .actions .btn { padding: 6px 8px; font-size: 12.5px; } .list.l6 .pick { font-size: 11px; padding: 3px 6px; } }
 .card { background: var(--card); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); position: relative; }
@@ -388,3 +396,56 @@ body.client .agent-only { display: none !important; }
   .lbl-short { display: inline; }
 }
 @media (max-width: 720px) { .list.l6 .fav, .list.l6 .deal { width: 30px; height: 30px; font-size: 15px; line-height: 30px; top: 6px; } .list.l6 .fav { right: 6px; } .list.l6 .deal { right: 40px; } }
+
+/* v4.3: окно объявления как на Авито — слева большое фото (не на весь экран) и миниатюры, справа цена, телефон и описание */
+.sheet-body .card.itemv { flex-direction: row; align-items: flex-start; gap: 22px; box-shadow: none; overflow: visible; border-radius: 0; background: none; }
+.itemv .iv-media { flex: 0 0 58%; min-width: 0; display: grid; gap: 8px; position: sticky; top: 0; }
+.iv-main { position: relative; height: min(62vh, 520px); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--text) 6%, var(--card)); }
+.iv-main .vc { overflow: hidden; max-width: 100%; max-height: 100%; }   /* размер задаёт app.js: фото без нижней 1/20 */
+.iv-main img { display: block; width: 100%; height: auto; cursor: zoom-in; }
+.iv-main .none { color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
+.iv-main .nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255,255,255,.9); color: #111; font-size: 24px; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.iv-main .nav.l { left: 10px; } .iv-main .nav.r { right: 10px; }
+.iv-count { position: absolute; right: 10px; bottom: 10px; background: rgba(15,18,24,.62); color: #fff; font-size: 12.5px; border-radius: 6px; padding: 2px 8px; }
+.iv-thumbs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 3px; }
+.iv-th { flex: none; width: 76px; height: 57px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; opacity: .72;
+  display: flex; align-items: flex-start; justify-content: center; background: color-mix(in srgb, var(--text) 6%, var(--card)); }
+.iv-th.on { border-color: var(--accent); opacity: 1; }
+.iv-th .vc { display: block; flex: none; overflow: hidden; }
+.iv-th img { display: block; width: 100%; height: auto; }
+.itemv .iv-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.iv-info .price b { font-size: 28px; }
+.iv-title { font-weight: 700; font-size: 18px; line-height: 1.3; }
+.iv-addr { color: var(--muted); font-size: 14.5px; line-height: 1.35; }
+.iv-info .actions { margin-top: 4px; }
+.iv-descr { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.iv-h { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+.iv-descr p { margin: 0; white-space: pre-line; font-size: 14.5px; line-height: 1.55; }
+@media (max-width: 760px) {
+  .sheet-body .card.itemv { flex-direction: column; gap: 12px; }
+  .itemv .iv-media { flex: none; width: 100%; position: static; }
+  .iv-main { height: auto; aspect-ratio: 4 / 3; }
+  .iv-th { width: 64px; height: 48px; }
+  .iv-info .price b { font-size: 24px; }
+}
+
+/* фильтр колонкой слева (переключатель в самом фильтре; только на широком экране) */
+.fside-row { display: none; }
+.fnote { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+@media (min-width: 1000px) {
+  .fside-row { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
+  body.fside.fshown main { max-width: 1480px; display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  body.fside.fshown main > * { grid-column: 2; }
+  body.fside.fshown main > .search { grid-column: 1 / -1; }
+  body.fside.fshown #filters { grid-column: 1; grid-row: 2 / span 30; position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding: 14px 14px 0; }
+  body.fside.fshown .fside-row { justify-content: flex-start; margin: 0 0 10px; }
+  body.fside.fshown .fcols { grid-template-columns: 1fr; gap: 14px; }
+  body.fside.fshown .fcol { gap: 14px; }
+  body.fside.fshown .ffoot { position: sticky; bottom: 0; z-index: 1; background: var(--card); margin: 14px -14px 0; padding: 10px 14px 12px; }
+  body.fside.fshown .list.l6 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* в миниатюрах «Новое» — внизу справа, чтобы не наезжать на «В подборку» и звёздочку */
+.list.l6 .newmark { top: auto; bottom: 6px; left: auto; right: 6px; transform: none; font-size: 10.5px; padding: 1px 6px; }
