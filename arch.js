@@ -104,10 +104,14 @@ function renderFilters() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) $('#' + k).value = af[k] ?? '';
   for (const k of ['pmin', 'pmax']) $('#' + k).value = af[k] ? dots(Math.round(af[k] * 1e6)) : '';
   $('#nf').checked = !!af.nf;
+  // улица или область карты — главнее районов (сервер районы тогда не учитывает)
+  $('#f-place').innerHTML = [af.st && `<button type="button" class="chip on" data-x="st">📍 ${esc(af.stl || 'улица')} ✕</button>`,
+    af.geo && '<button type="button" class="chip on" data-x="geo">▭ Область карты ✕</button>'].filter(Boolean).join('');
   const names = areaLabel(), oldD = arr('d').length && !arr('mk').length;
   $('#open-areas').textContent = names.length ? `${names.slice(0, 2).join(', ')}${names.length > 2 ? ` +${names.length - 2}` : ''}`
     : oldD ? 'Районы из основного поиска' : 'Весь Сочи';
   $('#open-areas').classList.toggle('on', names.length > 0 || oldD);
+  if ((af.st || af.geo) && (names.length || oldD)) $('#open-areas').textContent += ' (не учитывается)';
   const n = Object.keys(af).filter(k => af[k] !== undefined && !(Array.isArray(af[k]) && !af[k].length)).length;
   $('#fcount').textContent = n ? `(${n})` : '';
 }
@@ -122,6 +126,20 @@ for (const k of ['pmin', 'pmax']) {
 }
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', readInputs);
 $('#nf').addEventListener('change', readInputs);
+$('#f-place').onclick = e => { const b = e.target.closest('[data-x]'); if (!b) return; if (b.dataset.x === 'st') { delete af.st; delete af.house; delete af.stl; } else delete af.geo; changed(); };
+// улица и дом: источник сам разбирает адрес (улица в Сочи + номер дома)
+async function addrGo() {
+  const v = $('#addr').value.trim(); if (!v) return;
+  $('#addr-go').disabled = true;
+  try {
+    const r = await callRetry('arch_geo', { text: v });
+    af.st = r.st; af.house = r.house || undefined; af.stl = r.label; delete af.geo;
+    $('#addr').value = ''; if (mobile()) openF(false); changed();
+  } catch (e) { toast(e.message, 4000); }
+  finally { $('#addr-go').disabled = false; }
+}
+$('#addr-go').onclick = addrGo;
+$('#addr').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addrGo(); } });
 function openF(on) { $('#filters').classList.toggle('closed', !on); document.body.classList.toggle('fopen', on && mobile()); map?.invalidateSize(); }
 $('#toggle-f').onclick = () => openF($('#filters').classList.contains('closed'));
 $('#f-close').onclick = () => { readInputs(); openF(false); };
@@ -331,7 +349,7 @@ document.addEventListener('keydown', e => {
   $(`#ipage [data-step="${e.key === 'ArrowRight' ? 1 : -1}"]`)?.click();
 });
 
-// ---------- карта: до 480 последних объявлений по фильтру, частями по 12 (по 4 части сразу) — точки появляются по мере загрузки ----------
+// ---------- карта: до 1200 последних объявлений по фильтру, частями по 120 (по 3 части сразу) — точки появляются по мере загрузки ----------
 let map = null, cluster = null, mapPts = [], mlShown = 60, mapGen = 0;
 const ptRow = ([t, lat, lng, price, rooms, kind, area, floor, floors, street, pic, gone, created_at, sub, type_name, land, reason]) =>
   ({ t, lat, lng, price, rooms, kind, area, floor, floors, street, pic, gone: !!gone, created_at, sub, type_name, land, reason });
@@ -366,22 +384,22 @@ async function loadMap() {
     if (gen !== mapGen) return;
     const ps = r.points.map((x, k) => ({ ...ptRow(x), i: mapPts.length + k }));
     mapPts.push(...ps); cluster.addLayers(ps.map(marker));
-    if (!fitted && mapPts.length) { fitted = true; map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] }); }
+    if (!fitted && mapPts.length && !af.geo) { fitted = true; map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] }); }
   };
   const head = () => `На карте: ${mapPts.length.toLocaleString('ru-RU')} из ${info.count.toLocaleString('ru-RU')}` +
-    (done < info.pages ? ` · загружаю… ${Math.round(done / info.pages * 100)}%` : info.count > mapPts.length + failed * 12 ? ' (последние 480 — уточните район или цену, чтобы увидеть все)' : '') +
+    (done < info.parts ? ` · загружаю… ${Math.round(done / info.parts * 100)}%` : info.count > 1200 ? ' (последние 1200 — уточните район, область или цену, чтобы увидеть все)' : '') +
     (failed ? ` · не загрузилось частей: ${failed}` : '');
   $('#status').textContent = 'Загружаю точки архива…';
   try {
     info = await callRetry('arch_map', { f: af, text, page: 1 }); done = 1; add(info);
     if (gen !== mapGen) return;
     showStatus(info, head());
-    for (let p = 2; p <= info.pages; p += 4) {
-      await Promise.all(Array.from({ length: Math.min(4, info.pages - p + 1) }, (_, k) => callRetry('arch_map', { f: af, text, page: p + k })
+    for (let p = 2; p <= info.parts; p += 3) {
+      await Promise.all(Array.from({ length: Math.min(3, info.parts - p + 1) }, (_, k) => callRetry('arch_map', { f: af, text, page: p + k })
         .then(add, () => { failed++; }).finally(() => { done++; if (gen === mapGen) { showStatus(info, head()); mapList(); } })));
       if (gen !== mapGen) return;
     }
-    if (mapPts.length) map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] });
+    if (mapPts.length && !af.geo) map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] });
     showStatus(info, head()); mapList();
   } catch (e) { if (gen === mapGen) $('#status').textContent = `Ошибка карты: ${e.message}`; }
 }
@@ -401,6 +419,14 @@ function mapList(reset = true) {
     || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';
   $('#ml-more').hidden = list.length <= mlShown;
 }
+// «Искать в этой области»: видимая часть карты — прямоугольник [долгота, широта]; улица и районы тогда не учитываются
+$('#map-area').onclick = e => {
+  e.stopPropagation();
+  const b = map.getBounds(), r = v => Math.round(v * 1e5) / 1e5;
+  af.geo = [[r(b.getWest()), r(b.getSouth())], [r(b.getEast()), r(b.getSouth())], [r(b.getEast()), r(b.getNorth())], [r(b.getWest()), r(b.getNorth())]];
+  delete af.st; delete af.house; delete af.stl;
+  changed();
+};
 $('#ml-more').onclick = () => { mlShown += 60; mapList(false); };
 document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   view = b.dataset.view;

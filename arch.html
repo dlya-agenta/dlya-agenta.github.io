@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=4.5">
+<link rel="stylesheet" href="style.css?v=4.6">
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 </head>
 <body class="apage">
@@ -48,6 +48,10 @@
         <div class="fcol">
           <div class="fcell"><div class="fl">Сочи и районы</div>
             <div class="chips"><button type="button" class="chip pick-btn" id="open-areas">Весь Сочи</button></div></div>
+          <div class="fcell"><div class="fl">Улица и дом</div>
+            <div class="pair addr-row"><input id="addr" type="search" placeholder="Например: Депутатская 10" autocomplete="off" enterkeyhint="search"><button type="button" class="btn ghost" id="addr-go">Найти</button></div>
+            <div class="chips" id="f-place"></div>
+            <div class="fnote">Поиск по области — на карте: сдвиньте карту и нажмите «Искать в этой области».</div></div>
           <div class="fcell"><div class="fl">Этаж</div>
             <div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label></div></div>
@@ -76,7 +80,7 @@
 
     <section id="list" class="list arch-list"></section>
     <button id="more" class="btn more" hidden>Показать ещё</button>
-    <div id="map" class="map" hidden></div>
+    <div id="map" class="map" hidden><button type="button" class="btn primary map-area" id="map-area">🔍 Искать в этой области</button></div>
     <section id="maplist" class="maplist" hidden>
       <div class="ml-head"><b id="ml-count"></b></div>
       <div id="ml-items" class="ml-items"></div>
@@ -102,6 +106,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="arch.js?v=4.5.1" defer></script>
+<script src="arch.js?v=4.6" defer></script>
 </body>
 </html>
