@@ -325,7 +325,11 @@ function what(x) {
   return [t, x.area && `${x.area} м²`, x.floor && `${x.floor}/${x.floors ?? '?'} эт.`].filter(Boolean).join(' · ');
 }
 // фото 1–4 — JPEG в основном хранилище, 5–10 — WebP во втором (бесплатно по 1 ГБ)
-const photoUrl = (x, k) => k < 4 || !meta.media ? `${meta.photos}/${x.num}/${k}.jpg` : `${meta.media}/${x.num}/${k}.webp`;
+// фото ещё не скачаны в своё хранилище — по ссылкам объявления (pics; на карте — ph строкой)
+// схема 3 (web_photos_v = 3, на карте ph = 3): все фото — JPEG во втором проекте
+const photoUrl = (x, k) => x.pics ? x.pics[k] : typeof x.ph === 'string' ? x.ph : x.web_photos_v === 3 || x.ph === 3 ? `${meta.media}/${x.num}/${k}.jpg`
+  : k < 4 || !meta.media ? `${meta.photos}/${x.num}/${k}.jpg` : `${meta.media}/${x.num}/${k}.webp`;
+const nPhotos = x => x.web_photos || x.pics?.length || 0;
 
 async function search(more = false) {
   if (busy) return;
@@ -350,9 +354,9 @@ async function search(more = false) {
 $('#more').addEventListener('click', () => search(true));
 
 function gallery(x) {
-  const n = x.web_photos || 0;
+  const n = nPhotos(x);
   return `<div class="gal" data-n="${n}">${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
-    <div class="strip">${n ? Array.from({ length: n }, (_, k) => `<div class="ph"><img src="${esc(photoUrl(x, k))}" alt="" loading="lazy" data-k="${k}"></div>`).join('')
+    <div class="strip">${n ? Array.from({ length: n }, (_, k) => `<div class="ph"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" loading="lazy" data-k="${k}"></div>`).join('')
       : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}</div>
     ${n > 1 ? `<button class="nav l" data-nav="-1" aria-label="Назад">‹</button><button class="nav r" data-nav="1" aria-label="Вперёд">›</button>
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
@@ -502,7 +506,7 @@ async function openItem(num, k = 0) {
   const el = $('#sheet-body .itemv');
   el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
   el.addEventListener('click', e => {
-    const t = e.target, n = x.web_photos || 0;
+    const t = e.target, n = nPhotos(x);
     const th = t.closest('[data-th]'), st = t.closest('[data-step]');
     if (th || st) { ivShow(el, x, th ? +th.dataset.th : (+el.dataset.k + +st.dataset.step + n) % n); return; }
     if (t.matches('[data-big]')) { openViewer(Array.from({ length: n }, (_, i) => photoUrl(x, i)), +el.dataset.k); return; }
@@ -512,7 +516,7 @@ async function openItem(num, k = 0) {
   if (inList) markSeen(inList, num);
 }
 function itemView(x, k) {
-  const n = x.web_photos || 0, price = x.price ? priceOf(x.price) : 0;
+  const n = nPhotos(x), price = x.price ? priceOf(x.price) : 0;
   const ppm = price && x.area ? `${Math.round(price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
   const zk = x.zk ?? zkName(x.complex);
   const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
@@ -520,7 +524,7 @@ function itemView(x, k) {
   k = Math.min(Math.max(0, k), Math.max(0, n - 1));
   return `<article class="card itemv" data-num="${x.num}" data-k="${k}">
     <div class="iv-media">
-      <div class="iv-main">${n ? `<div class="vc"><img src="${esc(photoUrl(x, k))}" alt="" data-big title="Открыть на весь экран"></div>` : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}
+      <div class="iv-main">${n ? `<div class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" data-big title="Открыть на весь экран"></div>` : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}
         ${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
         ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
         ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}
@@ -528,7 +532,7 @@ function itemView(x, k) {
         ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
         ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
       </div>
-      ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
+      ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
     <div class="iv-info">
       <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
@@ -547,7 +551,7 @@ function itemView(x, k) {
 }
 // другое фото в окне объявления: большое фото, счётчик, выделенная миниатюра
 function ivShow(el, x, k) {
-  const n = x.web_photos || 0; if (!n) return;
+  const n = nPhotos(x); if (!n) return;
   el.dataset.k = k;
   const im = el.querySelector('[data-big]');
   im.addEventListener('load', () => fitCrop(im), { once: true });
@@ -560,7 +564,7 @@ function ivShow(el, x, k) {
 // ---------- фото на весь экран (из окна объявления — по нажатию на большое фото) ----------
 function openViewer(urls, i) {
   const v = $('#viewer'), s = v.querySelector('.viewer-strip');
-  s.innerHTML = urls.map(u => `<div class="vs"><div class="vc"><img src="${esc(u)}" alt=""></div></div>`).join('');
+  s.innerHTML = urls.map(u => `<div class="vs"><div class="vc"><img referrerpolicy="no-referrer" src="${esc(u)}" alt=""></div></div>`).join('');
   v.hidden = false;
   s.querySelectorAll('img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
   s.scrollLeft = i * s.clientWidth;
@@ -692,13 +696,13 @@ async function loadMap() {
       const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b) => a.i - b.i);
       L.popup({ minWidth: 260, maxWidth: 280 }).setLatLng(e.layer.getLatLng())
         .setContent(`<div class="mlist"><b>${ps.length} объявл. здесь</b>${ps.map(p => `<a href="#" class="mrow" data-num="${p.num}">
-          ${p.ph ? `<img src="${esc(photoUrl(p, 0))}" alt="">` : '<span class="noph"></span>'}<span><b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${esc(what(p))}</span></a>`).join('')}</div>`).openOn(map);
+          ${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="">` : '<span class="noph"></span>'}<span><b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${esc(what(p))}</span></a>`).join('')}</div>`).openOn(map);
     });
     mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) => ({ i, num, lat, lng, price: price ? priceOf(price) : price, rooms, kind, area, floor, floors, addr, ph, nw }));
     const marks = mapPts.map(p => {
       const m = L.marker([p.lat, p.lng]);
       m.p = p;
-      m.bindPopup(() => `<div class="mpop">${p.ph ? `<img src="${esc(photoUrl(p, 0))}" alt="" data-num="${p.num}">` : ''}
+      m.bindPopup(() => `<div class="mpop">${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="" data-num="${p.num}">` : ''}
         ${p.nw ? '<span class="mnew">Новое</span> ' : ''}<b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${p.addr ? `<br><b class="zkline">${esc(p.addr)}</b>` : ''}<br>${esc(what(p))}
         <br><a href="#" data-num="${p.num}">Открыть № ${p.num}</a></div>`, { minWidth: 220, maxWidth: 240 });
       return m;
@@ -722,7 +726,7 @@ function mapList(reset = true) {
   $('#ml-count').textContent = `В области карты: ${list.length.toLocaleString('ru-RU')}`;
   $('#ml-sort').value = by[sort] ? sort : 'new';
   $('#ml-items').innerHTML = list.slice(0, mlShown).map(p => `<div class="mcard" data-num="${p.num}">
-    <div class="mph">${p.ph ? `<img src="${esc(photoUrl(p, 0))}" alt="" loading="lazy">` : ''}${p.nw ? '<span class="newmark">Новое</span>' : ''}</div>
+    <div class="mph">${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="" loading="lazy">` : ''}${p.nw ? '<span class="newmark">Новое</span>' : ''}</div>
     <div class="mb"><b>${p.price ? rub(p.price) : 'Цена не указана'}</b>${p.price && p.area ? `<small class="muted">${Math.round(p.price / p.area).toLocaleString('ru-RU')} ₽/м²</small>` : ''}
       ${p.addr ? `<span class="zkline">${esc(p.addr)}</span>` : ''}<span>${esc(what(p))}</span><small class="muted">№ ${p.num}</small></div></div>`).join('')
     || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';

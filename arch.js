@@ -21,7 +21,7 @@ if (!af) {
   af = Object.fromEntries(['k', 'r', 'pmin', 'pmax', 'amin', 'amax', 'fmin', 'fmax', 'nf', 'd'].filter(k => f[k] !== undefined).map(k => [k, f[k]]));
   text = store.get('text', '');
 }
-let tree = [], view = 'list', page = 0, total = 0, busy = false, items = [], listY = 0;
+let tree = [], feat = {}, view = 'list', page = 0, total = 0, busy = false, items = [], listY = 0;
 const mobile = () => innerWidth <= 760;
 
 async function call(action, extra = {}, region = REGIONS[0]) {
@@ -69,7 +69,8 @@ async function start() {
   let r;
   try { r = await call('arch_init'); }
   catch (e) { return gate(`<h2>Архив недоступен</h2><p>${esc(e.message)}</p><a class="btn ghost" href="./">← Все объявления</a>`); }
-  tree = r.tree;
+  tree = r.tree; feat = r.features ?? {};
+  selbar();
   $('#who').textContent = r.me.name || r.me.login;
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#q').value = text; $('#sort').value = sort;
@@ -192,6 +193,50 @@ $('#open-areas').onclick = () => {
   $('#s-ok').onclick = () => { closeSheet(); changed(); };
 };
 
+// ---------- избранное, «Контакт», подборка, заметка — как на главной; объект из архива при первом действии заносится в базу (arch_import → наш №) ----------
+const MAXSEL = 10;   // объектов в одной подборке PDF (как на главной)
+const selSet = () => new Set(store.get('sel', []));
+function selbar() { const n = selSet().size; $('#selbar').hidden = !n || feat.selections === false; $('#selcount').textContent = `В подборке: ${n}`; }
+const acts = x => `<div class="arch-acts">
+  ${feat.favorites !== false ? `<button type="button" class="chip${x.fav ? ' on' : ''}" data-act="fav">${x.fav ? '★' : '☆'} Избранное</button>` : ''}
+  ${feat.deals !== false ? `<button type="button" class="chip${x.deal ? ' on' : ''}" data-act="deal">🤝 Контакт</button>` : ''}
+  ${feat.selections !== false ? `<button type="button" class="chip${x.num && selSet().has(x.num) ? ' on' : ''}" data-act="sel">${x.num && selSet().has(x.num) ? '✓ В подборке' : '＋ В подборку'}</button>` : ''}
+  ${feat.notes !== false ? `<button type="button" class="chip" data-act="note">📝 Заметка</button>` : ''}</div>
+  ${x.note ? `<div class="note">📝 ${esc(x.note)}</div>` : ''}`;
+async function ensureNum(x) {
+  if (x.num) return x.num;
+  const r = await callRetry('arch_import', { t: x.t });
+  if (!r.num) throw new Error(r.message || 'не удалось добавить объявление');
+  return x.num = r.num;
+}
+async function act(x, a, box) {
+  box.querySelectorAll('[data-act]').forEach(b => b.disabled = true);
+  try {
+    const num = await ensureNum(x);
+    if (a === 'fav') { x.fav = !x.fav; await call('fav', { num, on: x.fav }); toast(x.fav ? 'В избранном' : 'Убрано из избранного'); }
+    if (a === 'deal') { x.deal = !x.deal; await call('deal', { num, on: x.deal }); toast(x.deal ? 'В разделе «Контакт»' : 'Убрано из раздела «Контакт»'); }
+    if (a === 'note') {
+      const v = prompt('Заметка к объекту (видна только вам):', x.note ?? ''); if (v === null) return;
+      await call('note', { num, text: v.trim() }); x.note = v.trim() || null; toast('Заметка сохранена');
+    }
+    if (a === 'sel') {
+      const s = selSet();
+      if (s.has(num)) s.delete(num);
+      else if (s.size >= MAXSEL) return toast(`В одной подборке до ${MAXSEL} объектов — сформируйте PDF на главной и начните новую`, 4000);
+      else s.add(num);
+      store.set('sel', [...s]); selbar();
+      toast(s.has(num) ? `В подборке № ${num} — PDF формируется на главной (кнопка внизу)` : 'Убрано из подборки', 3500);
+    }
+  } catch (e) { toast(e.message, 4000); }
+  finally {
+    const wrap = box.closest('.arch-actwrap');
+    if (wrap) wrap.innerHTML = acts(x);
+    box.closest('.card')?.querySelector('.meta')?.replaceWith(Object.assign(document.createElement('div'), { className: 'meta', innerHTML: metaLine(x, !$('#ipage').hidden) }));
+  }
+}
+// «Размещено …» (на странице объявления — и «обновлено») и наш № — появляется, когда объект занесён в базу
+const metaLine = (x, full = false) => `Размещено ${day(x.created_at)}${full && x.changed_at ? ` · обновлено ${day(x.changed_at)}` : ''}${x.num ? ` · № ${x.num}` : ''}`;
+
 // ---------- список ----------
 function card(x, i) {
   const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
@@ -205,7 +250,8 @@ function card(x, i) {
       <a class="title" href="#o=${esc(x.t)}">${esc(what(x))}</a>
       <div class="addr">${esc(where)}</div>
       <div class="tags">${statusTag(x)}</div>
-      <div class="meta">Размещено ${day(x.created_at)}${x.num ? ` · в базе № ${x.num}` : ''}</div>
+      <div class="meta">${metaLine(x)}</div>
+      <div class="arch-actwrap">${acts(x)}</div>
       <div class="actions">${x.cont ? contHtml(x.cont) : '<button class="btn soft" data-cont>📞 Контакты и источник</button>'}<a class="btn ghost" href="#o=${esc(x.t)}">Открыть</a></div>
     </div></article>`;
 }
@@ -233,6 +279,7 @@ $('#list').addEventListener('click', e => {
   const x = items[+c.dataset.i];
   if (e.target.closest('[data-cont]')) contacts(x, e.target.closest('[data-cont]'));
   if (e.target.closest('[data-copy]')) copy(e.target.closest('[data-copy]').dataset.copy);
+  if (e.target.closest('[data-act]')) act(x, e.target.closest('[data-act]').dataset.act, e.target.closest('.arch-actwrap'));
 });
 
 // ---------- контакты и источник: только по кнопке (в лимит телефонов) ----------
@@ -295,7 +342,8 @@ function itemPage(x, k) {
       <div class="iv-title">${esc(what(x))}</div>
       <div class="iv-addr">${esc(where)}</div>
       <div class="tags">${statusTag(x)}</div>
-      <div class="meta">Размещено ${day(x.created_at)}${x.changed_at ? ` · обновлено ${day(x.changed_at)}` : ''}${x.num ? ` · в базе № ${x.num}` : ''}</div>
+      <div class="meta">${metaLine(x, true)}</div>
+      <div class="arch-actwrap">${acts(x)}</div>
       <div class="actions">${x.cont ? contHtml(x.cont) : '<button class="btn soft" data-cont>📞 Контакты и источник</button>'}</div>
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
     </div></article>`;
@@ -308,6 +356,7 @@ function itemPage(x, k) {
     if (t.matches('[data-big]')) return openViewer(x.pics, +el.dataset.k);
     if (t.closest('[data-cont]')) contacts(x, t.closest('[data-cont]'));
     if (t.closest('[data-copy]')) copy(t.closest('[data-copy]').dataset.copy);
+    if (t.closest('[data-act]')) act(x, t.closest('[data-act]').dataset.act, t.closest('.arch-actwrap'));
   };
 }
 
