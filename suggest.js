@@ -18,11 +18,13 @@
       if (i >= 0) { input.setAttribute('aria-activedescendant', `${box.id}-${i}`); box.children[i]?.scrollIntoView({ block: 'nearest' }); }
     };
     const show = list => {
+      const was = items[act]?.key ?? items[act]?.name;   // список обновился, пока выбирали стрелками, — выбор не сбрасывать
       items = list; act = -1;
       if (!list.length) return hide();
       box.innerHTML = list.map((x, i) => `<li role="option" id="${box.id}-${i}" data-i="${i}"><span class="sg-n">${esc(x.name)}</span>`
         + `<span class="sg-t">${esc(x.type)}${x.cnt ? ` · ${x.cnt.toLocaleString('ru-RU')} ${plural(x.cnt)}` : ''}</span></li>`).join('');
       box.hidden = false; input.setAttribute('aria-expanded', 'true');
+      if (was) { const i = list.findIndex(x => (x.key ?? x.name) === was); if (i >= 0) mark(i); }
     };
     const choose = i => { const x = items[i]; if (!x) return; hide(); pick(x); };
     input.addEventListener('input', () => {
