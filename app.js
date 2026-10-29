@@ -756,7 +756,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
   if (g === 'rk') showReklama();
-  if (g === 'arch') showArchive();
+  if (g === 'arch') location.href = 'arch.html';   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'admin') admin();
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
@@ -813,101 +813,6 @@ async function showReklama() {
 }
 
 // ---------- админ-панель ----------
-// ---------- «Архив 2 года»: объявления за 2 года (в продаже и снятые) — запрашиваются при открытии вкладки, по тем же фильтрам и запросу ----------
-const ar = { page: 0, total: 0, list: [], busy: false, y: 0 };
-const arStatus = x => x.gone ? '<span class="tag grey">Снято с продажи</span>' : '<span class="tag ok">В продаже</span>';
-function arCard(x, i) {
-  const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
-  const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
-  return `<article class="card${x.gone ? ' arch-gone' : ''}" data-ai="${i}">
-    <div class="gal" data-n="${n}"><div class="strip">${n ? `<div class="ph"><img src="${esc(x.pics[0])}" alt="" loading="lazy" referrerpolicy="no-referrer" data-aopen></div>` : '<div class="none">Нет фото</div>'}</div>
-      ${n > 1 ? `<span class="iv-count">${n} фото</span>` : ''}</div>
-    <div class="body">
-      <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
-      ${x.complex ? `<div class="zk">${esc(zkName(x.complex))}</div>` : ''}
-      <div class="title" data-aopen>${esc(what(x))}</div>
-      <div class="addr">${esc(where)}</div>
-      <div class="tags">${arStatus(x)}</div>
-      <div class="meta">Размещено ${x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—'}${x.num ? ` · в базе № ${x.num}` : ''}</div>
-      <div class="actions"><button class="btn soft" data-aopen>Открыть</button><button class="btn ghost" data-acont>📞 Контакты и источник</button></div>
-    </div></article>`;
-}
-async function showArchive(more = false) {
-  if (ar.busy) return;
-  if (!more) { ar.page = 0; ar.list = []; sheet('Архив за 2 года', '<p class="muted">Ищу по вашим фильтрам…</p>', true); }
-  ar.busy = true;
-  try {
-    const r = await call('arch_search', { f, text, sort, page: ar.page + 1 });
-    ar.page++; ar.total = r.count; ar.list.push(...r.items); ar.info = r;
-    arList();
-  } catch (e) {
-    if (e.gate) return showLogin(e.gate);
-    if (!more) $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; else toast(e.message);
-  } finally { ar.busy = false; }
-}
-function arList() {
-  const r = ar.info, left = ar.total - ar.page * r.page;
-  $('#sheet-title').textContent = 'Архив за 2 года';
-  $('#sheet-body').innerHTML = `<p class="status muted">Найдено за 2 года: ${ar.total.toLocaleString('ru-RU')} — по фильтрам и запросу из поиска${r.understood ? ` · понял запрос так: ${esc(r.understood)}` : ''}${r.skipped?.length ? ` · в архиве не учитываются: ${esc(r.skipped.join(', '))}` : ''}</p>
-    <section class="list arch-list">${ar.list.map(arCard).join('')}</section>
-    ${left > 0 ? `<button class="btn more" id="ar-more">Показать ещё ${Math.min(r.page, left)} из ${left.toLocaleString('ru-RU')}</button>` : ''}`;
-  $('#ar-more')?.addEventListener('click', e => { e.target.disabled = true; showArchive(true); });
-  const body = $('#sheet-body'); body.scrollTop = ar.y; ar.y = 0;
-  body.querySelector('.arch-list').onclick = e => {
-    const c = e.target.closest('[data-ai]'); if (!c) return;
-    const x = ar.list[+c.dataset.ai];
-    if (e.target.closest('[data-acont]')) return arContacts(x, e.target.closest('[data-acont]'));
-    if (e.target.closest('[data-copy]')) return copy(e.target.closest('[data-copy]').dataset.copy, 'Номер скопирован');
-    if (e.target.closest('[data-aopen]')) { ar.y = body.scrollTop; arOpen(x); }
-  };
-}
-// окно объявления: большое фото, миниатюры, описание; «← К списку» возвращает на то же место
-function arOpen(x, k = 0) {
-  const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
-  const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
-  $('#sheet-title').textContent = what(x);
-  $('#sheet-body').innerHTML = `<button class="link" id="ar-back">← К списку</button>
-    <article class="card itemv" data-k="${k}">
-    <div class="iv-media">
-      <div class="iv-main">${n ? `<div class="vc"><img src="${esc(x.pics[k])}" alt="" data-big referrerpolicy="no-referrer" title="Открыть на весь экран"></div>` : '<div class="none">Нет фото</div>'}
-        ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
-        ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}</div>
-      ${n > 1 ? `<div class="iv-thumbs">${x.pics.map((u, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span></button>`).join('')}</div>` : ''}
-    </div>
-    <div class="iv-info">
-      <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
-      ${x.complex ? `<div class="zk">${esc(zkName(x.complex))}</div>` : ''}
-      <div class="iv-title">${esc(what(x))}</div>
-      <div class="iv-addr">${esc(where)}</div>
-      <div class="tags">${arStatus(x)}</div>
-      <div class="meta">Размещено ${x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—'}${x.changed_at ? ` · обновлено ${new Date(x.changed_at).toLocaleDateString('ru-RU')}` : ''}${x.num ? ` · в базе № ${x.num}` : ''}</div>
-      <div class="actions">${x.cont ? arContHtml(x.cont) : '<button class="btn soft" data-acont>📞 Контакты и источник</button>'}</div>
-      ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
-    </div></article>`;
-  const el = $('#sheet-body .itemv');
-  el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
-  $('#ar-back').onclick = arList;
-  el.onclick = e => {
-    const t = e.target, th = t.closest('[data-th]'), st = t.closest('[data-step]');
-    if (th || st) { const i = th ? +th.dataset.th : (+el.dataset.k + +st.dataset.step + n) % n; const y = $('#sheet-body').scrollTop; arOpen(x, i); $('#sheet-body').scrollTop = y; return; }
-    if (t.matches('[data-big]')) { openViewer(x.pics, +el.dataset.k); return; }
-    if (t.closest('[data-acont]')) arContacts(x, t.closest('[data-acont]'));
-    if (t.closest('[data-copy]')) copy(t.closest('[data-copy]').dataset.copy, 'Номер скопирован');
-  };
-}
-const arContHtml = c => `${c.phones?.length ? c.phones.map((p, i) => phoneBox(p, i ? null : c.owner)).join('') : `<span class="err">${esc(c.error || 'номера нет')}</span>`}${srcHtml(c)}`;
-// контакты и ссылки на источник — только по кнопке (считаются в лимит телефонов)
-async function arContacts(x, b) {
-  b.disabled = true; b.textContent = 'Узнаю контакты…';
-  try {
-    const c = await call('arch_contacts', { t: x.t });
-    if (c.error && !c.phones) throw new Error(c.message || c.error);
-    x.cont = c; b.outerHTML = arContHtml(c);
-  } catch (err) {
-    if (err.gate) return showLogin(err.gate);
-    b.disabled = false; b.textContent = '📞 Контакты и источник'; toast(err.message);
-  }
-}
 
 const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
   modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
