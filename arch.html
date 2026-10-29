@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=4.7">
+<link rel="stylesheet" href="style.css?v=5.1">
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 </head>
 <body class="apage">
@@ -22,7 +22,8 @@
       <span><b>Архив за 2 года</b><small>объявления собственников Сочи — в продаже и снятые</small></span>
     </a>
     <nav class="menu">
-      <a class="link" href="./">← Все объявления</a>
+      <a class="link" href="./"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></a>
+      <a class="link on" href="arch.html" aria-current="page">🗂 Архив 2 года</a>
       <span class="who"><span id="who"></span></span>
     </nav>
   </header>
@@ -36,27 +37,27 @@
 
     <section id="filters" class="filters" aria-label="Фильтры архива">
       <div class="fhead"><b>Фильтры архива</b><button type="button" class="x" id="f-close" aria-label="Закрыть фильтры">✕</button></div>
+      <div class="fside-row"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇦ Фильтр слева</button></div>
       <div class="fcols">
         <div class="fcol">
-          <div class="fcell"><div class="fl">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
-          <div class="fcell"><div class="fl">Комнаты</div><div class="chips" id="f-rooms"></div></div>
-          <div class="fcell"><div class="fl">Площадь, м²</div>
+          <div class="fcell"><div class="fl" data-h="kind">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
+          <div class="fcell"><div class="fl" data-h="rooms">Комнаты</div><div class="chips" id="f-rooms"></div></div>
+          <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div>
             <div class="pair"><input id="amin" type="number" min="0" placeholder="от" inputmode="numeric"><span>—</span><input id="amax" type="number" min="0" placeholder="до" inputmode="numeric"></div></div>
-          <div class="fcell"><div class="fl">Цена, ₽</div>
+          <div class="fcell"><div class="fl" data-h="price">Цена, ₽</div>
             <div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off"></div></div>
         </div>
         <div class="fcol">
-          <div class="fcell"><div class="fl">Сочи и районы</div>
+          <div class="fcell"><div class="fl" data-h="areas">Сочи и районы</div>
             <div class="chips"><button type="button" class="chip pick-btn" id="open-areas">Весь Сочи</button></div></div>
-          <div class="fcell"><div class="fl">Улица и дом</div>
+          <div class="fcell"><div class="fl" data-h="addr">Улица и дом</div>
             <div class="pair addr-row"><input id="addr" type="search" placeholder="Например: Депутатская 10" autocomplete="off" enterkeyhint="search"><button type="button" class="btn ghost" id="addr-go">Найти</button></div>
-            <div class="chips" id="f-place"></div>
-            <div class="fnote">Поиск по области — на карте: сдвиньте карту и нажмите «Искать в этой области».</div></div>
-          <div class="fcell"><div class="fl">Этаж</div>
+            <div class="chips" id="f-place"></div></div>
+          <div class="fcell"><div class="fl" data-h="afloor">Этаж</div>
             <div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label></div></div>
-          <div class="fcell"><div class="fl">Объявления</div><div class="chips" id="f-sale"></div></div>
-          <div class="fcell"><div class="fl">Сортировка</div>
+          <div class="fcell"><div class="fl" data-h="sale">Объявления</div><div class="chips" id="f-sale"></div></div>
+          <div class="fcell"><div class="fl" data-h="sort">Сортировка</div>
             <select id="sort" aria-label="Сортировка">
               <option value="new">Сначала новые</option>
               <option value="price">Сначала дешевле</option>
@@ -66,6 +67,7 @@
         </div>
       </div>
       <div class="ffoot">
+        <div id="f-drop" class="fdrop" hidden></div>
         <button type="button" class="btn ghost" id="reset">Сбросить всё</button>
         <button type="button" class="btn primary" id="apply">Показать</button>
       </div>
@@ -74,7 +76,7 @@
     <div class="bar">
       <p id="status" class="status muted"></p>
       <div class="bar-r">
-        <div class="views"><button class="seg on" data-view="list">Список</button><button class="seg" data-view="map">Карта</button></div>
+        <div class="views"><button class="seg on" data-view="list" aria-current="true">Список</button><button class="seg" data-view="map">Карта</button></div>
       </div>
     </div>
 
@@ -108,6 +110,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="arch.js?v=4.7" defer></script>
+<script src="filters.js?v=5.1" defer></script>
+<script src="arch.js?v=5.1" defer></script>
 </body>
 </html>

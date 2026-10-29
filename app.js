@@ -15,7 +15,7 @@ const FIN = [['repair', 'С ремонтом'], ['clean', 'Чистовая'], [
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 10;   // объектов в одной подборке PDF
 const EXT = [['avito', 'Авито'], ['cian', 'ЦИАН'], ['domclick', 'ДомКлик']];   // собственники напрямую с площадок (колонка source)
-const isNew = x => x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц
+const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
 // до моря по прямой (сервер считает по береговой линии): один выбор из списка
 const SEA = [[300, 'до 300 м'], [500, 'до 500 м'], [1000, 'до 1 км'], [2000, 'до 2 км'], [3000, 'до 3 км']];
 const seaTxt = m => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} м` : `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`;
@@ -34,25 +34,28 @@ let auth = token ? { token } : tg?.initData || null;
 let me = null, meta = null;
 let f = store.get('f2', {}), text = store.get('text', ''), sort = store.get('sort', 'new');
 const mobile = () => innerWidth <= 760;
-let lays = store.get('lay', {}), fclosed = store.get('fclosed', false);   // вид выдачи — свой для телефона и компьютера
-let fside = store.get('fside', false);   // фильтр слева колонкой (на компьютере) или сверху
+let lays = store.get('lay', {});   // вид выдачи — свой для телефона и компьютера
+// фильтр на компьютере: колонкой слева (по умолчанию с v5.1) или сверху, открыт или закрыт; сохранённое до v5.1 (без fv = 5) сброшено один раз
+const FV = 5, fvOk = store.get('fv', 0) === FV;
+let fside = fvOk ? store.get('fside', true) : true, fclosed = fvOk ? store.get('fclosed', false) : false;
 // вид 3 или 6 объектов на экране, по умолчанию 3 (прежний «1» и сохранённые до v4.3 значения — снова 3)
 const fixLays = l => l && l.v === 3 ? l : { v: 3 };
 lays = fixLays(lays);
 const lay = () => ['3', '6'].includes(lays[mobile() ? 'm' : 'd']) ? lays[mobile() ? 'm' : 'd'] : '3';
 let favMode = null, beforeFav = null;   // «Избранное» / «Контакт» не затирают сохранённые фильтры
+let sheetGo = null;   // открыто окно из меню (подборки, реклама, админка, оплата) — подсвечен его пункт
 let sel = new Set(store.get('sel', []));
 let offset = 0, total = 0, busy = false, view = 'list', items = new Map();
 
 // настройки — в браузере и на сервере (в Telegram браузерное хранилище бывает пустым при каждом запуске)
 function savePrefs() {
-  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed); store.set('fside', fside); store.set('client', client);
+  store.set('f2', f); store.set('text', text); store.set('sort', sort); store.set('lay', lays); store.set('fclosed', fclosed); store.set('fside', fside); store.set('fv', FV); store.set('client', client);
   clearTimeout(savePrefs.t);
-  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, fside, client } }).catch(() => {}), 700);
+  savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, fside, fv: FV, client } }).catch(() => {}), 700);
 }
 
-async function call(action, extra = {}) {
-  const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth, ...extra }) });
+async function call(action, extra = {}, signal) {   // signal — отменить устаревший запрос (новый поиск вместо прежнего)
+  const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth, ...extra }), signal });
   const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
   if (['no_auth', 'no_access', 'expired', 'kicked', 'off'].includes(data.error)) throw Object.assign(new Error(data.message), { gate: data.error, data });
   if (!r.ok || data.error) throw Object.assign(new Error(data.message || data.error || `HTTP ${r.status}`), { data });
@@ -125,8 +128,8 @@ async function start() {
     if (typeof p.text === 'string') text = p.text;
     if (typeof p.sort === 'string') sort = p.sort;
     if (p.lay && typeof p.lay === 'object') lays = fixLays(p.lay);
-    if (typeof p.fclosed === 'boolean') fclosed = p.fclosed;
-    if (typeof p.fside === 'boolean') fside = p.fside;
+    if (p.fv === FV && typeof p.fclosed === 'boolean') fclosed = p.fclosed;
+    if (p.fv === FV && typeof p.fside === 'boolean') fside = p.fside;
     if (p.client && typeof p.client === 'object') client = { on: !!p.client.on, cm: +p.client.cm || 0 };
   }
   if (Array.isArray(f.fin)) {   // старые сохранённые «дизайнерский / евро / современный» → «С ремонтом»
@@ -159,37 +162,60 @@ async function start() {
   clientUi();
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
-  renderFilters(); selbar(); applyLay();
+  FUI.help(); renderFilters(); selbar(); applyLay();
   search();
-  if (location.hash === '#admin' && me.role === 'admin') admin();   // прямая ссылка на админ-панель: …/#admin
+  if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
 }
 
 // ---------- фильтры ----------
 const arr = k => Array.isArray(f[k]) ? f[k] : [];
 function toggleIn(k, v) { const s = new Set(arr(k)); s.has(v) ? s.delete(v) : s.add(v); f[k] = [...s]; if (!f[k].length) delete f[k]; }
-function chipRow(el, list, key) {
-  el.innerHTML = list.map(([v, t]) => `<button type="button" class="chip${arr(key).includes(v) ? ' on' : ''}" data-v="${esc(v)}">${esc(t)}</button>`).join('');
-  el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; toggleIn(key, typeof list[0][0] === 'number' ? +b.dataset.v : b.dataset.v); renderFilters(); };
+function chipRow(el, list, key, off = () => '') {   // off(v) — почему вариант сейчас неактивен (несовместим с выбранным)
+  el.innerHTML = list.map(([v, t]) => { const why = off(v);
+    return `<button type="button" class="chip${arr(key).includes(v) ? ' on' : ''}" data-v="${esc(v)}"${why ? ` disabled title="${esc(why)}"` : ''}>${esc(t)}</button>`; }).join('');
+  el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b || b.disabled) return; toggleIn(key, typeof list[0][0] === 'number' ? +b.dataset.v : b.dataset.v); fchg(); };
+}
+const REPAIR_MSG = 'Функция экспериментальная: отсеивает около 2/3 объявлений со старым ремонтом, но может убрать и хорошие варианты';
+// несовместимое уже выбранное снимаем с пояснением: у участков нет комнат, этажа, отделки и ФЗ-214; студии — только у квартир и апартаментов
+function compatFix() {
+  const c = FUI.compat(f), gone = ['r', 'fmin', 'fmax', 'nf', 'nl', 'fin', 'fz', 'm'].filter(k => c.land && f[k] !== undefined);
+  gone.forEach(k => delete f[k]);
+  if (gone.length) toast('У участков нет комнат, этажа и отделки — эти фильтры сняты', 4000);
+  if (!c.studio && arr('r').includes(0)) { toggleIn('r', 0); toast('«Студия» снята: студии бывают только у квартир и апартаментов', 4000); }
+  if (!c.nf && f.nf) { delete f.nf; if (!c.land) toast('«Не первый» снят: этаж «до 1» — это только первый этаж', 4000); }
+  return c;
 }
 function renderFilters() {
+  const c = compatFix(), land = c.land ? 'У участков этого нет' : '';
   chipRow($('#f-kind'), KINDS, 'k');
-  chipRow($('#f-rooms'), ROOMS, 'r');
-  chipRow($('#f-fin'), FIN, 'fin');
+  chipRow($('#f-rooms'), ROOMS, 'r', v => land || (v === 0 && !c.studio ? 'Студии бывают только у квартир и апартаментов' : ''));
+  chipRow($('#f-fin'), FIN, 'fin', () => land);
+  $('#f-fin [data-v="repair"]').classList.add('yel');   // включённый «С ремонтом» — жёлтый: функция пробная
   // «Дизайнерский» — по фото (пока «скоро»: включается в админке, когда база проверена)
   const modernOn = meta.features.modern_filter;
-  $('#f-fin').insertAdjacentHTML('beforeend', `<button type="button" class="chip${f.m ? ' on' : ''}" data-k="m" ${modernOn ? '' : 'disabled title="Скоро: дизайнерский ремонт будет определяться по фото"'}>Дизайнерский${modernOn ? '' : '<small>скоро</small>'}</button>`);
+  $('#f-fin').insertAdjacentHTML('beforeend', `<button type="button" class="chip${f.m ? ' on' : ''}" data-k="m" ${modernOn && !land ? '' : `disabled title="${modernOn ? land : 'Скоро: дизайнерский ремонт будет определяться по фото'}"`}>Дизайнерский${modernOn ? '' : '<small>скоро</small>'}</button>`);
   const finClick = $('#f-fin').onclick;
-  $('#f-fin').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return finClick(e); if (!b.disabled) { f.m = !f.m || undefined; renderFilters(); } };
+  $('#f-fin').onclick = e => {
+    const b = e.target.closest('[data-k]');
+    if (!b) { const was = arr('fin').includes('repair'); finClick(e); if (!was && arr('fin').includes('repair')) toast(REPAIR_MSG, 7000); return; }
+    if (!b.disabled) { f.m = !f.m || undefined; fchg(); }
+  };
   const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Контакт']]
     .filter(([k]) => (k !== 'fav' || meta.features.favorites) && (k !== 'deal' || (meta.features.deals && !client.on)));
-  $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}">${t}</button>`).join('');
-  $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; renderFilters(); };
+  $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}"${k === 'fz' && land ? ` disabled title="${land}"` : ''}>${t}</button>`).join('');
+  $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; fchg(); };
   // объявления собственников, взятые напрямую с площадок: галочка снята — таких не показывать (база собственников — всегда)
   $('#f-ext').innerHTML = EXT.map(([k, t]) => `<button type="button" class="chip${arr('noext').includes(k) ? '' : ' on'}" data-v="${k}">${arr('noext').includes(k) ? '' : '✓ '}${t}</button>`).join('');
-  $('#f-ext').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; toggleIn('noext', b.dataset.v); renderFilters(); };
-  for (const k of ['amin', 'amax', 'fmin', 'fmax']) $('#' + k).value = f[k] ?? '';
+  $('#f-ext').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; toggleIn('noext', b.dataset.v); fchg(); };
+  // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
+  const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
+  for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, f[k] ?? '');
   $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl;
-  for (const k of ['pmin', 'pmax']) $('#' + k).value = f[k] ? dots(Math.round(f[k] * 1e6)) : '';
+  for (const k of ['pmin', 'pmax']) put(k, f[k] ? dots(Math.round(f[k] * 1e6)) : '');
+  for (const k of ['fmin', 'fmax', 'nl']) $('#' + k).disabled = c.land;
+  $('#nf').disabled = !c.nf;
+  $('#fmin').closest('.fcell').classList.toggle('off', c.land);
+  FUI.pairs(f);
   $('#sea').value = f.sea ?? '';
   const nd = arr('d').length, nz = arr('zk').length;
   $('#open-areas').textContent = nd ? `${arr('d').map(areaName).slice(0, 2).join(', ')}${nd > 2 ? ` +${nd - 2}` : ''}` : 'Район';
@@ -212,9 +238,9 @@ for (const k of ['pmin', 'pmax']) {
   $('#' + k).addEventListener('input', e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d ? dots(+d) : ''; });
   $('#' + k).addEventListener('blur', e => { const v = rubOf(e.target.value); e.target.value = v ? dots(v) : ''; readInputs(); });
 }
-// поля сразу попадают в фильтр: иначе нажатие на любую кнопку фильтра стирало набранную площадь, этаж и цену
-for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', readInputs);
-for (const k of ['nf', 'nl', 'sea']) $('#' + k).addEventListener('change', readInputs);
+// поля сразу попадают в фильтр (иначе нажатие на кнопку фильтра стирало набранное), поиск — через 0,5 с после последней цифры
+for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
+for (const k of ['nf', 'nl', 'sea']) $('#' + k).addEventListener('change', () => { readInputs(); fchg(); });
 $('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
 function openF(on) {
@@ -229,22 +255,34 @@ function sideUi() {
   setTimeout(() => map?.invalidateSize(), 50);
 }
 $('#f-side').onclick = () => { fside = !fside; sideUi(); savePrefs(); };
-$('#f-close').onclick = () => { readInputs(); openF(false); };
-$('#apply').onclick = () => { readInputs(); if (mobile()) openF(false); changed(); };
+// любое изменение фильтра применяется само — через 0,5 с после последнего (кнопки «Применить» нет);
+// на телефоне кнопка «Показать N» внизу окна только закрывает его: выдача к этому времени уже обновлена
+function later(ms = 500) { clearTimeout(later.t); later.t = setTimeout(changed, ms); $('#apply').textContent = 'Показать …'; }
+function fchg() { renderFilters(); later(); }
+const flush = () => { if (later.t) changed(); };
+$('#f-close').onclick = () => { readInputs(); flush(); openF(false); };
+$('#apply').onclick = () => { readInputs(); flush(); openF(false); };
 $('#reset').onclick = () => { f = {}; text = ''; $('#q').value = ''; leaveFav(); renderFilters(); changed(); };
-$('#status').addEventListener('click', e => { if (e.target.id === 'drop-f') { f = {}; leaveFav(); renderFilters(); changed(); } });   // текст запроса оставить
+// «Ничего не нашлось»: «Сбросить его» — фильтр, который больше всего мешает; «Сбросить все» — все фильтры (текст запроса остаётся)
+document.addEventListener('click', e => {
+  const one = e.target.closest('[data-drop]'), all = e.target.closest('[data-drop-all]');
+  if (!one && !all) return;
+  if (one) one.dataset.drop.split(',').forEach(k => delete f[k]); else { f = {}; leaveFav(); }
+  renderFilters(); changed();
+});
 $('#sort').onchange = () => { sort = $('#sort').value; savePrefs(); view === 'map' ? mapList() : search(); };
 $('#qform').addEventListener('submit', e => { e.preventDefault(); readInputs(); $('#q').blur(); changed(); });
 // поле запроса очистили (крестиком или стёрли) — сразу ищем без текста: раньше при пустом поле продолжал работать прошлый запрос
 $('#q').addEventListener('input', () => { if (!$('#q').value.trim() && text) changed(); });
 function changed() {
+  clearTimeout(later.t); later.t = 0;
   text = $('#q').value.trim();   // запрос — всегда то, что сейчас в поле
   f = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined && !(Array.isArray(v) && !v.length)));
   if (!favMode) savePrefs();
   renderFilters();
   view === 'map' ? loadMap() : search();
 }
-function leaveFav() { favMode = null; beforeFav = null; document.querySelectorAll('[data-go="favs"], [data-go="deals"]').forEach(b => b.classList.remove('on')); }
+function leaveFav() { favMode = null; beforeFav = null; tabs(); }
 function applyLay() {
   const l = lay();
   $('#list').classList.remove('l1', 'l3', 'l6'); $('#list').classList.add('l' + l);
@@ -255,9 +293,9 @@ document.querySelectorAll('[data-lay]').forEach(b => b.onclick = () => { lays = 
 // окна: районы, ЖК
 function sheet(title, html, wide = false) {
   $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html;
-  $('#sheet').classList.toggle('wide', wide); $('#sheet').hidden = false; tg?.BackButton.show();
+  $('#sheet').classList.toggle('wide', wide); $('#sheet').hidden = false; tg?.BackButton.show(); tabs();
 }
-function closeSheet() { if ($('#sheet').hidden) return; $('#sheet').hidden = true; if ($('#viewer').hidden) tg?.BackButton.hide(); }
+function closeSheet() { if ($('#sheet').hidden) return; $('#sheet').hidden = true; sheetGo = null; tabs(); if ($('#viewer').hidden) tg?.BackButton.hide(); }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet' || e.target.closest('[data-close]')) closeSheet(); });
 tg?.BackButton.onClick(() => $('#viewer').hidden ? closeSheet() : closeViewer());
 const opt = (name, value, label, checked, note = '', disabled = false) =>
@@ -294,9 +332,9 @@ $('#open-areas').onclick = () => {
     toggleIn('d', i.value);
     const r = regs.find(x => x.k === i.value);   // весь район отмечен — его микрорайоны отдельно не нужны
     if (r && on(r.k)) { f.d = arr('d').filter(k => !r.subs.some(s => s[0] === k)); if (!f.d.length) delete f.d; }
-    renderFilters(); draw();
+    fchg(); draw();
   };
-  $('#s-clear').onclick = () => { delete f.d; renderFilters(); draw(); };
+  $('#s-clear').onclick = () => { delete f.d; fchg(); draw(); };
 };
 $('#open-zk').onclick = () => {
   sheet('ЖК', `<input id="zk-find" type="search" placeholder="Найти ЖК"><div id="zk-list"></div>
@@ -309,8 +347,8 @@ $('#open-zk').onclick = () => {
   bindChecks('zk', true);
 };
 function bindChecks(key, num) {
-  $('#sheet-body').onchange = e => { const i = e.target; if (i.name !== key) return; toggleIn(key, num ? +i.value : i.value); renderFilters(); };
-  $('#s-clear').onclick = () => { delete f[key]; renderFilters(); $('#sheet-body').querySelectorAll('input[type=checkbox]').forEach(i => i.checked = false); };
+  $('#sheet-body').onchange = e => { const i = e.target; if (i.name !== key) return; toggleIn(key, num ? +i.value : i.value); fchg(); };
+  $('#s-clear').onclick = () => { delete f[key]; fchg(); $('#sheet-body').querySelectorAll('input[type=checkbox]').forEach(i => i.checked = false); };
 }
 
 // ---------- выдача ----------
@@ -331,25 +369,41 @@ const photoUrl = (x, k) => x.pics ? x.pics[k] : typeof x.ph === 'string' ? x.ph 
   : k < 4 || !meta.media ? `${meta.photos}/${x.num}/${k}.jpg` : `${meta.media}/${x.num}/${k}.webp`;
 const nPhotos = x => x.web_photos || x.pics?.length || 0;
 
+// новый поиск отменяет запрос в пути: выдача не мигает (прежняя видна бледной до ответа) и не подменяется устаревшим ответом
+let sctl = null;
 async function search(more = false) {
-  if (busy) return;
+  if (more && busy) return;
+  sctl?.abort();
+  const ctl = sctl = new AbortController();
   busy = true;
-  if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; $('#status').textContent = 'Ищу…'; $('#more').hidden = true; }
+  if (!more) { $('#list').classList.add('stale'); $('#status').classList.add('wait'); if (!$('#status').textContent) $('#status').textContent = 'Ищу…'; $('#more').hidden = true; }
   $('#more').disabled = true;
   try {
-    const r = await call('search', { f, text, offset, sort, cm: cmOn() });
+    const r = await call('search', { f: FUI.clean(f), text, offset: more ? offset : 0, sort, cm: cmOn() }, ctl.signal);
+    if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; }
     total = r.count;
     r.items.forEach(x => items.set(x.num, x));
-    $('#list').insertAdjacentHTML('beforeend', r.items.map(card).join(''));
+    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => card(x)).join(''));
     offset += r.items.length;
-    $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : r.hidden ? `Без фильтров нашлось бы: ${r.hidden.toLocaleString('ru-RU')} — их скрывают фильтры` : 'Ничего не нашёл — попробуйте убрать часть фильтров') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
-    if (!total && r.hidden) $('#status').insertAdjacentHTML('beforeend', ' <button type="button" class="link" id="drop-f">Сбросить фильтры</button>');
+    $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
+    if (!more) noneBox(total ? null : r);
+    $('#apply').textContent = `Показать ${total.toLocaleString('ru-RU')}`;
     $('#more').hidden = view === 'map' || offset >= total;
     $('#more').textContent = `Показать ещё ${Math.min(r.page, total - offset)} из ${(total - offset).toLocaleString('ru-RU')}`;
+    if (!more) { const y = $('.bar').getBoundingClientRect().top + scrollY - 70; if (scrollY > y) scrollTo({ top: Math.max(0, y) }); }
   } catch (e) {
+    if (ctl.signal.aborted) return;
     if (e.gate) return showLogin(e.gate);
     $('#status').textContent = `Ошибка поиска: ${e.message}`;
-  } finally { busy = false; $('#more').disabled = false; }
+  } finally { if (sctl === ctl) { busy = false; $('#more').disabled = false; $('#list').classList.remove('stale'); $('#status').classList.remove('wait'); } }
+}
+// «Ничего не нашлось»: что мешает (сервер прислал drop) — в выдаче и в окне фильтра на телефоне; в пустом «Избранном» — как туда добавить
+function noneBox(r) {
+  const own = favMode && Object.keys(f).length === 1;
+  const html = !r ? '' : own ? `<p>${favMode === 'favs' ? 'В «Избранном» пока ничего нет — нажмите ☆ на фото объявления.' : 'В разделе «Контакт» пока ничего нет — нажмите 🤝 на фото объявления.'}</p>`
+    : FUI.empty(r, Object.keys(f).some(k => !(favMode && k === LISTS[favMode][0])));
+  if (r) $('#list').innerHTML = `<div class="empty">${html}</div>`;
+  $('#f-drop').innerHTML = own ? '' : html; $('#f-drop').hidden = !html || own;
 }
 $('#more').addEventListener('click', () => search(true));
 
@@ -380,13 +434,15 @@ function tags(x) {
 }
 // микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
 const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
-function card(x) {
+// mini — карточка на карте (окно точки и список под картой): та же, без описания, источника и заметки.
+// У точки карты (lite) есть цена, площадь, этаж, ЖК с адресом и фото — дата, ★ и телефон приходят следом (действие items)
+function card(x, mini = false) {
   const price = x.price ? priceOf(x.price) : 0;
   const ppm = price && x.area ? `${Math.round(price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
   const zk = x.zk ?? zkName(x.complex);   // заголовок — название ЖК, если известно (по объявлению или по адресу дома)
   const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
-  const date = x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
-  return `<article class="card${x.seen ? ' seen' : ''}" data-num="${x.num}">
+  const date = x.lite ? '…' : x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
+  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
       <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
@@ -395,11 +451,11 @@ function card(x) {
       <div class="addr">${esc(where)}</div>
       <div class="tags">${tags(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
-      ${x.descr ? `<div class="descr" data-d><p>${esc(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
-      ${srcHtml(x)}
-      ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
+      ${!mini && x.descr ? `<div class="descr" data-d><p>${esc(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
+      ${mini ? '' : srcHtml(x)}
+      ${!mini && x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
-        ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
+        ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
     </div>
   </article>`;
 }
@@ -450,6 +506,8 @@ async function onCard(e, cardEl) {
   if (t.closest('summary')) { markSeen(cardEl, num); return; }
   if (t.closest('[data-copy]')) { copy(t.closest('[data-copy]').dataset.copy, 'Номер скопирован'); return; }
   if (t.closest('[data-note]')) { noteSheet(num, x); return; }
+  // карточка на карте открывает объявление нажатием в любом месте, кроме кнопок и ссылок
+  if (cardEl.classList.contains('mc') && !t.closest('button, a, input, label, .phone')) { openItem(num); return; }
   const b = t.closest('[data-phone]');
   if (!b) return;
   const box = b.parentElement;
@@ -468,7 +526,7 @@ async function onCard(e, cardEl) {
     box.insertAdjacentHTML('beforeend', `<span class="err">${esc(err.message)}</span>`);
   }
 }
-$('#list').addEventListener('scroll', e => {
+document.addEventListener('scroll', e => {   // точки под фото: в выдаче, в окне точки на карте и в списке под картой
   const s = e.target; if (!s.classList?.contains('strip')) return;
   const k = Math.round(s.scrollLeft / s.clientWidth);
   s.parentElement.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === k));
@@ -673,7 +731,22 @@ async function showSelections() {
 }
 
 // ---------- карта ----------
-let map = null, cluster = null;
+// окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);
+// дату, «★ Избранное» и телефон карточка получает следом — действием items пачкой до 60, без отметки «просмотрено»
+let map = null, cluster = null, mctl = null;
+const ptCard = p => card(items.get(p.num) ?? p, true);
+const popHtml = ps => `<div class="mlist${ps.length > 1 ? ' many' : ''}">${ps.length > 1 ? `<b class="ml-n">${ps.length} объявл. здесь</b>` : ''}${ps.map(ptCard).join('')}</div>`;
+async function loadItems(nums) {
+  const need = [...new Set(nums)].filter(n => !items.has(n)).slice(0, 60);
+  if (!need.length) return;
+  try {
+    const r = await call('items', { nums: need });
+    for (const x of r.items ?? []) {
+      items.set(x.num, x);
+      document.querySelectorAll(`.card.mc[data-num="${x.num}"]`).forEach(el => { el.outerHTML = card(x, true); });
+    }
+  } catch (e) { if (e.gate) showLogin(e.gate); }   // не ответил — карточка остаётся по данным точки
+}
 async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
@@ -682,11 +755,13 @@ async function loadMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   }
   [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
+  mctl?.abort();
+  const ctl = mctl = new AbortController();
   $('#status').textContent = 'Загружаю точки…';
   try {
-    const r = await call('map', { f, text, cm: cmOn() });
+    const r = await call('map', { f: FUI.clean(f), text, cm: cmOn() }, ctl.signal);
     cluster?.remove();
-    // несколько объявлений в одном доме (точки ближе 40 м) — открываются списком, а не разлетаются по карте;
+    // несколько объявлений в одном доме (точки ближе 40 м) — открываются списком карточек, а не разлетаются по карте;
     // без анимации «разлёта» при увеличении: кружки просто пересобираются, карта не дёргается; точки добавляются частями
     cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: z => z >= 15 ? 35 : 50, spiderfyOnMaxZoom: false, zoomToBoundsOnClick: false,
       animate: false, chunkedLoading: true, chunkInterval: 120, removeOutsideVisibleBounds: true });
@@ -694,27 +769,28 @@ async function loadMap() {
       const b = e.layer.getBounds();
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
       const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b) => a.i - b.i);
-      L.popup({ minWidth: 260, maxWidth: 280 }).setLatLng(e.layer.getLatLng())
-        .setContent(`<div class="mlist"><b>${ps.length} объявл. здесь</b>${ps.map(p => `<a href="#" class="mrow" data-num="${p.num}">
-          ${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="">` : '<span class="noph"></span>'}<span><b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${esc(what(p))}</span></a>`).join('')}</div>`).openOn(map);
+      L.popup({ minWidth: 300, maxWidth: 300 }).setLatLng(e.layer.getLatLng()).setContent(popHtml(ps)).openOn(map);
+      loadItems(ps.map(p => p.num));
     });
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) => ({ i, num, lat, lng, price: price ? priceOf(price) : price, rooms, kind, area, floor, floors, addr, ph, nw }));
+    // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) =>
+      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, web_photos: ph ? 1 : 0, lite: true }));
     const marks = mapPts.map(p => {
       const m = L.marker([p.lat, p.lng]);
       m.p = p;
-      m.bindPopup(() => `<div class="mpop">${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="" data-num="${p.num}">` : ''}
-        ${p.nw ? '<span class="mnew">Новое</span> ' : ''}<b>${p.price ? mln(p.price) + ' млн ₽' : ''}</b>${p.addr ? `<br><b class="zkline">${esc(p.addr)}</b>` : ''}<br>${esc(what(p))}
-        <br><a href="#" data-num="${p.num}">Открыть № ${p.num}</a></div>`, { minWidth: 220, maxWidth: 240 });
+      m.bindPopup(() => popHtml([p]), { minWidth: 250, maxWidth: 250 });
+      m.on('popupopen', () => loadItems([p.num]));
       return m;
     });
     map.addLayer(cluster);
     cluster.addLayers(marks);
     if (marks.length) map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] });
-    $('#status').textContent = `На карте: ${r.points.length.toLocaleString('ru-RU')}`;
+    $('#status').textContent = r.points.length ? `На карте: ${r.points.length.toLocaleString('ru-RU')}` : 'Ничего не нашлось — в «Списке» видно, какой фильтр мешает';
+    $('#apply').textContent = `Показать ${r.points.length.toLocaleString('ru-RU')}`;
     mapList();
-  } catch (e) { if (e.gate) return showLogin(e.gate); $('#status').textContent = `Ошибка карты: ${e.message}`; }
+  } catch (e) { if (ctl.signal.aborted) return; if (e.gate) return showLogin(e.gate); $('#status').textContent = `Ошибка карты: ${e.message}`; }
 }
-// список объявлений в видимой части карты (под картой): обновляется при сдвиге и масштабе
+// список объявлений в видимой части карты (под картой): обновляется при сдвиге и масштабе, карточки догружаются следом
 let mapPts = [], mlShown = 60;
 function mapList(reset = true) {
   if (!map || view !== 'map') return;
@@ -722,23 +798,20 @@ function mapList(reset = true) {
   const b = map.getBounds(), by = {
     new: (a, c) => a.i - c.i, price: (a, c) => (a.price || 9e15) - (c.price || 9e15),
     price_desc: (a, c) => (c.price || 0) - (a.price || 0), area_desc: (a, c) => (c.area || 0) - (a.area || 0) };
-  const list = mapPts.filter(p => b.contains([p.lat, p.lng])).sort(by[sort] ?? by.new);
+  const list = mapPts.filter(p => b.contains([p.lat, p.lng])).sort(by[sort] ?? by.new), shown = list.slice(0, mlShown);
   $('#ml-count').textContent = `В области карты: ${list.length.toLocaleString('ru-RU')}`;
   $('#ml-sort').value = by[sort] ? sort : 'new';
-  $('#ml-items').innerHTML = list.slice(0, mlShown).map(p => `<div class="mcard" data-num="${p.num}">
-    <div class="mph">${p.ph ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(p, 0))}" alt="" loading="lazy">` : ''}${p.nw ? '<span class="newmark">Новое</span>' : ''}</div>
-    <div class="mb"><b>${p.price ? rub(p.price) : 'Цена не указана'}</b>${p.price && p.area ? `<small class="muted">${Math.round(p.price / p.area).toLocaleString('ru-RU')} ₽/м²</small>` : ''}
-      ${p.addr ? `<span class="zkline">${esc(p.addr)}</span>` : ''}<span>${esc(what(p))}</span><small class="muted">№ ${p.num}</small></div></div>`).join('')
-    || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';
+  $('#ml-items').innerHTML = shown.map(ptCard).join('') || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';
   $('#ml-more').hidden = list.length <= mlShown;
+  clearTimeout(mapList.t); mapList.t = setTimeout(() => loadItems(shown.map(p => p.num)), 300);
 }
-$('#ml-items').addEventListener('click', e => { const c = e.target.closest('[data-num]'); if (c) openItem(+c.dataset.num); });
+$('#ml-items').addEventListener('click', e => onCard(e, e.target.closest('.card')));
 $('#ml-more').onclick = () => { mlShown += 60; mapList(false); };
 $('#ml-sort').onchange = () => { sort = $('#ml-sort').value; $('#sort').value = sort; savePrefs(); mapList(); };
-$('#map').addEventListener('click', e => { const a = e.target.closest('[data-num]'); if (a) { e.preventDefault(); openItem(+a.dataset.num); } });
+$('#map').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) onCard(e, c); });
 document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   view = b.dataset.view;
-  document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('[data-view]').forEach(x => { x.classList.toggle('on', x === b); x === b ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
   $('#list').hidden = view === 'map'; $('#map').hidden = view !== 'map'; $('#more').hidden = view === 'map' || offset >= total; $('#layouts').hidden = view === 'map';
   $('#maplist').hidden = view !== 'map';
   view === 'map' ? loadMap() : search();
@@ -746,17 +819,19 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 
 // ---------- меню ----------
 // «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
-const LISTS = { favs: ['fav', 'Показано избранное — нажмите «★ Избранное» ещё раз, чтобы вернуться к поиску'],
-  deals: ['deal', 'Показаны объекты из раздела «Контакт» — нажмите на раздел ещё раз, чтобы вернуться к поиску'] };
+const LISTS = { favs: ['fav', 'Показано избранное — к поиску вернёт «Все объявления» или повторное нажатие на «★ Избранное»'],
+  deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
+  if (g === 'all' && favMode) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); }   // «Все объявления» — назад к поиску
   if (LISTS[g]) {
     const was = favMode;
     if (was) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); if (was === g) { changed(); return; } }
-    beforeFav = { f, text }; favMode = g; document.querySelectorAll(`[data-go="${g}"]`).forEach(x => x.classList.add('on'));
+    beforeFav = { f, text }; favMode = g; tabs();
     f = { [LISTS[g][0]]: true }; $('#q').value = ''; changed();
     toast(LISTS[g][1], 4000);
   }
+  if (['sels', 'rk', 'admin', 'pay'].includes(g)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
   if (g === 'rk') showReklama();
@@ -765,6 +840,15 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
 $('#logout').onclick = logout;
+// активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
+function tabs() {
+  const on = sheetGo && !$('#sheet').hidden ? sheetGo : favMode || 'all';
+  document.querySelectorAll('.menu [data-go]').forEach(b => {
+    if (b.dataset.go === 'client') return;   // «С клиентом» — режим со своей отметкой
+    b.classList.toggle('on', b.dataset.go === on);
+    b.dataset.go === on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
+  });
+}
 
 // ---------- режим «С клиентом» ----------
 function clientUi() {

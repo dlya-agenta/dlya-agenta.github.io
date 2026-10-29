@@ -436,9 +436,9 @@ body.client .agent-only { display: none !important; }
 .fnote { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
 @media (min-width: 1000px) {
   .fside-row { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
-  body.fside.fshown main { max-width: 1480px; display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 20px; align-items: start; }
-  body.fside.fshown main > * { grid-column: 2; }
-  body.fside.fshown main > .search { grid-column: 1 / -1; }
+  body.fside.fshown main:where(:not(#ipage)) { max-width: 1480px; display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  body.fside.fshown main:where(:not(#ipage)) > * { grid-column: 2; }
+  body.fside.fshown main:where(:not(#ipage)) > .search { grid-column: 1 / -1; }
   body.fside.fshown #filters { grid-column: 1; grid-row: 2 / span 30; position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding: 14px 14px 0; }
   body.fside.fshown .fside-row { justify-content: flex-start; margin: 0 0 10px; }
   body.fside.fshown .fcols { grid-template-columns: 1fr; gap: 14px; }
@@ -446,7 +446,7 @@ body.client .agent-only { display: none !important; }
   body.fside.fshown .ffoot { position: sticky; bottom: 0; z-index: 1; background: var(--card); margin: 14px -14px 0; padding: 10px 14px 12px; }
   body.fside.fshown .list.l6 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
-@media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3, body.fside.fshown .arch-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* в миниатюрах «Новое» — внизу справа, чтобы не наезжать на «В подборку» и звёздочку */
 .list.l6 .newmark { top: auto; bottom: 6px; left: auto; right: 6px; transform: none; font-size: 10.5px; padding: 1px 6px; }
 
@@ -480,3 +480,63 @@ a.mcard { color: inherit; text-decoration: none; }
 #f-place { margin-top: 6px; }
 .arch-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .arch-acts .chip { font-size: 13px; padding: 5px 10px; }
+
+/* v5.1: активная вкладка, фильтр слева по умолчанию и без кнопки «Применить», «?», «от» больше «до», жёлтый «С ремонтом»,
+   «Ничего не нашлось» с тем, что мешает, карточка на карте — как в выдаче */
+:root { --yel: #f6c544; --yel-text: #3a2b00; }
+@media (prefers-color-scheme: dark) { :root { --yel: #e2b03a; --yel-text: #1b1400; } }
+.menu .link.on { background: var(--soft); color: var(--link); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.chip.on.yel { background: var(--yel); color: var(--yel-text); }
+.qm { width: 17px; height: 17px; padding: 0; margin-left: 3px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  font-size: 11px; font-weight: 700; line-height: 15px; letter-spacing: 0; text-align: center; cursor: help; vertical-align: 1px; }
+.qm:hover, .qm[aria-expanded="true"] { border-color: var(--accent); color: var(--link); }
+.qtip { position: fixed; z-index: 100; background: var(--text); color: var(--card); font-size: 13px; line-height: 1.4; padding: 8px 11px; border-radius: 9px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .22); pointer-events: none; }
+.pair input.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--card)); }
+.perr { font-size: 12.5px; color: var(--bad); margin-top: -2px; }
+.fcell.off .pair, .checks label:has(input:disabled) { opacity: .5; }
+.checks label:has(input:disabled) { cursor: not-allowed; }
+.list { transition: opacity .15s; }
+.list.stale { opacity: .45; transition: opacity .2s .3s; pointer-events: none; }   /* бледнеет, только если ответ дольше 0,3 с */
+.status.wait::after { content: ''; display: inline-block; width: 11px; height: 11px; margin-left: 8px; vertical-align: -1px; border: 2px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+.empty { grid-column: 1 / -1; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; }
+.empty p, .fdrop p { margin: 0 0 10px; }
+.drop-b { display: flex; flex-wrap: wrap; gap: 8px; }
+.ffoot { flex-wrap: wrap; }
+.fdrop { flex: 1 1 100%; font-size: 14px; }
+@media (min-width: 761px) { #apply, .fdrop { display: none !important; } }
+@media (max-width: 760px) {
+  .qm { width: 22px; height: 22px; line-height: 20px; font-size: 12.5px; }
+  .filters:has(.fdrop:not([hidden])) { padding-bottom: calc(200px + env(safe-area-inset-bottom)); }
+  .fdrop .drop-b .btn { flex: 1; padding: 10px; }
+}
+/* карточка на карте: в окне точки и в списке под картой — card в компактном виде; несколько объявлений в точке — строками */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--card); color: var(--text); }
+.leaflet-popup-content { margin: 12px 14px; }
+.mlist { width: auto; max-height: min(440px, 62vh); overflow-y: auto; display: grid; gap: 8px; }
+.mlist .ml-n { font-size: 13.5px; }
+.leaflet-popup .card.mc { box-shadow: none; }
+.card.mc .body { padding: 8px 2px 4px; gap: 3px; }
+.ml-items .card.mc .body { padding: 9px 11px 11px; }
+.card.mc .price b { font-size: 18px; }
+.card.mc .title { font-size: 14px; }
+.card.mc .addr { font-size: 13px; min-height: 0; -webkit-line-clamp: 1; }
+.card.mc .tags { max-height: 22px; overflow: hidden; }
+.card.mc .actions { padding-top: 4px; }
+.card.mc .actions .btn { padding: 6px 10px; font-size: 13px; }
+.card.mc .pick { font-size: 11.5px; padding: 3px 7px; top: 6px; left: 6px; }
+.card.mc .fav, .card.mc .deal { width: 30px; height: 30px; font-size: 15px; line-height: 30px; top: 6px; }
+.card.mc .fav { right: 6px; } .card.mc .deal { right: 40px; }
+.card.mc .gal .none { font-size: 12px; padding: 8px; }
+.card.mc .gal .none::before { width: 30px; height: 30px; margin-bottom: 4px; }
+.mlist.many .card.mc { flex-direction: row; gap: 10px; border-top: 1px solid var(--line); border-radius: 0; padding-top: 8px; overflow: visible; }
+.mlist.many .card.mc .gal { width: 104px; flex: none; aspect-ratio: 4 / 3; align-self: flex-start; border-radius: 8px; overflow: hidden; }
+.mlist.many .card.mc .body { padding: 0; min-width: 0; }
+.mlist.many .card.mc :is(.pick, .deal, .dots, .nav, .tags, .newmark) { display: none; }
+.mlist.many .card.mc .fav { width: 26px; height: 26px; font-size: 13px; line-height: 26px; top: 4px; right: 4px; }
+.mlist.many .card.mc .price b { font-size: 16px; }
+.mlist.many .card.mc .price small { display: none; }
+.card a.gal { display: block; }
+.card a.title { display: block; color: inherit; text-decoration: none; }
+a.link { text-decoration: none; }
