@@ -516,7 +516,8 @@ async function onCard(e, cardEl) {
     const p = await call('phone', { num });
     if (!p.phone) throw new Error(p.error || 'номер не найден');
     b.outerHTML = phoneBox(p.phone, p.owner);
-    if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; if (p.src?.length) x.src = p.src; }
+    const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
+    if (y) { y.phone = p.phone; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
     if (p.src?.length) { cardEl.querySelector('.src')?.remove(); box.insertAdjacentHTML('beforebegin', srcHtml({ src: p.src })); }
     markSeen(cardEl, num);
   } catch (err) {
@@ -733,7 +734,7 @@ async function showSelections() {
 // ---------- карта ----------
 // окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);
 // дату, «★ Избранное» и телефон карточка получает следом — действием items пачкой до 60, без отметки «просмотрено»
-let map = null, cluster = null, mctl = null;
+let map = null, cluster = null, mctl = null, openPop = null;   // openPop — открытое окно на карте
 const ptCard = p => card(items.get(p.num) ?? p, true);
 const popHtml = ps => `<div class="mlist${ps.length > 1 ? ' many' : ''}">${ps.length > 1 ? `<b class="ml-n">${ps.length} объявл. здесь</b>` : ''}${ps.map(ptCard).join('')}</div>`;
 async function loadItems(nums) {
@@ -745,13 +746,15 @@ async function loadItems(nums) {
       items.set(x.num, x);
       document.querySelectorAll(`.card.mc[data-num="${x.num}"]`).forEach(el => { el.outerHTML = card(x, true); });
     }
+    // окно на карте выросло (дата, ЖК, отметки) — пересчитать размер и сдвинуть карту, чтобы окно было видно целиком
+    if (openPop && r.items.some(x => openPop.getElement()?.querySelector(`.card.mc[data-num="${x.num}"]`))) openPop.update();
   } catch (e) { if (e.gate) showLogin(e.gate); }   // не ответил — карточка остаётся по данным точки
 }
 async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
     map = L.map('map', { zoomControl: true }).setView([43.585, 39.723], 11);
-    map.on('moveend', () => mapList());
+    map.on('moveend', () => mapList()).on('popupopen', e => { openPop = e.popup; }).on('popupclose', () => { openPop = null; });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   }
   [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
@@ -769,7 +772,7 @@ async function loadMap() {
       const b = e.layer.getBounds();
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
       const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b) => a.i - b.i);
-      L.popup({ minWidth: 300, maxWidth: 300 }).setLatLng(e.layer.getLatLng()).setContent(popHtml(ps)).openOn(map);
+      L.popup({ minWidth: 300, maxWidth: 300 }).setLatLng(e.layer.getLatLng()).setContent(() => popHtml(ps)).openOn(map);
       loadItems(ps.map(p => p.num));
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче

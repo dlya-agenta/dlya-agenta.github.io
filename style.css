@@ -540,3 +540,5 @@ a.mcard { color: inherit; text-decoration: none; }
 .card a.gal { display: block; }
 .card a.title { display: block; color: inherit; text-decoration: none; }
 a.link { text-decoration: none; }
+.toast { width: max-content; }   /* длинное уведомление на телефоне — во всю ширину, а не узким столбиком */
+.fdrop [data-drop-all] { display: none; }   /* в окне фильтра на телефоне «Сбросить всё» уже есть внизу */
