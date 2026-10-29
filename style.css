@@ -449,3 +449,12 @@ body.client .agent-only { display: none !important; }
 @media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* в миниатюрах «Новое» — внизу справа, чтобы не наезжать на «В подборку» и звёздочку */
 .list.l6 .newmark { top: auto; bottom: 6px; left: auto; right: 6px; transform: none; font-size: 10.5px; padding: 1px 6px; }
+
+/* «Архив 2 года» */
+.arch-list .gal { position: relative; }
+.arch-list .gal .iv-count { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 2px 7px; border-radius: 10px; }
+.arch-list .card.arch-gone .gal img { filter: grayscale(.6); }
+.arch-list .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#ar-back { margin: 0 0 10px; }
+.arch-set { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.arch-set input { width: 110px; }

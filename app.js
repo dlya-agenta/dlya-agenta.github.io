@@ -155,6 +155,7 @@ async function start() {
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
   $('#go-rk').hidden = !me.can_rk;   // «Реклама» — только тем, кому включил администратор
+  $('#go-arch').hidden = !me.can_arch;   // «Архив 2 года» — участнику или его группе (админка)
   clientUi();
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
@@ -755,6 +756,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
   if (g === 'rk') showReklama();
+  if (g === 'arch') showArchive();
   if (g === 'admin') admin();
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
@@ -811,6 +813,102 @@ async function showReklama() {
 }
 
 // ---------- админ-панель ----------
+// ---------- «Архив 2 года»: объявления за 2 года (в продаже и снятые) — запрашиваются при открытии вкладки, по тем же фильтрам и запросу ----------
+const ar = { page: 0, total: 0, list: [], busy: false, y: 0 };
+const arStatus = x => x.gone ? '<span class="tag grey">Снято с продажи</span>' : '<span class="tag ok">В продаже</span>';
+function arCard(x, i) {
+  const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
+  const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
+  return `<article class="card${x.gone ? ' arch-gone' : ''}" data-ai="${i}">
+    <div class="gal" data-n="${n}"><div class="strip">${n ? `<div class="ph"><img src="${esc(x.pics[0])}" alt="" loading="lazy" referrerpolicy="no-referrer" data-aopen></div>` : '<div class="none">Нет фото</div>'}</div>
+      ${n > 1 ? `<span class="iv-count">${n} фото</span>` : ''}</div>
+    <div class="body">
+      <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      ${x.complex ? `<div class="zk">${esc(zkName(x.complex))}</div>` : ''}
+      <div class="title" data-aopen>${esc(what(x))}</div>
+      <div class="addr">${esc(where)}</div>
+      <div class="tags">${arStatus(x)}</div>
+      <div class="meta">Размещено ${x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—'}${x.num ? ` · в базе № ${x.num}` : ''}</div>
+      <div class="actions"><button class="btn soft" data-aopen>Открыть</button><button class="btn ghost" data-acont>📞 Контакты и источник</button></div>
+    </div></article>`;
+}
+async function showArchive(more = false) {
+  if (ar.busy) return;
+  if (!more) { ar.page = 0; ar.list = []; sheet('Архив за 2 года', '<p class="muted">Ищу по вашим фильтрам…</p>', true); }
+  ar.busy = true;
+  try {
+    const r = await call('arch_search', { f, text, sort, page: ar.page + 1 });
+    ar.page++; ar.total = r.count; ar.list.push(...r.items); ar.info = r;
+    arList();
+  } catch (e) {
+    if (e.gate) return showLogin(e.gate);
+    if (!more) $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; else toast(e.message);
+  } finally { ar.busy = false; }
+}
+function arList() {
+  const r = ar.info, left = ar.total - ar.page * r.page;
+  $('#sheet-title').textContent = 'Архив за 2 года';
+  $('#sheet-body').innerHTML = `<p class="status muted">Найдено за 2 года: ${ar.total.toLocaleString('ru-RU')} — по фильтрам и запросу из поиска${r.understood ? ` · понял запрос так: ${esc(r.understood)}` : ''}${r.skipped?.length ? ` · в архиве не учитываются: ${esc(r.skipped.join(', '))}` : ''}</p>
+    <section class="list arch-list">${ar.list.map(arCard).join('')}</section>
+    ${left > 0 ? `<button class="btn more" id="ar-more">Показать ещё ${Math.min(r.page, left)} из ${left.toLocaleString('ru-RU')}</button>` : ''}`;
+  $('#ar-more')?.addEventListener('click', e => { e.target.disabled = true; showArchive(true); });
+  const body = $('#sheet-body'); body.scrollTop = ar.y; ar.y = 0;
+  body.querySelector('.arch-list').onclick = e => {
+    const c = e.target.closest('[data-ai]'); if (!c) return;
+    const x = ar.list[+c.dataset.ai];
+    if (e.target.closest('[data-acont]')) return arContacts(x, e.target.closest('[data-acont]'));
+    if (e.target.closest('[data-copy]')) return copy(e.target.closest('[data-copy]').dataset.copy, 'Номер скопирован');
+    if (e.target.closest('[data-aopen]')) { ar.y = body.scrollTop; arOpen(x); }
+  };
+}
+// окно объявления: большое фото, миниатюры, описание; «← К списку» возвращает на то же место
+function arOpen(x, k = 0) {
+  const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
+  const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
+  $('#sheet-title').textContent = what(x);
+  $('#sheet-body').innerHTML = `<button class="link" id="ar-back">← К списку</button>
+    <article class="card itemv" data-k="${k}">
+    <div class="iv-media">
+      <div class="iv-main">${n ? `<div class="vc"><img src="${esc(x.pics[k])}" alt="" data-big referrerpolicy="no-referrer" title="Открыть на весь экран"></div>` : '<div class="none">Нет фото</div>'}
+        ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
+        ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}</div>
+      ${n > 1 ? `<div class="iv-thumbs">${x.pics.map((u, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span></button>`).join('')}</div>` : ''}
+    </div>
+    <div class="iv-info">
+      <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      ${x.complex ? `<div class="zk">${esc(zkName(x.complex))}</div>` : ''}
+      <div class="iv-title">${esc(what(x))}</div>
+      <div class="iv-addr">${esc(where)}</div>
+      <div class="tags">${arStatus(x)}</div>
+      <div class="meta">Размещено ${x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—'}${x.changed_at ? ` · обновлено ${new Date(x.changed_at).toLocaleDateString('ru-RU')}` : ''}${x.num ? ` · в базе № ${x.num}` : ''}</div>
+      <div class="actions">${x.cont ? arContHtml(x.cont) : '<button class="btn soft" data-acont>📞 Контакты и источник</button>'}</div>
+      ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
+    </div></article>`;
+  const el = $('#sheet-body .itemv');
+  el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
+  $('#ar-back').onclick = arList;
+  el.onclick = e => {
+    const t = e.target, th = t.closest('[data-th]'), st = t.closest('[data-step]');
+    if (th || st) { const i = th ? +th.dataset.th : (+el.dataset.k + +st.dataset.step + n) % n; const y = $('#sheet-body').scrollTop; arOpen(x, i); $('#sheet-body').scrollTop = y; return; }
+    if (t.matches('[data-big]')) { openViewer(x.pics, +el.dataset.k); return; }
+    if (t.closest('[data-acont]')) arContacts(x, t.closest('[data-acont]'));
+    if (t.closest('[data-copy]')) copy(t.closest('[data-copy]').dataset.copy, 'Номер скопирован');
+  };
+}
+const arContHtml = c => `${c.phones?.length ? c.phones.map((p, i) => phoneBox(p, i ? null : c.owner)).join('') : `<span class="err">${esc(c.error || 'номера нет')}</span>`}${srcHtml(c)}`;
+// контакты и ссылки на источник — только по кнопке (считаются в лимит телефонов)
+async function arContacts(x, b) {
+  b.disabled = true; b.textContent = 'Узнаю контакты…';
+  try {
+    const c = await call('arch_contacts', { t: x.t });
+    if (c.error && !c.phones) throw new Error(c.message || c.error);
+    x.cont = c; b.outerHTML = arContHtml(c);
+  } catch (err) {
+    if (err.gate) return showLogin(err.gate);
+    b.disabled = false; b.textContent = '📞 Контакты и источник'; toast(err.message);
+  }
+}
+
 const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
   modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
 const LIM = { phone_hour: 'Телефонов в час', phone_day: 'Телефонов в сутки', sel_hour: 'Подборок в час', max_sessions: 'Одновременных входов', access_days: 'Дней доступа по умолчанию' };
@@ -820,9 +918,11 @@ async function admin() {
   try { r = await call('admin_users'); } catch (e) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU') : '—';
   const pend = r.users.filter(u => u.status === 'pending');
+  const agroups = r.arch?.groups ?? [], allGroups = [...new Set([...agroups, ...r.users.map(u => u.grp).filter(Boolean)])];
+  const archOn = u => u.role === 'admin' || (u.can_arch ?? (!!u.grp && agroups.includes(u.grp)));
   const row = u => `<tr data-login="${esc(u.login)}">
     <td><b>${esc(u.name || '')}</b><br><small>${esc(u.login)}${u.tg_id ? ' · Telegram' : ''}</small><br><small>${esc([u.phone, u.email, u.company].filter(Boolean).join(' · '))}</small></td>
-    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${u.can_rk ? '<br><small>📣 реклама</small>' : ''}</td>
+    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${u.can_rk ? '<br><small>📣 реклама</small>' : ''}${archOn(u) ? '<br><small>🗂 архив</small>' : ''}${u.grp ? `<br><small>группа: ${esc(u.grp)}</small>` : ''}</td>
     <td>${u.role === 'admin' ? '∞' : day(u.expires_at)}<br><small class="muted">вход: ${day(u.last_login)}</small></td>
     <td>${u.phones_day} тел. / ${u.pdfs_day} PDF<br><small class="muted">входов: ${u.sessions}</small></td>
     <td><input data-lim="lim_phone_hour" placeholder="${r.limits.phone_hour}" value="${u.lim_phone_hour ?? ''}" title="телефонов в час">
@@ -837,6 +937,9 @@ async function admin() {
       <button class="btn ghost" data-a="kick">Выкинуть входы</button>
       <button class="btn ghost" data-a="rk">${u.can_rk ? 'Выключить «Рекламу»' : 'Включить «Рекламу»'}</button>
       <button class="btn ghost" data-a="role">${u.role === 'admin' ? 'Снять админа' : 'Сделать админом'}</button>
+      <span class="arch-set" title="Архив 2 года: группа участника и доступ"><input data-g="grp" placeholder="группа" value="${esc(u.grp ?? '')}" list="a-groups">
+        <select data-g="can_arch">${[['', 'Архив: как у группы'], ['1', 'Архив: включён'], ['0', 'Архив: выключен']].map(([v, t]) => `<option value="${v}"${(u.can_arch == null ? '' : u.can_arch ? '1' : '0') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <button class="btn ghost" data-a="arch">Сохранить</button></span>
       <input type="date" data-a="date" value="${u.expires_at ? u.expires_at.slice(0, 10) : ''}" title="доступ до">
     </td></tr>`;
   $('#sheet-body').innerHTML = `
@@ -845,6 +948,12 @@ async function admin() {
     <input id="a-find" type="search" placeholder="Поиск по имени, логину, телефону">
     <div class="ascroll"><table class="atable"><thead><tr><th>Участник</th><th>Статус</th><th>Доступ до</th><th>Сегодня</th><th>Лимиты: тел/час, тел/сут, PDF/час, входов</th><th></th></tr></thead>
       <tbody id="a-rows">${[...pend, ...r.users.filter(u => u.status !== 'pending')].map(row).join('')}</tbody></table></div>
+    <datalist id="a-groups">${allGroups.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
+    <div class="group">Архив за 2 года (скрытая вкладка 🗂): каким группам включён</div>
+    <form id="a-arch" class="agrid">${allGroups.length ? allGroups.map(g => `<label class="chk opt"><input type="checkbox" name="g" value="${esc(g)}" ${agroups.includes(g) ? 'checked' : ''}><span>${esc(g)} (${r.users.filter(u => u.grp === g).length})</span></label>`).join('') : '<p class="muted">Групп пока нет — впишите группу участнику в таблице выше.</p>'}
+      <label class="field">Новая группа<input name="newg" placeholder="например: агенты-про"></label>
+      <p class="muted">Отдельному участнику можно включить или выключить архив в его строке — это главнее группы. Админам архив виден всегда.</p>
+      <button class="btn primary">Сохранить группы</button></form>
     <div class="group">Добавить участника</div>
     <form id="a-new" class="agrid"><input name="login" placeholder="логин (латиница)" required><input name="password" placeholder="пароль (от 6)" required>
       <input name="name" placeholder="Имя"><input name="phone" placeholder="Телефон"><input name="days" type="number" value="30" title="дней доступа">
@@ -884,6 +993,7 @@ async function admin() {
     if (a === 'off' && confirm(`Отключить ${login}?`)) save(login, { status: 'off' });
     if (a === 'kick') save(login, {}, true);
     if (a === 'rk') save(login, { can_rk: b.textContent.startsWith('Включить') });
+    if (a === 'arch') { const v = tr.querySelector('[data-g="can_arch"]').value; save(login, { grp: tr.querySelector('[data-g="grp"]').value, can_arch: v === '' ? null : v === '1' }); }
     if (a === 'role') save(login, { role: b.textContent.startsWith('Снять') ? 'user' : 'admin' });
     if (a === 'pass') { const p = prompt(`Новый пароль для ${login} (от 6 символов):`); if (p) save(login, { password: p }); }
     if (a === 'lims') save(login, Object.fromEntries([...tr.querySelectorAll('[data-lim]')].map(i => [i.dataset.lim, i.value])));
@@ -899,6 +1009,11 @@ async function admin() {
     try { await call('admin_settings', { limits: Object.fromEntries(Object.keys(LIM).map(k => [k, fm[k].value])) }); toast('Лимиты сохранены'); } catch (err) { toast(err.message); }
   };
   const saveSet = async (body, msg = 'Сохранено') => { try { const x = await call('admin_settings', body); toast(msg); return x; } catch (err) { toast(err.message); } };
+  $('#a-arch').onsubmit = async e => {
+    e.preventDefault(); const fm = e.target;
+    const groups = [...fm.querySelectorAll('input[name="g"]:checked')].map(i => i.value).concat(fm.newg.value.trim() ? [fm.newg.value.trim()] : []);
+    if (await saveSet({ arch: { groups } }, 'Группы архива сохранены')) admin();
+  };
   $('#a-src').onsubmit = e => { e.preventDefault(); saveSet({ src_links: e.target.mode.value }); };
   $('#a-uniq').onsubmit = e => { e.preventDefault(); saveSet({ uniq: { enabled: e.target.enabled.checked, per_night: e.target.per_night.value } }); };
   $('#a-pay').onsubmit = e => {
