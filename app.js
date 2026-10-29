@@ -222,7 +222,9 @@ function renderFilters() {
   $('#open-areas').classList.toggle('on', !!nd);
   $('#open-zk').textContent = nz ? `ЖК: ${nz}` : 'ЖК';
   $('#open-zk').classList.toggle('on', !!nz);
-  const n = Object.keys(f).filter(k => f[k] !== undefined && !(Array.isArray(f[k]) && !f[k].length)).length;
+  const n = Object.keys(f).filter(k => k !== 'al' && f[k] !== undefined && !(Array.isArray(f[k]) && !f[k].length)).length;
+  // улица или дом из подсказки строки поиска — значок под строкой, ✕ снимает
+  $('#q-place').innerHTML = f.a ? `<button type="button" class="chip on" data-x="a">📍 ${esc(f.al || 'улица')} ✕</button>` : '';
   $('#fcount').textContent = n ? `(${n})` : '';
 }
 // цена в рублях с точками: 12.000.000; число меньше 1000 — миллионы («12» → 12.000.000). В фильтре цена хранится в миллионах.
@@ -274,6 +276,17 @@ $('#sort').onchange = () => { sort = $('#sort').value; savePrefs(); view === 'ma
 $('#qform').addEventListener('submit', e => { e.preventDefault(); readInputs(); $('#q').blur(); changed(); });
 // поле запроса очистили (крестиком или стёрли) — сразу ищем без текста: раньше при пустом поле продолжал работать прошлый запрос
 $('#q').addEventListener('input', () => { if (!$('#q').value.trim() && text) changed(); });
+// подсказки: улица и дом — фильтр «a» (точная улица в любом написании), ЖК — фильтр ЖК, район — как в дереве районов; текст запроса очищается
+SUGG.attach($('#q'), { load: (q, signal) => call('suggest', { q }, signal).then(r => r.items), pick: x => {
+  if (favMode) { ({ f } = beforeFav); leaveFav(); }
+  delete f.a; delete f.al; delete f.zk; delete f.d;
+  const i = x.key.indexOf(':'), kind = x.key.slice(0, i), v = x.key.slice(i + 1);
+  if (kind === 'st' || kind === 'h') { f.a = x.key; f.al = x.name; }
+  else if (kind === 'zk') f.zk = [+v];
+  else f.d = [x.key];
+  $('#q').value = ''; changed();
+} });
+$('#q-place').onclick = e => { if (e.target.closest('[data-x="a"]')) { delete f.a; delete f.al; changed(); } };
 function changed() {
   clearTimeout(later.t); later.t = 0;
   text = $('#q').value.trim();   // запрос — всегда то, что сейчас в поле
@@ -371,6 +384,7 @@ const nPhotos = x => x.web_photos || x.pics?.length || 0;
 
 // новый поиск отменяет запрос в пути: выдача не мигает (прежняя видна бледной до ответа) и не подменяется устаревшим ответом
 let sctl = null;
+let oldShown = false;
 async function search(more = false) {
   if (more && busy) return;
   sctl?.abort();
@@ -380,10 +394,11 @@ async function search(more = false) {
   $('#more').disabled = true;
   try {
     const r = await call('search', { f: FUI.clean(f), text, offset: more ? offset : 0, sort, cm: cmOn() }, ctl.signal);
-    if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; }
+    if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; oldShown = false; }
     total = r.count;
     r.items.forEach(x => items.set(x.num, x));
-    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => card(x)).join(''));
+    // объявления старше 6 месяцев — после актуальных, перед первым из них разделитель (один на всю выдачу)
+    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const d = x.old && !oldShown; if (d) oldShown = true; return (d ? FUI.oldLine() : '') + card(x); }).join(''));
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
     if (!more) noneBox(total ? null : r);
@@ -776,8 +791,8 @@ async function loadMap() {
       loadItems(ps.map(p => p.num));
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw], i) =>
-      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, web_photos: ph ? 1 : 0, lite: true }));
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old], i) =>
+      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true }));
     const marks = mapPts.map(p => {
       const m = L.marker([p.lat, p.lng]);
       m.p = p;
@@ -801,10 +816,10 @@ function mapList(reset = true) {
   const b = map.getBounds(), by = {
     new: (a, c) => a.i - c.i, price: (a, c) => (a.price || 9e15) - (c.price || 9e15),
     price_desc: (a, c) => (c.price || 0) - (a.price || 0), area_desc: (a, c) => (c.area || 0) - (a.area || 0) };
-  const list = mapPts.filter(p => b.contains([p.lat, p.lng])).sort(by[sort] ?? by.new), shown = list.slice(0, mlShown);
+  const cmp = by[sort] ?? by.new, list = mapPts.filter(p => b.contains([p.lat, p.lng])).sort((a, c) => a.old - c.old || cmp(a, c)), shown = list.slice(0, mlShown);   // старше 6 месяцев — внизу
   $('#ml-count').textContent = `В области карты: ${list.length.toLocaleString('ru-RU')}`;
   $('#ml-sort').value = by[sort] ? sort : 'new';
-  $('#ml-items').innerHTML = shown.map(ptCard).join('') || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';
+  $('#ml-items').innerHTML = shown.map((p, i) => (p.old && !shown[i - 1]?.old ? FUI.oldLine() : '') + ptCard(p)).join('') || '<p class="muted">В этой части карты объявлений нет — отдалите карту.</p>';
   $('#ml-more').hidden = list.length <= mlShown;
   clearTimeout(mapList.t); mapList.t = setTimeout(() => loadItems(shown.map(p => p.num)), 300);
 }

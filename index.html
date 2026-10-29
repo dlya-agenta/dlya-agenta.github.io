@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.1.1">
+<link rel="stylesheet" href="style.css?v=5.2">
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 </head>
 <body>
@@ -38,10 +38,11 @@
 
   <main>
     <form id="qform" class="search">
-      <input id="q" type="search" placeholder="Например: 2к до 15 млн Мамайка не первый" autocomplete="off" enterkeyhint="search">
+      <div class="qbox"><input id="q" type="search" placeholder="Улица, дом, ЖК или «2к до 15 млн Мамайка»" autocomplete="off" enterkeyhint="search" aria-label="Поиск: улица, дом, ЖК, район или запрос словами"></div>
       <button type="submit" class="btn primary">Найти</button>
       <button type="button" class="btn ghost" id="toggle-f">Фильтры <span id="fcount"></span></button>
     </form>
+    <div class="chips q-place" id="q-place"></div>
 
     <section id="filters" class="filters closed" aria-label="Фильтры">
       <div class="fhead"><b>Фильтры</b><button type="button" class="x" id="f-close" aria-label="Закрыть фильтры">✕</button></div>
@@ -130,7 +131,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.1" defer></script>
-<script src="app.js?v=5.1.1" defer></script>
+<script src="filters.js?v=5.2" defer></script>
+<script src="suggest.js?v=5.2" defer></script>
+<script src="app.js?v=5.2" defer></script>
 </body>
 </html>

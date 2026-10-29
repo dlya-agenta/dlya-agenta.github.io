@@ -126,13 +126,14 @@ function renderFilters() {
   FUI.pairs(af);
   // улица или область карты — главнее районов (сервер районы тогда не учитывает)
   $('#f-place').innerHTML = [af.st && `<button type="button" class="chip on" data-x="st">📍 ${esc(af.stl || 'улица')} ✕</button>`,
-    af.geo && '<button type="button" class="chip on" data-x="geo">▭ Область карты ✕</button>'].filter(Boolean).join('');
+    af.geo && '<button type="button" class="chip on" data-x="geo">▭ Область карты ✕</button>',
+    af.dl && arr('d').length && !arr('mk').length && `<button type="button" class="chip on" data-x="d">📍 ${esc(af.dl)} ✕</button>`].filter(Boolean).join('');
   const names = areaLabel(), oldD = arr('d').length && !arr('mk').length;
   $('#open-areas').textContent = names.length ? `${names.slice(0, 2).join(', ')}${names.length > 2 ? ` +${names.length - 2}` : ''}`
-    : oldD ? 'Районы из основного поиска' : 'Весь Сочи';
+    : oldD ? (af.dl || 'Районы из основного поиска') : 'Весь Сочи';
   $('#open-areas').classList.toggle('on', names.length > 0 || oldD);
   if ((af.st || af.geo) && (names.length || oldD)) $('#open-areas').textContent += ' (не учитывается)';
-  const n = Object.keys(af).filter(k => af[k] !== undefined && !(Array.isArray(af[k]) && !af[k].length)).length;
+  const n = Object.keys(af).filter(k => !['dl', 'stl', 'house'].includes(k) && af[k] !== undefined && !(Array.isArray(af[k]) && !af[k].length)).length;
   $('#fcount').textContent = n ? `(${n})` : '';
 }
 function readInputs() {
@@ -147,20 +148,23 @@ for (const k of ['pmin', 'pmax']) {
 // поля сразу попадают в фильтр, поиск — через 0,5 с после последней цифры
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
 $('#nf').addEventListener('change', () => { readInputs(); fchg(); });
-$('#f-place').onclick = e => { const b = e.target.closest('[data-x]'); if (!b) return; if (b.dataset.x === 'st') { delete af.st; delete af.house; delete af.stl; } else delete af.geo; changed(); };
-// улица и дом: источник сам разбирает адрес (улица в Сочи + номер дома)
-async function addrGo() {
-  const v = $('#addr').value.trim(); if (!v) return;
-  $('#addr-go').disabled = true;
+$('#f-place').onclick = e => { const b = e.target.closest('[data-x]'); if (!b) return; const x = b.dataset.x;
+  if (x === 'st') { delete af.st; delete af.house; delete af.stl; } else if (x === 'd') { delete af.d; delete af.dl; } else delete af.geo; changed(); };
+// одна строка поиска, как на главной: подсказки того же словаря (улицы, дома, районы; ЖК архив не учитывает).
+// Улица или дом уходят в источник по его адресам (arch_geo: «улица Позднякова, 2»), район — как район из основного поиска (af.d)
+// улицы нет в словаре (на ней нет объявлений в нашей базе) — последний пункт «Искать адрес …»: адрес разбирает источник
+SUGG.attach($('#q'), { load: (q, signal) => callRetry('suggest', { q, arch: true }, 2, signal).then(r => /[а-яё]{3}/i.test(q) && !r.items.some(x => x.kind === 'house')
+  ? [...r.items.slice(0, 7), { kind: 'addr', type: 'адрес', name: `Искать адрес «${q}»`, geo: q, label: q }] : r.items), pick: async x => {
+  if (x.kind === 'district') {
+    delete af.mk; delete af.st; delete af.house; delete af.stl; af.d = [x.key]; af.dl = x.name;
+    $('#q').value = ''; changed(); return;
+  }
   try {
-    const r = await callRetry('arch_geo', { text: v });
-    af.st = r.st; af.house = r.house || undefined; af.stl = r.label; delete af.geo;
-    $('#addr').value = ''; if (mobile()) openF(false); changed();
+    const r = await callRetry('arch_geo', { text: x.geo || x.name });
+    af.st = r.st; af.house = r.house || undefined; af.stl = x.label || x.name; delete af.geo;
+    $('#q').value = ''; changed();
   } catch (e) { toast(e.message, 4000); }
-  finally { $('#addr-go').disabled = false; }
-}
-$('#addr-go').onclick = addrGo;
-$('#addr').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addrGo(); } });
+} });
 function openF(on) {
   $('#filters').classList.toggle('closed', !on); document.body.classList.toggle('fopen', on && mobile());
   document.body.classList.toggle('fshown', on); map?.invalidateSize();
@@ -229,10 +233,10 @@ $('#open-areas').onclick = () => {
     const ids = i.name === 'd' ? tree[+i.value].subs.flatMap(s => s.ids) : i.value.split(',').map(Number);
     ids.forEach(x => i.checked ? set.add(x) : set.delete(x));
     af.mk = [...set]; if (!af.mk.length) delete af.mk;
-    delete af.d;   // районы из основного поиска заменяются выбором здесь
+    delete af.d; delete af.dl;   // районы из основного поиска (или из подсказки) заменяются выбором здесь
     fchg(); draw();
   };
-  $('#s-clear').onclick = () => { delete af.mk; delete af.d; fchg(); draw(); };
+  $('#s-clear').onclick = () => { delete af.mk; delete af.d; delete af.dl; fchg(); draw(); };
   $('#s-ok').onclick = () => { closeSheet(); flush(); };
 };
 

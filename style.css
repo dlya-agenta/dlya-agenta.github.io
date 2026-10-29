@@ -542,3 +542,25 @@ a.mcard { color: inherit; text-decoration: none; }
 a.link { text-decoration: none; }
 .toast { width: max-content; }   /* длинное уведомление на телефоне — во всю ширину, а не узким столбиком */
 .fdrop [data-drop-all] { display: none; }   /* в окне фильтра на телефоне «Сбросить всё» уже есть внизу */
+
+/* v5.2: единая строка поиска — подсказки (улица, дом, ЖК, район), выбранное место под строкой, «Объявления старше 6 месяцев» */
+.qbox { position: relative; flex: 1; min-width: 0; display: flex; }
+.qbox input { flex: 1; width: 100%; padding: 11px 13px; }
+.sugg { position: absolute; z-index: 1200; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgba(16, 24, 40, .16); max-height: min(60vh, 380px); overflow-y: auto; }
+.sugg li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.sugg li.on { background: var(--soft); }
+.sugg .sg-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sugg .sg-t { flex: none; font-size: 12.5px; color: var(--muted); }
+.q-place { margin-top: 8px; }
+.q-place:empty { display: none; }
+.olddiv { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; margin: 6px 0 2px; }
+.olddiv::before, .olddiv::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+.olddiv span { cursor: help; white-space: nowrap; }
+.olddiv .qm { display: inline-block; text-align: center; font-style: normal; line-height: 15px; font-size: 11px; }
+#ml-items .olddiv { margin: 10px 0 6px; }
+@media (max-width: 760px) {
+  .search .qbox { flex: 1 1 100%; }
+  .sugg li { padding: 11px 10px; }
+}
+@media (prefers-color-scheme: dark) { .sugg { box-shadow: 0 8px 28px rgba(0, 0, 0, .5); } }
