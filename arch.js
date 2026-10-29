@@ -24,17 +24,18 @@ if (!af) {
 let tree = [], view = 'list', page = 0, total = 0, busy = false, items = [], listY = 0;
 const mobile = () => innerWidth <= 760;
 
-async function call(action, extra = {}) {
-  const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth, ...extra }) });
+async function call(action, extra = {}, region = REGIONS[0]) {
+  const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-region': region }, body: JSON.stringify({ action, auth, ...extra }) });
   const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
   if (['no_auth', 'no_access', 'expired', 'kicked', 'off'].includes(data.error)) { location.href = './'; throw new Error(data.message); }   // вход — на главной
   if (!r.ok || data.error) throw Object.assign(new Error(data.message || data.error || `HTTP ${r.status}`), { data });
   return data;
 }
-// архив: источник иногда не отвечает одному вызову сервера — повторяем тем же запросом (новый вызов обычно проходит), до 3 попыток
+// регионы сервера, откуда источник отвечает (из eu-west-2/3 — почти нет); не ответил — повтор в следующем регионе, до 3 попыток
+const REGIONS = ['eu-central-1', 'eu-west-1', 'eu-central-2'];
 async function callRetry(action, extra = {}, tries = 3) {
   for (let t = 1; ; t++) {
-    try { return await call(action, extra); }
+    try { return await call(action, extra, REGIONS[(t - 1) % REGIONS.length]); }
     catch (e) { if (t >= tries || !/источник не ответил/.test(e.message)) throw e; }
   }
 }
@@ -228,7 +229,7 @@ const contHtml = c => `<div class="cont">${c.phones?.length ? c.phones.map((p, i
 async function contacts(x, b) {
   b.disabled = true; b.textContent = 'Узнаю контакты…';
   try {
-    const c = await call('arch_contacts', { t: x.t });
+    const c = await callRetry('arch_contacts', { t: x.t }, 2);
     if (c.error && !c.phones) throw new Error(c.message || c.error);
     x.cont = c; b.outerHTML = contHtml(c);
   } catch (err) { b.disabled = false; b.textContent = '📞 Контакты и источник'; toast(err.message); }
