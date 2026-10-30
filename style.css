@@ -564,3 +564,39 @@ a.link { text-decoration: none; }
   .sugg li { padding: 11px 10px; }
 }
 @media (prefers-color-scheme: dark) { .sugg { box-shadow: 0 8px 28px rgba(0, 0, 0, .5); } }
+
+/* v5.3: тарифы — счётчик номеров в шапке (имя — кнопка профиля), окно «Что даёт PRO», закрытые разделы, лимит с «Докупить», профиль и устройства */
+button.who { background: none; border: 0; text-align: left; cursor: pointer; border-radius: 8px; padding: 4px 8px; font: inherit; font-size: 13px; color: var(--text); }
+button.who:hover, button.who.on { background: var(--soft); }
+.who #quota { color: var(--muted); font-variant-numeric: tabular-nums; }
+.who #quota.warn { color: var(--bad); font-weight: 600; }
+.q-short { display: none; }
+@media (max-width: 560px) { .q-long { display: none; } .q-short { display: inline; } }
+.ptable-wrap { overflow-x: auto; margin: 0 -4px; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: fixed; }
+.ptable th, .ptable td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.ptable tbody th { text-align: left; font-weight: 400; color: var(--muted); width: 34%; }
+.ptable thead th { font-size: 15px; }
+.ptable .my { background: var(--soft); }
+.ptable tfoot td { border-bottom: 0; padding-top: 10px; }
+.ptable tfoot .btn { white-space: normal; padding: 9px 8px; width: 100%; }
+@media (max-width: 560px) { .ptable { font-size: 12.5px; } .ptable th, .ptable td { padding: 7px 3px; } .ptable thead th { font-size: 14px; } }
+.locked { display: grid; gap: 8px; justify-items: start; text-align: left; background: var(--card); border-radius: var(--radius); padding: 4px 0; }
+.locked b { font-size: 17px; }
+.locked p { margin: 0; }
+.gate .locked { max-width: 440px; padding: 18px; box-shadow: var(--shadow); }
+.pro-line { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--soft); color: var(--text); border-radius: var(--radius); padding: 12px 16px; margin-top: 6px; }
+.lim { display: grid; gap: 8px; justify-items: start; }
+.lim p { margin: 0; }
+.prof-plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.prof-plan > div { display: grid; gap: 2px; background: var(--soft); border-radius: 12px; padding: 10px 12px; }
+.prof-plan b { font-size: 16px; }
+.prof-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.prof-form .wide { grid-column: 1 / -1; }
+.prof-form textarea { resize: vertical; }
+.dev { cursor: default; justify-content: space-between; }
+.a-plan { min-width: 150px; }
+.a-plan label, .a-plan > small { display: block; margin-top: 4px; }
+.a-plan input[type=date] { width: 132px; }
+.ptable-admin input[type=text] { width: 110px; }

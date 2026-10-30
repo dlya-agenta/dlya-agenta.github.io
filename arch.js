@@ -13,7 +13,7 @@ const MSG = 'Здравствуйте! Ваше предложение по пр
 const KINDS = [['квартира', 'Квартиры'], ['апартаменты', 'Апартаменты'], ['дом', 'Дома'], ['коммерция', 'Коммерция'], ['участок', 'Участки']];
 const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 const token = store.get('token', null);
-const auth = token ? { token } : tg?.initData || null;
+const auth = token ? { token } : null;   // вход — на главной (и из Telegram: там initData меняется на токен своей сессии)
 // фильтр архива — свой; в первый раз берём основные фильтры сайта (тип, комнаты, цена, площадь, этаж, район)
 let af = store.get('af', null), text = store.get('atext', ''), sort = store.get('asort', 'new');
 if (!af) {
@@ -69,11 +69,16 @@ async function start() {
   tg?.ready(); tg?.expand();
   if (!auth) { location.href = './'; return; }
   let r;
+  PLANS.use({ call, sheet, toast });
   try { r = await call('arch_init'); }
-  catch (e) { return gate(`<h2>Архив недоступен</h2><p>${esc(e.message)}</p><a class="btn ghost" href="./">← Все объявления</a>`); }
+  catch (e) {   // без PRO/MAX — описание архива и «Оформить PRO» (окно с тем, что даёт PRO)
+    if (e.data?.error === 'need_pro') return gate(`${PLANS.lockedHtml('arch')}<a class="btn ghost" href="./">← Все объявления</a>`);
+    return gate(`<h2>Архив недоступен</h2><p>${esc(e.message)}</p><a class="btn ghost" href="./">← Все объявления</a>`);
+  }
   tree = r.tree; feat = r.features ?? {};
   selbar();
   $('#who').textContent = r.me.name || r.me.login;
+  PLANS.counter(r.me.used);
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile()); sideUi();
@@ -360,8 +365,15 @@ async function contacts(x, b) {
   try {
     const c = await callRetry('arch_contacts', { t: x.t }, 2);
     if (c.error && !c.phones) throw new Error(c.message || c.error);
+    PLANS.counter(c.used);
     x.cont = c; b.outerHTML = contHtml(c);
-  } catch (err) { b.disabled = false; b.textContent = '📞 Контакты и источник'; toast(err.message); }
+  } catch (err) {
+    b.disabled = false; b.textContent = '📞 Контакты и источник';
+    if (err.data?.used) PLANS.counter(err.data.used);
+    b.parentElement.querySelectorAll('.lim').forEach(e => e.remove());
+    if (err.data?.limit) b.insertAdjacentHTML('afterend', `<div class="lim">${PLANS.limitHtml(err.message, err.data.limit)}</div>`);   // лимит — с «Докупить»
+    else toast(err.message);
+  }
 }
 function copy(t) { navigator.clipboard?.writeText(t).then(() => toast('Номер скопирован'), () => toast(t)); }
 

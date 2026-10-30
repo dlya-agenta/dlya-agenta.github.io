@@ -30,7 +30,7 @@ const cmOn = () => client.on ? +client.cm || 0 : 0;
 const priceOf = v => cmOn() ? Math.round(v * (1 + cmOn() / 100) / 10000) * 10000 : v;
 
 let token = store.get('token', null);
-let auth = token ? { token } : tg?.initData || null;
+let auth = token ? { token } : null;   // Mini App: initData меняется на токен своей сессии (tg_login) — Telegram считается устройством
 let me = null, meta = null;
 let f = store.get('f2', {}), text = store.get('text', ''), sort = store.get('sort', 'new');
 const mobile = () => innerWidth <= 760;
@@ -58,6 +58,7 @@ async function call(action, extra = {}, signal) {   // signal — отменит
   const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth, ...extra }), signal });
   const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
   if (['no_auth', 'no_access', 'expired', 'kicked', 'off'].includes(data.error)) throw Object.assign(new Error(data.message), { gate: data.error, data });
+  if (data.error === 'need_pro') PLANS.pro(data.message);   // Архив, Реклама, Рассылки — в PRO и MAX
   if (!r.ok || data.error) throw Object.assign(new Error(data.message || data.error || `HTTP ${r.status}`), { data });
   return data;
 }
@@ -68,7 +69,12 @@ function gate(html) { $('#gate').innerHTML = html; $('#gate').hidden = false; $(
 const docs = '<a href="oferta.html" target="_blank">оферты</a>, <a href="rules.html" target="_blank">правил</a> и <a href="privacy.html" target="_blank">политики конфиденциальности</a>';
 
 function showLogin(reason, tab = 'login') {
-  token = null; store.set('token', null);
+  token = null; store.set('token', null); auth = null;
+  if (tg?.initData && reason === 'kicked') {   // Mini App: вошли на другом устройстве — здесь вышли; войти снова можно без пароля
+    gate(`<p class="muted">Выполнен вход на другом устройстве — здесь вы вышли.</p><button class="btn primary" id="tg-again">Войти снова</button>`);
+    $('#tg-again').onclick = async () => { if (await tgLogin()) start(); };
+    return;
+  }
   const why = { expired: 'Доступ закончился. Войдите снова: если оплата открыта, продлите доступ сразу, иначе обратитесь к администратору.', no_access: 'Ваш Telegram не одобрен в боте. Войдите по логину и паролю.', kicked: 'Выполнен вход на другом устройстве — войдите снова.',
     off: 'Доступ закрыт — обратитесь к администратору.', no_auth: '' }[reason] ?? '';
   gate(`
@@ -96,7 +102,7 @@ function showLogin(reason, tab = 'login') {
     const fm = e.target, btn = fm.querySelector('button');
     btn.disabled = true; $('#gerr').textContent = '';
     try {
-      const r = await call('login', { login: fm.login.value, password: fm.password.value });
+      const r = await call('login', { login: fm.login.value, password: fm.password.value, fp: await fp() });
       token = r.token; store.set('token', token); auth = { token }; start();
     } catch (err) {
       if (err.data?.pay) return payGate(err.data.pay, err.message);   // доступ истёк или заявка не одобрена — можно оплатить сразу
@@ -115,13 +121,26 @@ function showLogin(reason, tab = 'login') {
   });
 }
 function logout() { token = null; auth = null; store.set('token', null); showLogin(); }
+// Mini App (кнопка «Сайт» в боте): initData → токен своей сессии, как вход по паролю
+async function tgLogin() {
+  try { const r = await call('tg_login', { auth: tg.initData, fp: await fp() }); token = r.token; store.set('token', token); auth = { token }; return true; }
+  catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || 'no_auth'); return false; }
+}
+// отпечаток браузера для «Активных устройств» и защиты партнёрки: хеш общих свойств браузера, не личные данные
+async function fp() {
+  const s = [navigator.userAgent, navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone, `${screen.width}x${screen.height}x${screen.colorDepth}`, navigator.hardwareConcurrency, navigator.platform].join('|');
+  try { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].slice(0, 12).map(b => b.toString(16).padStart(2, '0')).join(''); } catch { return ''; }
+}
 
 async function start() {
   tg?.ready(); tg?.expand(); try { tg?.disableVerticalSwipes?.(); } catch { /* старый Telegram */ }
+  if (!auth && tg?.initData && !(await tgLogin())) return;
   if (!auth) return showLogin();
   try { meta = await call('init'); }
   catch (e) { return e.gate ? showLogin(e.gate) : gate(`<h2>Ошибка</h2><p>${esc(e.message)}</p>`); }
   me = meta.me;
+  PLANS.use({ call, sheet, toast }, meta);
+  PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
     if (p.f && typeof p.f === 'object') f = p.f;
@@ -148,23 +167,24 @@ async function start() {
   if (me.role === 'admin') { $('#until').textContent = me.login === 'admin' ? 'главный администратор' : 'администратор'; $('#go-admin').hidden = false; }
   else if (me.expires_at) {
     const d = new Date(me.expires_at), left = Math.ceil((d - Date.now()) / 864e5);
-    $('#until').textContent = `доступ до ${d.toLocaleDateString('ru-RU')}${left <= 5 ? ` · осталось ${left} дн.` : ''}`;
+    $('#until').textContent = `${me.plan_name} · до ${d.toLocaleDateString('ru-RU')}${left <= 5 ? ` · осталось ${left} дн.` : ''}`;
     $('#until').classList.toggle('warn', left <= 5);
   }
+  PLANS.counter(me.used);   // «Сегодня 7 из 20 · В месяц 43 из 100»
   $('#logout').hidden = !!me.tg;
   $('#go-pay').hidden = !meta.pay?.enabled;
   $('#go-map').hidden = !meta.features.map;
   document.querySelectorAll('[data-go="favs"]').forEach(b => b.hidden = !meta.features.favorites);
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
-  $('#go-rk').hidden = !me.can_rk;   // «Реклама» — только тем, кому включил администратор
-  $('#go-arch').hidden = !me.can_arch;   // «Архив 2 года» — участнику или его группе (админка)
+  // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
   FUI.help(); renderFilters(); selbar(); applyLay();
   search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
+  PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
 }
 
 // ---------- фильтры ----------
@@ -402,6 +422,7 @@ async function search(more = false) {
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
     if (!more) noneBox(total ? null : r);
+    if (r.old_pro && offset >= total) $('#list').insertAdjacentHTML('beforeend', PLANS.oldBanner(r.old_pro));
     $('#apply').textContent = `Показать ${total.toLocaleString('ru-RU')}`;
     $('#more').hidden = view === 'map' || offset >= total;
     $('#more').textContent = `Показать ещё ${Math.min(r.page, total - offset)} из ${(total - offset).toLocaleString('ru-RU')}`;
@@ -529,6 +550,7 @@ async function onCard(e, cardEl) {
   b.disabled = true; b.textContent = 'Узнаю номер…';
   try {
     const p = await call('phone', { num });
+    PLANS.counter(p.used);
     if (!p.phone) throw new Error(p.error || 'номер не найден');
     b.outerHTML = phoneBox(p.phone, p.owner);
     const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
@@ -538,8 +560,9 @@ async function onCard(e, cardEl) {
   } catch (err) {
     if (err.gate) return showLogin(err.gate);
     b.disabled = false; b.textContent = '📞 Телефон';
-    box.querySelector('.err')?.remove();
-    box.insertAdjacentHTML('beforeend', `<span class="err">${esc(err.message)}</span>`);
+    if (err.data?.used) PLANS.counter(err.data.used);
+    box.querySelectorAll('.err, .lim').forEach(e => e.remove());
+    box.insertAdjacentHTML('beforeend', err.data?.limit ? `<div class="lim">${PLANS.limitHtml(err.message, err.data.limit)}</div>` : `<span class="err">${esc(err.message)}</span>`);
   }
 }
 document.addEventListener('scroll', e => {   // точки под фото: в выдаче, в окне точки на карте и в списке под картой
@@ -696,29 +719,44 @@ $('#sel-make').onclick = () => {
     <label class="field">Ваш телефон в PDF<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома в PDF клиенту</span></label>
     <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}). В PDF агенту — ссылка на источник объявления, в PDF клиенту источников нет. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</div>
-    <p class="hint" id="s-prog"></p><p class="err" id="s-err"></p>
+    <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
+  let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
-    const b = $('#s-go'); b.disabled = true; b.textContent = 'Готовлю…'; $('#s-err').textContent = '';
+    const b = $('#s-go'); b.disabled = true; b.textContent = 'Готовлю…'; $('#s-err').textContent = ''; $('#s-lim').innerHTML = '';
     store.set('agent', { name: $('#s-name').value, phone: $('#s-phone').value }); store.set('hideAddr', $('#s-hide').checked);
     const prog = t => { const el = $('#s-prog'); if (el) el.textContent = t; };
     try {
       // телефоны и проверка рекламы — по одному объекту за запрос: сервис телефонов отвечает 7–15 с, один общий запрос упирался в предел времени сервера
       const nums = [...sel].slice(0, MAXSEL); let limit = '';
+      // новых номеров больше, чем осталось, — не обрезаем молча: сколько не хватает; убрать объекты, докупить или собрать без части телефонов
+      if (!partial) {
+        const c = await call('sel_check', { nums });
+        PLANS.counter(c.used);
+        if (c.need > c.room) {
+          const miss = c.need - c.room, when = { day: 'на сегодня', month: 'в этом месяце', hour: 'в этот час' }[c.why] ?? '';
+          $('#s-lim').innerHTML = `<div class="lim"><p>В подборке новых номеров: ${c.need}, а ${when} осталось ${c.room}. Не хватает ${miss}. Уберите ${miss} ${miss === 1 ? 'объект' : miss < 5 ? 'объекта' : 'объектов'} из подборки или докупите номера.</p>
+            <div class="sheet-foot"><button class="btn ghost" data-close>Убрать объекты</button>${c.why !== 'hour' && c.pack ? `<button class="btn soft" data-pack>Докупить ${c.pack.qty} номеров за ${c.pack.usd} $</button>` : ''}
+            <button class="btn ghost" id="s-part">Собрать без ${miss} ${miss === 1 ? 'телефона' : 'телефонов'}</button></div></div>`;
+          $('#s-part').onclick = () => { partial = true; $('#s-go').click(); };
+          b.disabled = false; b.textContent = 'Сформировать'; return;
+        }
+      }
       for (const [i, n] of nums.entries()) {
         const x = items.get(n);
         if (x?.phone && x.ad_state) continue;
         prog(`Открываю телефоны и проверяю рекламу: ${i + 1} из ${nums.length}…`);
         for (let t = 0; t < 2; t++) {
-          try { const p = await call('phone', { num: n }); if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; } break; }
-          catch (err) { if (err.gate) throw err; if (/Лимит/.test(err.message)) { limit = err.message; break; } }
+          try { const p = await call('phone', { num: n, via: 'pdf' }); PLANS.counter(p.used); if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; } break; }
+          catch (err) { if (err.gate) throw err; if (err.data?.limit) { limit = err.message; break; } }
         }
         if (limit) break;
       }
       prog(`${limit ? limit + ' ' : ''}Собираю два PDF…`); b.textContent = 'Собираю PDF…';
       const r = await call('sel_create', { nums, title: $('#s-title').value, markup: +$('#s-mk').value,
-        agent: $('#s-name').value, agent_phone: $('#s-phone').value, hide_addr: $('#s-hide').checked });
+        agent: $('#s-name').value, agent_phone: $('#s-phone').value, hide_addr: $('#s-hide').checked, partial });
+      PLANS.counter(r.used);
       $('#sheet-body').innerHTML = `<p>Подборка готова — два PDF.</p>
         <div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a>
         <a class="btn soft agent-only" href="${esc(r.url_agent)}" target="_blank" rel="noopener" data-url="${esc(r.url_agent)}">PDF агенту (с телефонами)</a></div>
@@ -849,11 +887,14 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
     f = { [LISTS[g][0]]: true }; $('#q').value = ''; changed();
     toast(LISTS[g][1], 4000);
   }
-  if (['sels', 'rk', 'admin', 'pay'].includes(g)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
+  if (['sels', 'rk', 'mail', 'admin', 'pay', 'prof'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
-  if (g === 'rk') showReklama();
-  if (g === 'arch') location.href = 'arch.html';   // «Архив 2 года» — своя страница со своим фильтром и картой
+  // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
+  if (g === 'rk') { if (me.can_rk) showReklama(); else PLANS.locked('rk'); }
+  if (g === 'mail') { if (me.can_mail) PLANS.soon('mail'); else PLANS.locked('mail'); }   // сами рассылки — шаг 4.2
+  if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
+  if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
   if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
 });
@@ -922,7 +963,8 @@ async function showReklama() {
 
 const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
   modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
-const LIM = { phone_hour: 'Телефонов в час', phone_day: 'Телефонов в сутки', sel_hour: 'Подборок в час', max_sessions: 'Одновременных входов', access_days: 'Дней доступа по умолчанию' };
+// номеров в день и в месяц, устройств — в тарифах (блок «Тарифы»); здесь — общее для всех тарифов
+const LIM = { phone_hour: 'Номеров в час (защита от выкачивания базы)', sel_hour: 'Подборок в час', access_days: 'Дней доступа по умолчанию' };
 async function admin() {
   sheet('Админ-панель', '<p class="muted">Загрузка…</p>', true);
   let r;
@@ -930,34 +972,43 @@ async function admin() {
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU') : '—';
   const pend = r.users.filter(u => u.status === 'pending');
   const agroups = r.arch?.groups ?? [], allGroups = [...new Set([...agroups, ...r.users.map(u => u.grp).filter(Boolean)])];
-  const archOn = u => u.role === 'admin' || (u.can_arch ?? (!!u.grp && agroups.includes(u.grp)));
+  // доступы: ручная отметка главнее; иначе — тариф (и группа для архива)
+  const pl = u => r.plans[u.plan] ?? r.plans.sub;
+  const archOn = u => u.role === 'admin' || (u.can_arch ?? (pl(u).opts.arch || (!!u.grp && agroups.includes(u.grp))));
+  const rkOn = u => u.role === 'admin' || (u.can_rk ?? pl(u).opts.rk_month > 0);
+  const tri = (k, v, t) => `<select data-g="${k}">${[['', `${t}: как у тарифа`], ['1', `${t}: включена`], ['0', `${t}: выключена`]].map(([x, y]) => `<option value="${x}"${(v == null ? '' : v ? '1' : '0') === x ? ' selected' : ''}>${y}</option>`).join('')}</select>`;
   const row = u => `<tr data-login="${esc(u.login)}">
     <td><b>${esc(u.name || '')}</b><br><small>${esc(u.login)}${u.tg_id ? ' · Telegram' : ''}</small><br><small>${esc([u.phone, u.email, u.company].filter(Boolean).join(' · '))}</small></td>
-    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${u.can_rk ? '<br><small>📣 реклама</small>' : ''}${archOn(u) ? '<br><small>🗂 архив</small>' : ''}${u.grp ? `<br><small>группа: ${esc(u.grp)}</small>` : ''}</td>
-    <td>${u.role === 'admin' ? '∞' : day(u.expires_at)}<br><small class="muted">вход: ${day(u.last_login)}</small></td>
-    <td>${u.phones_day} тел. / ${u.pdfs_day} PDF<br><small class="muted">входов: ${u.sessions}</small></td>
-    <td><input data-lim="lim_phone_hour" placeholder="${r.limits.phone_hour}" value="${u.lim_phone_hour ?? ''}" title="телефонов в час">
-      <input data-lim="lim_phone_day" placeholder="${r.limits.phone_day}" value="${u.lim_phone_day ?? ''}" title="телефонов в сутки"><br>
-      <input data-lim="lim_sel_hour" placeholder="${r.limits.sel_hour}" value="${u.lim_sel_hour ?? ''}" title="подборок в час">
-      <input data-lim="max_sessions" placeholder="${r.limits.max_sessions}" value="${u.max_sessions ?? ''}" title="одновременных входов"></td>
+    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${rkOn(u) ? '<br><small>📣 реклама</small>' : ''}${archOn(u) ? '<br><small>🗂 архив</small>' : ''}${u.grp ? `<br><small>группа: ${esc(u.grp)}</small>` : ''}</td>
+    <td class="a-plan"><select data-g="plan">${['sub', 'pro', 'max'].map(id => `<option value="${id}"${u.plan === id ? ' selected' : ''}>${esc(r.plans[id].name)}</option>`).join('')}</select>
+      <label><small class="muted">с</small> <input type="date" data-g="period_start" value="${String(u.period_start ?? u.created_at ?? '').slice(0, 10)}" title="начало периода: от него считается месяц номеров"></label>
+      <label><small class="muted">по</small> <input type="date" data-a="date" value="${u.expires_at ? u.expires_at.slice(0, 10) : ''}" title="доступ до (сохраняется сразу)"></label>
+      <small class="muted">${u.role === 'admin' ? 'админ — без срока и лимитов · ' : ''}вход: ${day(u.last_login)}</small></td>
+    <td>${u.role === 'admin' ? '—' : `${u.q.day} из ${u.q.day_lim} сегодня<br>${u.q.month} из ${u.q.month_lim} за месяц`}<br><small class="muted">${u.pdfs_day} PDF · входов: ${u.sessions}${u.packs?.length ? `<br>пакеты: ${u.packs.map(k => `+${k.qty} до ${day(k.period_end)}`).join(', ')}` : ''}</small></td>
+    <td><input data-lim="lim_phone_hour" placeholder="${r.limits.phone_hour}" value="${u.lim_phone_hour ?? ''}" title="номеров в час">
+      <input data-lim="lim_phone_day" placeholder="${pl(u).phones_day}" value="${u.lim_phone_day ?? ''}" title="номеров в день"><br>
+      <input data-lim="lim_phone_month" placeholder="${pl(u).phones_month}" value="${u.lim_phone_month ?? ''}" title="номеров в месяц">
+      <input data-lim="lim_sel_hour" placeholder="${r.limits.sel_hour}" value="${u.lim_sel_hour ?? ''}" title="подборок в час"><br>
+      <input data-lim="max_sessions" placeholder="${pl(u).devices}" value="${u.max_sessions ?? ''}" title="устройств одновременно"></td>
     <td class="row-actions">
       ${u.status !== 'active' ? '<button class="btn primary" data-a="approve">Одобрить +30 дн.</button>' : '<button class="btn soft" data-a="plus">+30 дней</button>'}
       ${u.status !== 'off' ? '<button class="btn ghost" data-a="off">Отключить</button>' : ''}
+      <button class="btn ghost" data-a="plan">Сохранить тариф и период</button>
+      <button class="btn ghost" data-a="pack" title="пакет без оплаты — до конца месяца участника">+${r.pack.qty} номеров</button>
       <button class="btn ghost" data-a="lims">Сохранить лимиты</button>
       <button class="btn ghost" data-a="pass">Новый пароль</button>
       <button class="btn ghost" data-a="kick">Выкинуть входы</button>
-      <button class="btn ghost" data-a="rk">${u.can_rk ? 'Выключить «Рекламу»' : 'Включить «Рекламу»'}</button>
+      <span class="arch-set">${tri('can_rk', u.can_rk, 'Реклама')}<button class="btn ghost" data-a="rk">Сохранить</button></span>
       <button class="btn ghost" data-a="role">${u.role === 'admin' ? 'Снять админа' : 'Сделать админом'}</button>
       <span class="arch-set" title="Архив 2 года: группа участника и доступ"><input data-g="grp" placeholder="группа" value="${esc(u.grp ?? '')}" list="a-groups">
-        <select data-g="can_arch">${[['', 'Архив: как у группы'], ['1', 'Архив: включён'], ['0', 'Архив: выключен']].map(([v, t]) => `<option value="${v}"${(u.can_arch == null ? '' : u.can_arch ? '1' : '0') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <select data-g="can_arch">${[['', 'Архив: как у тарифа и группы'], ['1', 'Архив: включён'], ['0', 'Архив: выключен']].map(([v, t]) => `<option value="${v}"${(u.can_arch == null ? '' : u.can_arch ? '1' : '0') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
         <button class="btn ghost" data-a="arch">Сохранить</button></span>
-      <input type="date" data-a="date" value="${u.expires_at ? u.expires_at.slice(0, 10) : ''}" title="доступ до">
     </td></tr>`;
   $('#sheet-body').innerHTML = `
     ${pend.length ? `<div class="group">Заявки на доступ: ${pend.length}</div>` : ''}
     <div class="group">Участники (${r.users.length})</div>
     <input id="a-find" type="search" placeholder="Поиск по имени, логину, телефону">
-    <div class="ascroll"><table class="atable"><thead><tr><th>Участник</th><th>Статус</th><th>Доступ до</th><th>Сегодня</th><th>Лимиты: тел/час, тел/сут, PDF/час, входов</th><th></th></tr></thead>
+    <div class="ascroll"><table class="atable"><thead><tr><th>Участник</th><th>Статус</th><th>Тариф и период</th><th>Номера</th><th>Свои лимиты (пусто — по тарифу): час, день, месяц, PDF/час, устройств</th><th></th></tr></thead>
       <tbody id="a-rows">${[...pend, ...r.users.filter(u => u.status !== 'pending')].map(row).join('')}</tbody></table></div>
     <datalist id="a-groups">${allGroups.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
     <div class="group">Архив за 2 года (скрытая вкладка 🗂): каким группам включён</div>
@@ -969,6 +1020,7 @@ async function admin() {
     <form id="a-new" class="agrid"><input name="login" placeholder="логин (латиница)" required><input name="password" placeholder="пароль (от 6)" required>
       <input name="name" placeholder="Имя"><input name="phone" placeholder="Телефон"><input name="days" type="number" value="30" title="дней доступа">
       <button class="btn primary">Добавить</button></form>
+    ${PLANS.adminHtml(r)}
     <div class="group">Лимиты по умолчанию (для всех, кроме админов)</div>
     <form id="a-lim" class="agrid">${Object.entries(LIM).map(([k, t]) => `<label class="field">${t}<input name="${k}" type="number" min="0" value="${r.limits[k]}"></label>`).join('')}
       <button class="btn primary">Сохранить лимиты</button></form>
@@ -1003,7 +1055,9 @@ async function admin() {
     if (a === 'plus') save(login, { add_days: 30 });
     if (a === 'off' && confirm(`Отключить ${login}?`)) save(login, { status: 'off' });
     if (a === 'kick') save(login, {}, true);
-    if (a === 'rk') save(login, { can_rk: b.textContent.startsWith('Включить') });
+    if (a === 'rk') { const v = tr.querySelector('[data-g="can_rk"]').value; save(login, { can_rk: v === '' ? null : v === '1' }); }
+    if (a === 'plan') { const d = tr.querySelector('[data-g="period_start"]').value; save(login, { plan: tr.querySelector('[data-g="plan"]').value, period_start: d ? new Date(d + 'T00:00:00+03:00').toISOString() : null }); }
+    if (a === 'pack' && confirm(`Добавить ${login} пакет ${r.pack.qty} номеров без оплаты?`)) save(login, { add_pack: 1 });
     if (a === 'arch') { const v = tr.querySelector('[data-g="can_arch"]').value; save(login, { grp: tr.querySelector('[data-g="grp"]').value, can_arch: v === '' ? null : v === '1' }); }
     if (a === 'role') save(login, { role: b.textContent.startsWith('Снять') ? 'user' : 'admin' });
     if (a === 'pass') { const p = prompt(`Новый пароль для ${login} (от 6 символов):`); if (p) save(login, { password: p }); }
@@ -1020,6 +1074,7 @@ async function admin() {
     try { await call('admin_settings', { limits: Object.fromEntries(Object.keys(LIM).map(k => [k, fm[k].value])) }); toast('Лимиты сохранены'); } catch (err) { toast(err.message); }
   };
   const saveSet = async (body, msg = 'Сохранено') => { try { const x = await call('admin_settings', body); toast(msg); return x; } catch (err) { toast(err.message); } };
+  PLANS.adminBind(async (body, msg) => { if (await saveSet(body, msg)) admin(); });
   $('#a-arch').onsubmit = async e => {
     e.preventDefault(); const fm = e.target;
     const groups = [...fm.querySelectorAll('input[name="g"]:checked')].map(i => i.value).concat(fm.newg.value.trim() ? [fm.newg.value.trim()] : []);
