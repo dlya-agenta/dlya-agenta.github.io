@@ -4,6 +4,6 @@ body.guest .card .fav, body.guest .card .deal, body.guest .card .pick, body.gues
 body.guest .card { cursor: pointer; }
 body.guest .card img { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 body.guest .card .body::after { content: '🔒 Адрес, цена и телефон — с подпиской'; display: block; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--link); }
-.guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius);
+.guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; max-width: 1448px; margin: 12px auto 0; width: calc(100% - 32px); padding: 10px 14px; border-radius: var(--radius);
   background: var(--soft); font-size: 14.5px; }
 .guest-bar .btn { text-decoration: none; }

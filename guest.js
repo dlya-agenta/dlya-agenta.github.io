@@ -13,9 +13,9 @@ window.GUEST = (() => {
     if (on) return;
     on = true;
     document.body.classList.add('guest');
-    document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="guest.css?v=5.6">');
+    document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="guest.css?v=5.6.1">');
     const d = me.expires_at ? new Date(me.expires_at).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : '';
-    document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="guest-bar"><span><b>Гостевой доступ${d ? ` до ${d}` : ''}.</b>
+    document.querySelector('main').insertAdjacentHTML('beforebegin', `<div class="guest-bar"><span><b>Гостевой доступ${d ? ` до ${d}` : ''}.</b>
       Можно искать и смотреть фото. Адреса, цены, площади и телефоны — с подпиской.</span><a class="btn primary" href="pay.html">Оформить подписку</a></div>`);
     document.addEventListener('click', stop, true);
   }
