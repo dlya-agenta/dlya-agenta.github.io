@@ -30,7 +30,7 @@ window.ADMIN = (() => {
     const lims = [['lim_phone_hour', 'Номеров в час', r.limits.phone_hour], ['lim_phone_day', 'Номеров в день', p.phones_day], ['lim_phone_month', 'Номеров в месяц', p.phones_month],
       ['lim_sel_hour', 'PDF в час', r.limits.sel_hour], ['max_sessions', 'Устройств', p.devices]];
     return `<article class="ucard" data-login="${esc(u.login)}" data-plan="${esc(u.plan)}" data-st="${esc(u.status)}">
-      <div class="u-head"><b>${esc(u.name || u.login)}</b><span class="tag ${ST[u.status]?.[1] ?? ''}">${ST[u.status]?.[0] ?? esc(u.status)}</span>${adm ? '<span class="tag">админ</span>' : ''}
+      <div class="u-head"><b>${esc(u.name || u.login)}</b><span class="tag ${ST[u.status]?.[1] ?? ''}">${ST[u.status]?.[0] ?? esc(u.status)}</span>${u.guest ? '<span class="tag grey">Гость</span>' : ''}${adm ? '<span class="tag">админ</span>' : ''}
         <small class="muted">${esc([u.login, u.tg_id ? 'Telegram' : '', u.phone, u.email, u.company].filter(Boolean).join(' · '))}</small></div>
       <div class="u-grid">
         <label class="field">Тариф<select data-k="plan">${opt(u.plan, IDS.map(id => [id, esc(r.plans[id].name)]))}</select></label>
