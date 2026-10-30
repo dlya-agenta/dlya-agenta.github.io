@@ -1,0 +1,67 @@
+/* Вариант B «Песок» (v5.5): тёплый и «премиальный», как PDF-подборки — заголовки и цены шрифтом Prata, текст — Fira Sans,
+   песочный фон, графитовая шапка, терракотовые кнопки. Подключается поверх style.css (design.js). Тёмная тема — вечерний графит. */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Prata&display=swap');
+:root {
+  --bg: var(--tg-theme-secondary-bg-color, #f4eee6);
+  --card: var(--tg-theme-bg-color, #fffcf7);
+  --text: var(--tg-theme-text-color, #231d19);
+  --muted: var(--tg-theme-hint-color, #7d7066);
+  --accent: #b4532d;
+  --accent-text: #ffffff;
+  --link: var(--tg-theme-link-color, #9a4423);
+  --line: color-mix(in srgb, #231d19 12%, transparent);
+  --soft: #f2e3d5;
+  --ok: #2e7a57;
+  --ok-soft: #e1efe6;
+  --warn: #a5650c;
+  --bad: #c0392b;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(35, 29, 25, .06), 0 4px 14px rgba(35, 29, 25, .06);
+  --head: #231d19;
+  --head-text: #f4eee6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #15110e);
+    --card: var(--tg-theme-bg-color, #201a16);
+    --text: var(--tg-theme-text-color, #f1e9df);
+    --muted: var(--tg-theme-hint-color, #a89a8c);
+    --accent: #d9774f;
+    --link: var(--tg-theme-link-color, #e8946d);
+    --line: color-mix(in srgb, #f1e9df 12%, transparent);
+    --soft: #3a2a20;
+    --ok: #5cc28f;
+    --ok-soft: #1c3329;
+    --shadow: none;
+    --head: #0f0c0a;
+  }
+}
+html, body { font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.top { background: var(--head); color: var(--head-text); border-bottom: 0; }
+.top .brand b { font-family: 'Prata', Georgia, serif; font-weight: 400; font-size: 21px; color: var(--head-text); }
+.top .brand small { color: #e8a27e; font-weight: 500; }
+.logo rect { fill: var(--accent); }
+.top .menu .link, .top button.who { color: color-mix(in srgb, var(--head-text) 82%, transparent); }
+.top button.who, .top button.who #who { color: var(--head-text); }
+.top .who small { color: color-mix(in srgb, var(--head-text) 60%, transparent); }
+.top .who #quota.warn { color: #ff9b85; }
+.top .menu .link:hover, .top button.who:hover, .top button.who.on { background: rgba(255, 255, 255, .08); }
+.top .menu .link.on { background: rgba(255, 255, 255, .1); color: #fff; box-shadow: inset 0 -2px 0 var(--accent); }
+.burger { background: transparent !important; color: var(--head-text) !important; border-color: rgba(255, 255, 255, .25) !important; }
+@media (max-width: 760px) { .top .menu { border-top-color: rgba(255, 255, 255, .12); } }
+.btn { border-radius: 8px; font-weight: 500; }
+.btn.primary { background: var(--accent); letter-spacing: .01em; }
+.btn.soft { background: var(--soft); color: var(--link); }
+.chip { border-radius: 8px; }
+.chip.on { background: var(--text); color: var(--card); }
+input, select, textarea { border-radius: 8px; }
+.fl { font-family: 'Fira Sans', sans-serif; letter-spacing: .08em; }
+.card { box-shadow: var(--shadow); border: 1px solid var(--line); }
+.price b { font-family: 'Prata', Georgia, serif; font-weight: 400; font-size: 23px; letter-spacing: 0; }
+.title { font-weight: 500; }
+.sheet-head b, .gate h2, .locked b, .prof-plan b, .ptable thead th, .u-head b { font-family: 'Prata', Georgia, serif; font-weight: 400; }
+.tag { border-radius: 6px; }
+.seg.on { background: var(--text); color: var(--card); }
+.pro-line { background: var(--head); color: var(--head-text); }
+.pro-line .btn.soft { background: var(--accent); color: #fff; }
+.ptable .my { background: var(--soft); }

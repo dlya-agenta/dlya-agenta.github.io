@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Оплата — Для Агента</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231453d8'/%3E%3Cpath d='M14 34 32 18l18 16v14H38V38H26v10H14z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=5.5">
+<script src="design.js?v=5.5"></script>
+<link rel="stylesheet" href="pay.css?v=5.4">
+<script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+</head>
+<body class="apage paypage">
+<div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
+
+<div id="app" hidden>
+  <header class="top">
+    <a class="brand" href="./">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14"/><path d="M14 34 32 18l18 16v14H38V38H26v10H14z"/></svg></span>
+      <span><b>Оплата</b><small>тарифы «Для Агента»</small></span>
+    </a>
+    <nav class="menu">
+      <a class="link" href="./" id="go-home"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></a>
+      <a class="link" href="help-pay.html" target="_blank"><span class="lbl-long">📖 Как оплатить</span><span class="lbl-short">📖 Помощь</span></a>
+      <a class="link" href="#admin" id="go-adm" hidden>⚙ Настройки</a>
+      <span class="who"><span id="who"></span><small id="until"></small></span>
+    </nav>
+  </header>
+  <main id="pay" class="pmain"></main>
+  <footer class="foot">
+    <a href="prices.html" target="_blank">Тарифы</a> · <a href="oferta.html" target="_blank">Договор-оферта</a> ·
+    <a href="rules.html" target="_blank">Правила</a> · <a href="privacy.html" target="_blank">Политика конфиденциальности</a>
+  </footer>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="pay.js?v=5.4" defer></script>
+<script src="pay.admin.js?v=5.4" defer></script>
+</body>
+</html>

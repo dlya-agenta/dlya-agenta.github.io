@@ -1,0 +1,65 @@
+/* Вариант A «Море» (v5.5): светлый и воздушный — морской синий, белые карточки с мягкой тенью, крупная цена, кнопки-«таблетки».
+   Подключается поверх style.css (design.js). Тёмная тема — ночное море. */
+:root {
+  --bg: var(--tg-theme-secondary-bg-color, #edf3f8);
+  --card: var(--tg-theme-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #0c1b2a);
+  --muted: var(--tg-theme-hint-color, #5d7083);
+  --accent: #0a66c2;
+  --accent-text: #ffffff;
+  --link: var(--tg-theme-link-color, #0a66c2);
+  --line: color-mix(in srgb, #0c1b2a 10%, transparent);
+  --soft: #e1eefb;
+  --ok: #0f8a5f;
+  --ok-soft: #dcf3e9;
+  --warn: #b26a00;
+  --bad: #d1343a;
+  --radius: 18px;
+  --shadow: 0 1px 2px rgba(12, 27, 42, .05), 0 8px 24px rgba(12, 27, 42, .07);
+  --sea: linear-gradient(135deg, #0a66c2 0%, #0b8fb3 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #08131f);
+    --card: var(--tg-theme-bg-color, #0f1e2e);
+    --text: var(--tg-theme-text-color, #e7f0f8);
+    --muted: var(--tg-theme-hint-color, #8aa0b5);
+    --accent: #3a9bff;
+    --link: var(--tg-theme-link-color, #6db4ff);
+    --line: color-mix(in srgb, #e7f0f8 11%, transparent);
+    --soft: #132b45;
+    --ok: #3ccf91;
+    --ok-soft: #10342a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+}
+html, body { font-size: 15.5px; }
+.top { box-shadow: 0 1px 0 var(--line), 0 6px 18px rgba(12, 27, 42, .05); border-bottom: 0; font-size: 15px; }
+.logo svg { border-radius: 12px; background: var(--sea); }
+.logo rect { fill: transparent; }
+.brand b { letter-spacing: -.02em; }
+.brand small { color: #0b8fb3; }
+.menu .link { border-radius: 999px; font-weight: 500; }
+.menu .link.on { background: var(--soft); color: var(--link); box-shadow: none; font-weight: 700; }
+.btn { border-radius: 999px; padding: 10px 18px; }
+.btn.primary { background: var(--sea); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent); }
+.btn.soft { background: var(--soft); }
+.chip { border-radius: 999px; border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); }
+.chip.on { background: var(--accent); }
+input, select, textarea { border-radius: 12px; border-color: color-mix(in srgb, var(--accent) 16%, var(--line)); }
+.search input { border-radius: 999px; padding-left: 18px; box-shadow: var(--shadow); border-color: transparent; }
+.filters, .views { border-radius: var(--radius); }
+.fl { color: var(--accent); letter-spacing: .07em; }
+.card { border: 0; box-shadow: var(--shadow); transition: transform .15s ease, box-shadow .15s ease; }
+@media (hover: hover) { .card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(12, 27, 42, .06), 0 14px 32px rgba(12, 27, 42, .12); } }
+.price b { font-size: 23px; font-weight: 800; letter-spacing: -.02em; }
+.title { font-size: 15px; }
+.tag { border-radius: 999px; padding: 3px 10px; }
+.newmark { border-radius: 999px !important; }
+.sheet-box { border-radius: 22px 22px 0 0; }
+@media (min-width: 720px) { .sheet-box { border-radius: 22px; } }
+.seg { border-radius: 999px; }
+.seg.on { background: var(--accent); }
+.pro-line { background: var(--sea); color: #fff; }
+.pro-line .btn.soft { background: #fff; color: var(--accent); }
+.ucard { box-shadow: var(--shadow); border-color: transparent; }
