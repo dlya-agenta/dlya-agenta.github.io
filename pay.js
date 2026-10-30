@@ -141,13 +141,12 @@ window.PAYUI = (() => {
   function ways() {
     const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
       `<button type="button" class="chip ${way?.method === mt && way?.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div>`;
-    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...nets, ...cb];
+    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...cb, ...nets];
     if (!all.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
-    if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // по умолчанию — USDT в сети TRON (TRC-20), она первая в списке сетей
-    const main = nets.length ? `<div class="way main"><div class="lbl">Перевод USDT с кошелька или биржи</div>${chips(nets)}</div>` : '';
-    const label = cb.length ? `Через @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} в Telegram` : '';
-    const other = !cb.length ? '' : nets.length ? `<details class="way" ${way.method === 'cryptobot' ? 'open' : ''}><summary>Другой способ: ${esc(label)}</summary>${chips(cb)}</details>`
-      : `<div class="way"><div class="lbl">${esc(label)}</div>${chips(cb)}</div>`;
+    if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // по умолчанию — USDT через CryptoBot, без него — первая сеть
+    const main = cb.length ? `<div class="way main"><div class="lbl">Основной способ: @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} в Telegram <span class="tag ok">Рекомендуем</span></div>${chips(cb)}</div>` : '';
+    const other = !nets.length ? '' : cb.length ? `<details class="way" ${way.method === 'direct' ? 'open' : ''}><summary>Другой способ: перевод USDT с кошелька или биржи</summary>${chips(nets)}</details>`
+      : `<div class="way"><div class="lbl">Перевод USDT с кошелька или биржи</div>${chips(nets)}</div>`;
     el.innerHTML = `${main}${other}<p class="hint" id="p-rate"></p>`;
     rateLine(); goBtn();
   }
