@@ -896,7 +896,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
-  if (g === 'pay') { sheet('Продлить доступ', '<div id="paywrap"></div>'); renderPay($('#paywrap'), {}, () => { closeSheet(); start(); }); }
+  if (g === 'pay') location.href = 'pay.html';   // оплата — своя страница (ТЗ v2, шаг 2.2, окно Б)
 });
 $('#logout').onclick = logout;
 // активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
@@ -1032,6 +1032,7 @@ async function admin() {
     <form id="a-uniq" class="agrid"><label class="chk opt"><input type="checkbox" name="enabled" ${r.uniq?.enabled ? 'checked' : ''}><span>Проверять: есть ли живое объявление на Авито, Циан, ДомКлик</span></label>
       <label class="field">Объявлений за ночь<input name="per_night" type="number" min="0" max="300" value="${r.uniq?.per_night ?? 40}"></label>
       <button class="btn primary">Сохранить</button></form>
+    <div class="group">Оплата</div><a class="btn soft" href="pay.html#admin">⚙ Настройки оплаты: CryptoBot, сети, журнал платежей, «Разобрать вручную»</a>
     <div class="group">Оплата доступа в USDT (сеть TRON, TRC-20)</div>
     <form id="a-pay" class="agrid">
       <label class="chk opt"><input type="checkbox" name="enabled" ${r.pay?.enabled ? 'checked' : ''}><span>Принимать оплату (выключено — доступ бесплатный, кнопки оплаты не видно)</span></label>
@@ -1099,10 +1100,8 @@ let qrLib = null;
 const loadQr = () => qrLib ??= new Promise((ok, bad) => { const sc = document.createElement('script');
   sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
 // вход прошёл, но доступ истёк или заявка не одобрена — оплата сразу на экране входа
-function payGate(pay, msg) {
-  gate(`<h2>Оплата доступа</h2><p>${esc(msg)}</p><div id="paywrap"></div><button class="btn ghost" id="back">Ко входу</button>`);
-  $('#back').onclick = () => showLogin();
-  renderPay($('#paywrap'), { pay }, () => showLogin());
+function payGate(pay) {   // страница оплаты pay.html по pay-токену (шаг 2.2): продлить или перейти на PRO
+  try { sessionStorage.setItem('pay_token', pay); } catch { /* приватный режим */ } location.href = 'pay.html';
 }
 async function renderPay(el, extra = {}, done) {
   el.innerHTML = '<p class="muted">Загрузка…</p>';
