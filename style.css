@@ -600,3 +600,63 @@ button.who:hover, button.who.on { background: var(--soft); }
 .a-plan label, .a-plan > small { display: block; margin-top: 4px; }
 .a-plan input[type=date] { width: 132px; }
 .ptable-admin input[type=text] { width: 110px; }
+
+/* v5.5: удобство — iPhone не увеличивает страницу при вводе (поля от 16 px), шапка телефона в одну строку с «☰ Меню», админка карточками и одной кнопкой «Сохранить» */
+.burger { display: none; }
+@media (max-width: 760px) {
+  input, select, textarea { font-size: 16px; }   /* мельче 16 px — Safari на iPhone сам приближает страницу, и экран ездит вбок */
+  .top { position: sticky; top: 0; flex-wrap: wrap; gap: 6px; padding: 8px 12px; justify-content: flex-start; }
+  .top .brand { flex: 1; min-width: 0; }
+  .top .brand small { display: none; }
+  .top .brand b { font-size: 18px; white-space: nowrap; }
+  .logo svg { width: 34px; height: 34px; }
+  .burger { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-weight: 600; cursor: pointer; }
+  .top.open .burger { background: var(--soft); color: var(--link); border-color: transparent; }
+  .top > button.who { max-width: 46vw; padding: 4px 6px; }
+  .top > button.who #who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  #until:not(.warn) { display: none; }
+  .top .menu { display: none; order: 10; width: 100%; flex-direction: column; align-items: stretch; gap: 2px; padding: 6px 0 4px; border-top: 1px solid var(--line); max-height: calc(100vh - 70px); overflow-y: auto; }
+  .top.open .menu { display: flex; }
+  .top .menu .link { text-align: left; padding: 11px 12px; font-size: 16px; min-height: 46px; }
+  .top .menu .lbl-long { display: inline; }
+  .top .menu .lbl-short { display: none; }
+}
+.warn-text { color: var(--warn) !important; font-weight: 600; }
+.btn.bad { color: var(--bad); }
+.ucards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 12px; }
+.ucard { display: grid; gap: 10px; align-content: start; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--card); }
+.ucard[hidden] { display: none; }
+.u-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.u-head b { font-size: 16px; }
+.u-head small { flex-basis: 100%; }
+.u-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.u-grid .chk { align-self: end; }
+.ucard .hint { margin: 0; }
+.ucard .dirty, .a-sec .dirty { outline: 2px solid var(--warn); outline-offset: 0; }
+.u-lims summary, .a-sec > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.u-act { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.u-act .btn { padding: 8px 12px; }
+.u-more { position: relative; }
+.u-more > summary { list-style: none; display: inline-block; }
+.u-more > summary::-webkit-details-marker { display: none; }
+.u-more > div { display: grid; gap: 2px; padding: 6px; margin-top: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+.u-more > div .btn { text-align: left; }
+.a-top { display: grid; gap: 10px; }
+.a-sec { border-top: 1px solid var(--line); padding-top: 10px; }
+.a-sec > summary { font-size: 15px; }
+.a-sec[open] > summary { margin-bottom: 8px; }
+.a-pay { justify-self: start; white-space: normal; }
+.a-save { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+  padding: 12px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); }
+.a-save #a-n { margin-right: auto; font-size: 14px; }
+.a-save .btn.primary { min-width: 140px; }
+/* компьютер: шапка в две ровные строки — логотип и профиль со счётчиком, под ними строка разделов (раньше пункты переносились как попало) */
+@media (min-width: 761px) {
+  .top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 12px; padding: 8px 16px 0; }
+  .top .brand { grid-column: 1; grid-row: 1; }
+  .top > button.who { grid-column: 3; grid-row: 1; }
+  .top .menu { grid-column: 1 / -1; grid-row: 2; margin: 0 -8px; justify-content: flex-start; }
+  .top .menu .link { padding: 9px 10px; border-radius: 8px 8px 0 0; }
+  .top .menu #logout { margin-left: auto; }
+}
+@media (min-width: 761px) and (max-width: 1199px) { .menu .lbl-long { display: none; } .menu .lbl-short { display: inline; } .top .menu .link { font-size: 14px; padding: 9px 7px; } }

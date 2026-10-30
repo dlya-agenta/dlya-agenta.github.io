@@ -141,6 +141,7 @@ async function start() {
   me = meta.me;
   PLANS.use({ call, sheet, toast }, meta);
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
+  ADMIN.use({ call, sheet, toast, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
     if (p.f && typeof p.f === 'object') f = p.f;
@@ -879,6 +880,7 @@ const LISTS = { favs: ['fav', 'Показано избранное — к пои
   deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
+  menuOpen(false);   // на телефоне меню — панель под «☰ Меню»: выбрали раздел — закрыть
   if (g === 'all' && favMode) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); }   // «Все объявления» — назад к поиску
   if (LISTS[g]) {
     const was = favMode;
@@ -898,11 +900,14 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'admin') admin();
   if (g === 'pay') location.href = 'pay.html';   // оплата — своя страница (ТЗ v2, шаг 2.2, окно Б)
 });
-$('#logout').onclick = logout;
+$('#logout').onclick = () => { menuOpen(false); logout(); };
+// телефон: шапка в одну строку — логотип, профиль со счётчиком номеров и «☰ Меню» (все разделы — в панели под шапкой)
+function menuOpen(on) { $('.top').classList.toggle('open', on); $('#burger').setAttribute('aria-expanded', on); }
+$('#burger').onclick = () => menuOpen(!$('.top').classList.contains('open'));
 // активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
 function tabs() {
   const on = sheetGo && !$('#sheet').hidden ? sheetGo : favMode || 'all';
-  document.querySelectorAll('.menu [data-go]').forEach(b => {
+  document.querySelectorAll('.top [data-go]').forEach(b => {
     if (b.dataset.go === 'client') return;   // «С клиентом» — режим со своей отметкой
     b.classList.toggle('on', b.dataset.go === on);
     b.dataset.go === on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
@@ -959,189 +964,13 @@ async function showReklama() {
   };
 }
 
-// ---------- админ-панель ----------
+// ---------- админ-панель — site/admin.js: участники и настройки на одной странице, одна кнопка «Сохранить» ----------
+function admin() { ADMIN.open(); }
 
-const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
-  modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
-// номеров в день и в месяц, устройств — в тарифах (блок «Тарифы»); здесь — общее для всех тарифов
-const LIM = { phone_hour: 'Номеров в час (защита от выкачивания базы)', sel_hour: 'Подборок в час', access_days: 'Дней доступа по умолчанию' };
-async function admin() {
-  sheet('Админ-панель', '<p class="muted">Загрузка…</p>', true);
-  let r;
-  try { r = await call('admin_users'); } catch (e) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-  const day = s => s ? new Date(s).toLocaleDateString('ru-RU') : '—';
-  const pend = r.users.filter(u => u.status === 'pending');
-  const agroups = r.arch?.groups ?? [], allGroups = [...new Set([...agroups, ...r.users.map(u => u.grp).filter(Boolean)])];
-  // доступы: ручная отметка главнее; иначе — тариф (и группа для архива)
-  const pl = u => r.plans[u.plan] ?? r.plans.sub;
-  const archOn = u => u.role === 'admin' || (u.can_arch ?? (pl(u).opts.arch || (!!u.grp && agroups.includes(u.grp))));
-  const rkOn = u => u.role === 'admin' || (u.can_rk ?? pl(u).opts.rk_month > 0);
-  const tri = (k, v, t) => `<select data-g="${k}">${[['', `${t}: как у тарифа`], ['1', `${t}: включена`], ['0', `${t}: выключена`]].map(([x, y]) => `<option value="${x}"${(v == null ? '' : v ? '1' : '0') === x ? ' selected' : ''}>${y}</option>`).join('')}</select>`;
-  const row = u => `<tr data-login="${esc(u.login)}">
-    <td><b>${esc(u.name || '')}</b><br><small>${esc(u.login)}${u.tg_id ? ' · Telegram' : ''}</small><br><small>${esc([u.phone, u.email, u.company].filter(Boolean).join(' · '))}</small></td>
-    <td class="st-${u.status}">${{ pending: 'заявка', active: 'активен', off: 'отключён' }[u.status]}${u.role === 'admin' ? '<br><b>админ</b>' : ''}${rkOn(u) ? '<br><small>📣 реклама</small>' : ''}${archOn(u) ? '<br><small>🗂 архив</small>' : ''}${u.grp ? `<br><small>группа: ${esc(u.grp)}</small>` : ''}</td>
-    <td class="a-plan"><select data-g="plan">${['sub', 'pro', 'max'].map(id => `<option value="${id}"${u.plan === id ? ' selected' : ''}>${esc(r.plans[id].name)}</option>`).join('')}</select>
-      <label><small class="muted">с</small> <input type="date" data-g="period_start" value="${String(u.period_start ?? u.created_at ?? '').slice(0, 10)}" title="начало периода: от него считается месяц номеров"></label>
-      <label><small class="muted">по</small> <input type="date" data-a="date" value="${u.expires_at ? u.expires_at.slice(0, 10) : ''}" title="доступ до (сохраняется сразу)"></label>
-      <small class="muted">${u.role === 'admin' ? 'админ — без срока и лимитов · ' : ''}вход: ${day(u.last_login)}</small></td>
-    <td>${u.role === 'admin' ? '—' : `${u.q.day} из ${u.q.day_lim} сегодня<br>${u.q.month} из ${u.q.month_lim} за месяц`}<br><small class="muted">${u.pdfs_day} PDF · входов: ${u.sessions}${u.packs?.length ? `<br>пакеты: ${u.packs.map(k => `+${k.qty} до ${day(k.period_end)}`).join(', ')}` : ''}</small></td>
-    <td><input data-lim="lim_phone_hour" placeholder="${r.limits.phone_hour}" value="${u.lim_phone_hour ?? ''}" title="номеров в час">
-      <input data-lim="lim_phone_day" placeholder="${pl(u).phones_day}" value="${u.lim_phone_day ?? ''}" title="номеров в день"><br>
-      <input data-lim="lim_phone_month" placeholder="${pl(u).phones_month}" value="${u.lim_phone_month ?? ''}" title="номеров в месяц">
-      <input data-lim="lim_sel_hour" placeholder="${r.limits.sel_hour}" value="${u.lim_sel_hour ?? ''}" title="подборок в час"><br>
-      <input data-lim="max_sessions" placeholder="${pl(u).devices}" value="${u.max_sessions ?? ''}" title="устройств одновременно"></td>
-    <td class="row-actions">
-      ${u.status !== 'active' ? '<button class="btn primary" data-a="approve">Одобрить +30 дн.</button>' : '<button class="btn soft" data-a="plus">+30 дней</button>'}
-      ${u.status !== 'off' ? '<button class="btn ghost" data-a="off">Отключить</button>' : ''}
-      <button class="btn ghost" data-a="plan">Сохранить тариф и период</button>
-      <button class="btn ghost" data-a="pack" title="пакет без оплаты — до конца месяца участника">+${r.pack.qty} номеров</button>
-      <button class="btn ghost" data-a="lims">Сохранить лимиты</button>
-      <button class="btn ghost" data-a="pass">Новый пароль</button>
-      <button class="btn ghost" data-a="kick">Выкинуть входы</button>
-      <span class="arch-set">${tri('can_rk', u.can_rk, 'Реклама')}<button class="btn ghost" data-a="rk">Сохранить</button></span>
-      <button class="btn ghost" data-a="role">${u.role === 'admin' ? 'Снять админа' : 'Сделать админом'}</button>
-      <span class="arch-set" title="Архив 2 года: группа участника и доступ"><input data-g="grp" placeholder="группа" value="${esc(u.grp ?? '')}" list="a-groups">
-        <select data-g="can_arch">${[['', 'Архив: как у тарифа и группы'], ['1', 'Архив: включён'], ['0', 'Архив: выключен']].map(([v, t]) => `<option value="${v}"${(u.can_arch == null ? '' : u.can_arch ? '1' : '0') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
-        <button class="btn ghost" data-a="arch">Сохранить</button></span>
-    </td></tr>`;
-  $('#sheet-body').innerHTML = `
-    ${pend.length ? `<div class="group">Заявки на доступ: ${pend.length}</div>` : ''}
-    <div class="group">Участники (${r.users.length})</div>
-    <input id="a-find" type="search" placeholder="Поиск по имени, логину, телефону">
-    <div class="ascroll"><table class="atable"><thead><tr><th>Участник</th><th>Статус</th><th>Тариф и период</th><th>Номера</th><th>Свои лимиты (пусто — по тарифу): час, день, месяц, PDF/час, устройств</th><th></th></tr></thead>
-      <tbody id="a-rows">${[...pend, ...r.users.filter(u => u.status !== 'pending')].map(row).join('')}</tbody></table></div>
-    <datalist id="a-groups">${allGroups.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
-    <div class="group">Архив за 2 года (скрытая вкладка 🗂): каким группам включён</div>
-    <form id="a-arch" class="agrid">${allGroups.length ? allGroups.map(g => `<label class="chk opt"><input type="checkbox" name="g" value="${esc(g)}" ${agroups.includes(g) ? 'checked' : ''}><span>${esc(g)} (${r.users.filter(u => u.grp === g).length})</span></label>`).join('') : '<p class="muted">Групп пока нет — впишите группу участнику в таблице выше.</p>'}
-      <label class="field">Новая группа<input name="newg" placeholder="например: агенты-про"></label>
-      <p class="muted">Отдельному участнику можно включить или выключить архив в его строке — это главнее группы. Админам архив виден всегда.</p>
-      <button class="btn primary">Сохранить группы</button></form>
-    <div class="group">Добавить участника</div>
-    <form id="a-new" class="agrid"><input name="login" placeholder="логин (латиница)" required><input name="password" placeholder="пароль (от 6)" required>
-      <input name="name" placeholder="Имя"><input name="phone" placeholder="Телефон"><input name="days" type="number" value="30" title="дней доступа">
-      <button class="btn primary">Добавить</button></form>
-    ${PLANS.adminHtml(r)}
-    <div class="group">Лимиты по умолчанию (для всех, кроме админов)</div>
-    <form id="a-lim" class="agrid">${Object.entries(LIM).map(([k, t]) => `<label class="field">${t}<input name="${k}" type="number" min="0" value="${r.limits[k]}"></label>`).join('')}
-      <button class="btn primary">Сохранить лимиты</button></form>
-    <div class="group">Ссылки на источники (Авито, Циан…) в карточке</div>
-    <form id="a-src" class="agrid"><label class="field">Кому показывать<select name="mode">
-      ${[['off', 'Никому'], ['admin', 'Только администраторам'], ['all', 'Всем участникам']].map(([v, t]) => `<option value="${v}"${r.src_links === v ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-      <button class="btn primary">Сохранить</button></form>
-    <div class="group">Проверка уникальности новых объявлений (ночью после выгрузки)</div>
-    <form id="a-uniq" class="agrid"><label class="chk opt"><input type="checkbox" name="enabled" ${r.uniq?.enabled ? 'checked' : ''}><span>Проверять: есть ли живое объявление на Авито, Циан, ДомКлик</span></label>
-      <label class="field">Объявлений за ночь<input name="per_night" type="number" min="0" max="300" value="${r.uniq?.per_night ?? 40}"></label>
-      <button class="btn primary">Сохранить</button></form>
-    <div class="group">Оплата</div><a class="btn soft" href="pay.html#admin">⚙ Настройки оплаты: CryptoBot, сети, журнал платежей, «Разобрать вручную»</a>
-    <div class="group">Оплата доступа в USDT (сеть TRON, TRC-20)</div>
-    <form id="a-pay" class="agrid">
-      <label class="chk opt"><input type="checkbox" name="enabled" ${r.pay?.enabled ? 'checked' : ''}><span>Принимать оплату (выключено — доступ бесплатный, кнопки оплаты не видно)</span></label>
-      <label class="field">Кошелёк TRC-20<input name="address" value="${esc(r.pay?.address ?? '')}"></label>
-      ${(r.pay?.tariffs ?? []).map((t, i) => `<div class="agrid" data-tar="${i}"><input name="tn${i}" value="${esc(t.name)}" title="название"><input name="td${i}" type="number" value="${t.days}" title="дней"><input name="tu${i}" type="number" value="${t.usdt}" title="USDT"></div>`).join('')}
-      <button class="btn primary">Сохранить оплату</button></form>
-    ${r.payments?.length ? `<div class="ascroll"><table class="atable"><thead><tr><th>Когда</th><th>Логин</th><th>Тариф</th><th>Сумма</th><th>Статус</th></tr></thead><tbody>
-      ${r.payments.map(p => `<tr><td>${new Date(p.created_at).toLocaleString('ru-RU')}</td><td>${esc(p.login)}</td><td>${esc(p.tariff)}</td><td>${Number(p.amount).toFixed(2)}</td>
-        <td>${{ pending: 'ждём', paid: 'оплачен', expired: 'истёк' }[p.status] ?? p.status}${p.txid ? ` · <a href="https://tronscan.org/#/transaction/${esc(p.txid)}" target="_blank" rel="noopener">TX</a>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    <div class="group">Инструменты сайта (можно выключить)</div>
-    <form id="a-feat" class="agrid">${Object.entries(FEAT).map(([k, t]) => `<label class="chk opt"><input type="checkbox" name="${k}" ${r.features[k] ? 'checked' : ''}><span>${t}</span></label>`).join('')}
-      <button class="btn primary">Сохранить</button></form>`;
-  $('#a-find').oninput = () => { const q = $('#a-find').value.toLowerCase(); document.querySelectorAll('#a-rows tr').forEach(tr => tr.hidden = !tr.textContent.toLowerCase().includes(q)); };
-  const save = async (login, set, kick = false) => {
-    try { const x = await call('admin_user', { login, set, kick }); if (x.error) throw new Error(x.message); toast('Сохранено'); admin(); } catch (e) { toast(e.message); }
-  };
-  $('#a-rows').onclick = e => {
-    const b = e.target.closest('button[data-a]'); if (!b) return;
-    const tr = b.closest('tr'), login = tr.dataset.login, a = b.dataset.a;
-    if (a === 'approve') save(login, { status: 'active', add_days: 30 });
-    if (a === 'plus') save(login, { add_days: 30 });
-    if (a === 'off' && confirm(`Отключить ${login}?`)) save(login, { status: 'off' });
-    if (a === 'kick') save(login, {}, true);
-    if (a === 'rk') { const v = tr.querySelector('[data-g="can_rk"]').value; save(login, { can_rk: v === '' ? null : v === '1' }); }
-    if (a === 'plan') { const d = tr.querySelector('[data-g="period_start"]').value; save(login, { plan: tr.querySelector('[data-g="plan"]').value, period_start: d ? new Date(d + 'T00:00:00+03:00').toISOString() : null }); }
-    if (a === 'pack' && confirm(`Добавить ${login} пакет ${r.pack.qty} номеров без оплаты?`)) save(login, { add_pack: 1 });
-    if (a === 'arch') { const v = tr.querySelector('[data-g="can_arch"]').value; save(login, { grp: tr.querySelector('[data-g="grp"]').value, can_arch: v === '' ? null : v === '1' }); }
-    if (a === 'role') save(login, { role: b.textContent.startsWith('Снять') ? 'user' : 'admin' });
-    if (a === 'pass') { const p = prompt(`Новый пароль для ${login} (от 6 символов):`); if (p) save(login, { password: p }); }
-    if (a === 'lims') save(login, Object.fromEntries([...tr.querySelectorAll('[data-lim]')].map(i => [i.dataset.lim, i.value])));
-  };
-  $('#a-rows').onchange = e => { const i = e.target.closest('input[data-a="date"]'); if (i) save(i.closest('tr').dataset.login, { expires_at: i.value ? new Date(i.value + 'T23:59:00').toISOString() : null }); };
-  $('#a-new').onsubmit = async e => {
-    e.preventDefault(); const fm = e.target;
-    try { const x = await call('admin_create', Object.fromEntries(['login', 'password', 'name', 'phone', 'days'].map(k => [k, fm[k].value]))); if (x.error) throw new Error(x.message); toast('Участник добавлен'); admin(); }
-    catch (err) { toast(err.message); }
-  };
-  $('#a-lim').onsubmit = async e => {
-    e.preventDefault(); const fm = e.target;
-    try { await call('admin_settings', { limits: Object.fromEntries(Object.keys(LIM).map(k => [k, fm[k].value])) }); toast('Лимиты сохранены'); } catch (err) { toast(err.message); }
-  };
-  const saveSet = async (body, msg = 'Сохранено') => { try { const x = await call('admin_settings', body); toast(msg); return x; } catch (err) { toast(err.message); } };
-  PLANS.adminBind(async (body, msg) => { if (await saveSet(body, msg)) admin(); });
-  $('#a-arch').onsubmit = async e => {
-    e.preventDefault(); const fm = e.target;
-    const groups = [...fm.querySelectorAll('input[name="g"]:checked')].map(i => i.value).concat(fm.newg.value.trim() ? [fm.newg.value.trim()] : []);
-    if (await saveSet({ arch: { groups } }, 'Группы архива сохранены')) admin();
-  };
-  $('#a-src').onsubmit = e => { e.preventDefault(); saveSet({ src_links: e.target.mode.value }); };
-  $('#a-uniq').onsubmit = e => { e.preventDefault(); saveSet({ uniq: { enabled: e.target.enabled.checked, per_night: e.target.per_night.value } }); };
-  $('#a-pay').onsubmit = e => {
-    e.preventDefault(); const fm = e.target;
-    const tariffs = (r.pay?.tariffs ?? []).map((t, i) => ({ id: t.id, name: fm['tn' + i].value, days: fm['td' + i].value, usdt: fm['tu' + i].value }));
-    saveSet({ pay: { enabled: fm.enabled.checked, address: fm.address.value, tariffs } }, 'Оплата сохранена');
-  };
-  $('#a-feat').onsubmit = async e => {
-    e.preventDefault(); const fm = e.target;
-    try { const x = await call('admin_settings', { features: Object.fromEntries(Object.keys(FEAT).map(k => [k, fm[k].checked])) }); meta.features = x.features; renderFilters(); toast('Сохранено'); }
-    catch (err) { toast(err.message); }
-  };
-}
-
-// ---------- оплата USDT (TRC-20) ----------
-let qrLib = null;
-const loadQr = () => qrLib ??= new Promise((ok, bad) => { const sc = document.createElement('script');
-  sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
-// вход прошёл, но доступ истёк или заявка не одобрена — оплата сразу на экране входа
+// ---------- оплата — страница pay.html (шаг 2.2) ----------
+// вход прошёл, но доступ истёк или заявка не одобрена — оплата сразу
 function payGate(pay) {   // страница оплаты pay.html по pay-токену (шаг 2.2): продлить или перейти на PRO
   try { sessionStorage.setItem('pay_token', pay); } catch { /* приватный режим */ } location.href = 'pay.html';
-}
-async function renderPay(el, extra = {}, done) {
-  el.innerHTML = '<p class="muted">Загрузка…</p>';
-  let info;
-  try { info = await call('pay_info', extra); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-  if (!info.enabled) { el.innerHTML = '<p>Сейчас доступ бесплатный — оплата не нужна.</p>'; return; }
-  el.innerHTML = `<div class="paybox">${info.expires_at ? `<p class="muted">Доступ сейчас: до ${new Date(info.expires_at).toLocaleDateString('ru-RU')}</p>` : ''}
-    <div class="tariffs">${info.tariffs.map(t => `<button type="button" class="tariff" data-t="${esc(t.id)}"><span>${esc(t.name)}</span><b>${t.usdt} USDT</b><small class="muted">${t.days} дн.</small></button>`).join('')}</div>
-    <p class="hint">Оплата в USDT в сети TRON (TRC-20) с любого кошелька или биржи. После перевода доступ продлится сам — обычно за 1–3 минуты.</p><div id="inv"></div></div>`;
-  el.querySelector('.tariffs').onclick = async e => {
-    const b = e.target.closest('[data-t]'); if (!b) return;
-    try { const r = await call('pay_create', { ...extra, tariff: b.dataset.t }); showInvoice(el.querySelector('#inv'), r.invoice, extra, done); }
-    catch (err) { toast(err.message); }
-  };
-}
-function showInvoice(box, inv, extra, done) {
-  const amount = Number(inv.amount).toFixed(2);
-  box.innerHTML = `<div class="inv">
-    <div>Переведите <b>ровно</b> эту сумму:</div><div class="amount">${amount} USDT</div>
-    <button type="button" class="btn soft" data-copy="${amount}">Копировать сумму</button>
-    <div>На кошелёк (сеть <b>TRON, TRC-20</b>):</div><code>${esc(inv.address)}</code>
-    <button type="button" class="btn soft" data-copy="${esc(inv.address)}">Копировать адрес</button>
-    <div class="qr" id="qr"></div>
-    <p class="warn-box">Только сеть TRC-20 и сумма до цента — по ней мы находим ваш платёж. Счёт действует до ${new Date(inv.expires_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.</p>
-    <p id="inv-st" class="muted">Жду перевод — страницу можно не закрывать, проверка идёт сама.</p></div>`;
-  box.onclick = e => { const c = e.target.closest('[data-copy]'); if (c) copy(c.dataset.copy, 'Скопировано'); };
-  loadQr().then(() => new window.QRCode(box.querySelector('#qr'), { text: inv.address, width: 160, height: 160 })).catch(() => box.querySelector('#qr')?.remove());
-  clearInterval(showInvoice.t);
-  const tick = async () => {
-    if (!document.body.contains(box)) return clearInterval(showInvoice.t);
-    try {
-      const r = await call('pay_check', { ...extra, id: inv.id });
-      if (r.invoice.status === 'paid') {
-        clearInterval(showInvoice.t);
-        box.innerHTML = `<div class="inv"><b>Оплата получена, спасибо!</b><div>Доступ до ${new Date(r.expires_at).toLocaleDateString('ru-RU')}.</div><button class="btn primary" id="pay-done">Продолжить</button></div>`;
-        box.querySelector('#pay-done').onclick = () => done?.();
-      } else if (r.invoice.status === 'expired') $('#inv-st').textContent = 'Время счёта вышло. Если вы уже перевели — платёж найдётся в течение суток; если нет — выберите тариф ещё раз.';
-    } catch { /* сеть — проверим в следующий раз */ }
-  };
-  showInvoice.t = setInterval(tick, 20000);
 }
 
 start();

@@ -1,5 +1,5 @@
 // Тарифы на сайте (ТЗ v2, шаг 2.1): счётчик номеров в шапке, окно «Что даёт PRO», закрытые разделы (Архив, Реклама, Рассылки),
-// отказ по лимиту с кнопкой «Докупить», плашка «Ещё N объявлений старше 6 месяцев — в PRO», блок «Тарифы» в админке.
+// отказ по лимиту с кнопкой «Докупить», плашка «Ещё N объявлений старше 6 месяцев — в PRO» (тарифы в админке — site/admin.js).
 // Цены, лимиты и доступы считает только сервер (web/plans.ts) — здесь показ. Оплата — страница pay.html (шаг 2.2); пока её нет — через администратора.
 window.PLANS = (() => {
   const $ = s => document.querySelector(s);
@@ -101,38 +101,5 @@ window.PLANS = (() => {
     if (w) ui.toast(`Освободилось место в тарифе ${plan(w.plan)?.name ?? w.plan} — оформите, пока оно свободно`, 8000);
   }
 
-  // админка: тарифы (цены, лимиты, места, скидки, что входит) и пакет номеров
-  const PF = [['name', 'Название', 'text'], ['usd', 'Цена в месяц, $', 'number'], ['phones_day', 'Номеров в день', 'number'], ['phones_month', 'Номеров в месяц', 'number'],
-    ['devices', 'Устройств', 'number'], ['seats', 'Мест (пусто — без ограничений)', 'number'], ['disc_m3', 'Скидка за 3 мес, %', 'number'], ['disc_m12', 'Скидка за 12 мес, %', 'number']];
-  const PO = [['arch', 'Архив и старые объявления', 'check'], ['rk_month', 'Черновики для рекламы в месяц', 'number'], ['rk_daily', 'Готовых черновиков в день', 'number'],
-    ['mail_items', 'Объявлений в рассылке', 'number'], ['mail_groups', 'Групп на мессенджер', 'number'], ['house_chats', 'Домовые чаты', 'check'], ['video', 'Ролики из фото', 'check']];
-  const inp = (name, type, v) => type === 'check' ? `<input type="checkbox" name="${name}" ${v ? 'checked' : ''}>` : `<input name="${name}" type="${type}" ${type === 'number' ? 'min="0" step="any"' : ''} value="${esc(v ?? '')}">`;
-  function adminHtml(r) {
-    const ids = ['sub', 'pro', 'max'];
-    return `<div class="group">Тарифы (Подписчик / PRO / MAX)</div>
-      <form id="a-plans"><div class="ascroll"><table class="atable ptable-admin"><thead><tr><th></th>${ids.map(id => `<th>${esc(r.plans[id].name)}</th>`).join('')}</tr></thead><tbody>
-        ${PF.map(([k, t, type]) => `<tr><td>${t}</td>${ids.map(id => `<td>${inp(`${id}.${k}`, type, r.plans[id][k])}</td>`).join('')}</tr>`).join('')}
-        ${PO.map(([k, t, type]) => `<tr><td>${t}</td>${ids.map(id => `<td>${inp(`${id}.opts.${k}`, type, r.plans[id].opts[k])}</td>`).join('')}</tr>`).join('')}
-      </tbody></table></div>
-      <div class="agrid"><label class="field">Пакет: номеров<input name="pack.qty" type="number" min="1" value="${r.pack.qty}"></label><label class="field">Пакет: цена, $<input name="pack.usd" type="number" min="0" step="any" value="${r.pack.usd}"></label>
-      <p class="muted">Лимит номеров в час (защита от выкачивания базы) — в «Лимитах по умолчанию» ниже. Ручные лимиты участника главнее тарифа.</p>
-      <button class="btn primary">Сохранить тарифы</button></div></form>`;
-  }
-  function adminBind(saveSet) {
-    $('#a-plans').onsubmit = e => {
-      e.preventDefault();
-      const out = { plans: {}, pack: {} };
-      for (const el of e.target.elements) {
-        if (!el.name) continue;
-        const path = el.name.split('.'), v = el.type === 'checkbox' ? el.checked : el.value;
-        let o = out[path[0] === 'pack' ? 'pack' : 'plans'];
-        const keys = path[0] === 'pack' ? path.slice(1) : path;
-        keys.slice(0, -1).forEach(k => o = o[k] ??= {});
-        o[keys.at(-1)] = el.type === 'number' && v === '' ? null : v;
-      }
-      saveSet(out, 'Тарифы сохранены');
-    };
-  }
-
-  return { use, counter, pro, locked, lockedHtml, soon, pay, limitHtml, oldBanner, seatNote, adminHtml, adminBind, plan };
+  return { use, counter, pro, locked, lockedHtml, soon, pay, limitHtml, oldBanner, seatNote, plan };
 })();

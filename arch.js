@@ -331,7 +331,7 @@ async function search(more = false) {
     $('#more').hidden = view === 'map' || left <= 0;
     $('#more').textContent = `Показать ещё ${Math.min(r.page, left)} из ${left.toLocaleString('ru-RU')}`;
     if (!more) { const y = $('.bar').getBoundingClientRect().top + scrollY - 70; if (scrollY > y) scrollTo({ top: Math.max(0, y) }); }
-  } catch (e) { if (!ctl.signal.aborted) $('#status').textContent = `Ошибка: ${e.message}`; }
+  } catch (e) { if (!ctl.signal.aborted) failed(e, () => search(more)); }
   finally { if (sctl === ctl) { busy = false; $('#more').disabled = false; $('#list').classList.remove('stale'); $('#status').classList.remove('wait'); } }
 }
 // «Ничего не нашлось»: что мешает (сервер посчитал у источника) — в выдаче и в окне фильтра на телефоне
@@ -528,7 +528,14 @@ async function loadMap() {
     }
     if (mapPts.length && !af.geo) map.fitBounds(L.latLngBounds(mapPts.map(p => [p.lat, p.lng])), { maxZoom: 15, padding: [20, 20] });
     showStatus(info, head()); mapList();
-  } catch (e) { if (gen === mapGen) $('#status').textContent = `Ошибка карты: ${e.message}`; }
+  } catch (e) { if (gen === mapGen) failed(e, loadMap, 'карты'); }
+}
+// источник не ответил даже с повторами (бывает ночью и при нагрузке) — понятный текст и «Повторить» вместо технической ошибки
+function failed(e, again, what = '') {
+  const down = /источник не ответил/.test(e.message), st = $('#status');
+  st.innerHTML = down ? 'Источник объявлений сейчас не отвечает — так бывает ночью или при большой нагрузке. <button type="button" class="btn soft" id="again">Повторить</button>'
+    : `Ошибка${what ? ' ' + what : ''}: ${esc(e.message)} <button type="button" class="btn soft" id="again">Повторить</button>`;
+  $('#again').onclick = () => { st.textContent = 'Ищу в архиве…'; again(); };
 }
 // объявления видимой части карты — списком под картой
 function mapList(reset = true) {
