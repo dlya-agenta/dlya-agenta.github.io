@@ -75,7 +75,8 @@ window.PAYUI = (() => {
   // ---------- выбор: что оплачиваем и как ----------
   function render() {
     const m = I.me, notes = [];
-    if (m.status === 'pending') notes.push(['warn', 'Заявка ещё не одобрена — доступ откроется сразу после оплаты.']);
+    if (m.guest) notes.push(['warn', 'У вас гостевой доступ: адреса, цены и телефоны скрыты. Оформите подписку — всё откроется сразу после оплаты.']);
+    else if (m.status === 'pending') notes.push(['warn', 'Заявка ещё не одобрена — доступ откроется сразу после оплаты.']);
     else if (!m.active && m.role !== 'admin') notes.push(['warn', `Ваша подписка закончилась${m.expires_at ? ` ${day(m.expires_at)}` : ''}. Продлите её или перейдите на PRO — сравнение тарифов ниже.`]);
     if (!I.live) notes.push(['', 'Оплата на сайте пока включена только для проверки: счета создают администраторы и тестовые логины.']);
     if (I.methods.cryptobot?.test) notes.push(['', `🧪 CryptoBot в тестовом режиме: счёт откроется в @${I.methods.cryptobot.bot}, настоящие деньги не списываются.`]);
@@ -102,14 +103,14 @@ window.PAYUI = (() => {
       el.innerHTML = `<p>Пакет <b>${I.pack.qty} номеров за ${money(I.pack.usd)}</b> добавляется к лимиту на день и на месяц до конца вашего месяца${I.quota?.month_end ? ` (до ${day(I.quota.month_end)})` : ''}. Повтор уже открытого номера — бесплатно.</p>`;
       return;
     }
-    const cur = I.me.plan, act = I.me.active, adm = I.me.role === 'admin';
+    const cur = I.me.plan, act = I.me.active, adm = I.me.role === 'admin', gst = I.me.guest;
     el.innerHTML = `<div class="plans">${I.plans.map(p => {
-      const low = act && !adm && RANK[p.id] < RANK[cur], mine = p.id === cur && !adm;
+      const low = act && !adm && RANK[p.id] < RANK[cur], mine = p.id === cur && !adm && !gst;
       const seat = p.seats == null ? '' : p.free === 0 && !(mine && act) ? '<span class="tag grey">мест нет</span>' : `<span class="muted small">свободно мест: ${p.free} из ${p.seats}</span>`;
       return `<button type="button" class="plan-card ${sel.plan === p.id ? 'on' : ''}" data-plan="${p.id}" ${low ? 'disabled title="Тариф ниже — после окончания текущего"' : ''}>
         <span class="pc-top"><b class="pc-name">${esc(p.name)}</b><span class="pc-price"><b>${money(p.usd)}</b> <small>/ мес</small></span></span>
         ${mine ? `<span class="tag ${act ? 'ok' : 'grey'}">Ваш тариф${act ? (I.me.expires_at ? ` до ${day(I.me.expires_at)}` : '') : ' · закончился'}</span>`
-          : !adm && RANK[p.id] > RANK[cur] ? `<span class="tag">Перейти на ${esc(p.name)}${act ? ' — неиспользованные дни в зачёт' : ''}</span>` : ''}
+          : !adm && !gst && RANK[p.id] > RANK[cur] ? `<span class="tag">Перейти на ${esc(p.name)}${act ? ' — неиспользованные дни в зачёт' : ''}</span>` : ''}
         <ul>${FEAT(p).map(t => `<li>${esc(t)}</li>`).join('')}</ul>${seat}${low ? '<span class="muted small">Тариф ниже — можно после окончания текущего</span>' : ''}</button>`; }).join('')}</div>
       <div class="segs">${[1, 3, 12].map(mo => { const d = mo === 3 ? plan(sel.plan)?.disc_m3 : mo === 12 ? plan(sel.plan)?.disc_m12 : 0;
         return `<button type="button" class="chip ${sel.months === mo ? 'on' : ''}" data-months="${mo}">${{ 1: '1 месяц', 3: '3 месяца', 12: '12 месяцев' }[mo]}${d ? ` <small>−${d}%</small>` : ''}</button>`; }).join('')}</div>`;

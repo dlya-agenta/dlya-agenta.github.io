@@ -43,10 +43,12 @@ window.PROFILE = (() => {
       <div class="group">Активные устройства${r.max_devices ? ` — можно ${r.max_devices}` : ''}</div>
       <div id="devs">${devs(r.devices)}</div>
       ${r.max_devices ? `<p class="hint">${r.max_devices === 1 ? 'Вход на другом устройстве сразу выходит из этого.' : `Вход на ${r.max_devices + 1}-м устройстве выходит из самого старого.`}</p>` : ''}
+      <div id="partner-box"></div>
       <div class="group">Кошельки для выплат</div>
       <p class="muted">Адреса кошельков для выплат по партнёрской программе — скоро.</p>
       <div class="group">Telegram</div>
       <p class="muted">${r.tg ? 'Telegram привязан.' : 'Привязка Telegram для уведомлений о задачах и оплате — скоро.'}</p>`;
+    window.PARTNER?.mount($('#partner-box'), ui.toast);   // код партнёра (site/partner.js)
     $('#prof').onsubmit = async e => {
       e.preventDefault();
       const fm = e.target, btn = fm.querySelector('.btn.primary');

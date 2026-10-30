@@ -85,8 +85,10 @@ function showLogin(reason, tab = 'login') {
       <input name="password" type="password" placeholder="Пароль" autocomplete="current-password" required>
       <button class="btn primary" type="submit">Войти</button>
       <p class="err" id="gerr"></p></form>
-      <p class="hint">Сайт для риелторов: проверенные объекты от собственников Сочи.<br>Нет логина — зарегистрируйтесь, доступ откроет администратор.</p>`
+      <p class="hint">Сайт для риелторов: проверенные объекты от собственников Сочи.<br>Нет логина — зарегистрируйтесь по коду партнёра.</p>`
     : `<form id="reg" class="form">
+      <input name="code" placeholder="Код партнёра" value="${esc(new URLSearchParams(location.search).get('r') ?? '')}" autocomplete="off" autocapitalize="characters">
+      <p class="hint">Регистрация — только по коду партнёра. Попросите код у друга, который порекомендовал сервис: на сайте ему нужно нажать на своё имя вверху страницы → «Профиль» → блок «Код партнёра». Код есть у тех, кто оплатил подписку.</p>
       <input name="name" placeholder="Имя и фамилия" required>
       <input name="phone" type="tel" placeholder="Телефон" required>
       <input name="email" type="email" placeholder="E-mail (необязательно)">
@@ -94,7 +96,7 @@ function showLogin(reason, tab = 'login') {
       <input name="login" placeholder="Придумайте логин (латиница)" autocapitalize="none" required>
       <input name="password" type="password" placeholder="Придумайте пароль (от 6 символов)" autocomplete="new-password" required>
       <label class="chk"><input type="checkbox" name="agree" required> <span>Принимаю условия ${docs}</span></label>
-      <button class="btn primary" type="submit">Отправить заявку</button>
+      <button class="btn primary" type="submit">Зарегистрироваться</button>
       <p class="err" id="gerr"></p></form>`}`);
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => showLogin(reason, b.dataset.tab));
   $('#login')?.addEventListener('submit', async e => {
@@ -114,7 +116,8 @@ function showLogin(reason, tab = 'login') {
     const fm = e.target, btn = fm.querySelector('button');
     btn.disabled = true; $('#gerr').textContent = '';
     try {
-      const r = await call('register', Object.fromEntries(['name', 'phone', 'email', 'company', 'login', 'password'].map(k => [k, fm[k].value]).concat([['agree', fm.agree.checked]])));
+      const r = await call('register', Object.fromEntries(['code', 'name', 'phone', 'email', 'company', 'login', 'password'].map(k => [k, fm[k].value]).concat([['agree', fm.agree.checked]])));
+      if (r.token) { token = r.token; store.set('token', token); auth = { token }; return start(); }   // по коду партнёра — сразу вход
       gate(`<h2>Заявка отправлена</h2><p>${esc(r.message)}</p><button class="btn ghost" id="back">Ко входу</button>`);
       $('#back').onclick = () => showLogin();
     } catch (err) { $('#gerr').textContent = err.message; btn.disabled = false; }
@@ -135,10 +138,11 @@ async function fp() {
 async function start() {
   tg?.ready(); tg?.expand(); try { tg?.disableVerticalSwipes?.(); } catch { /* старый Telegram */ }
   if (!auth && tg?.initData && !(await tgLogin())) return;
-  if (!auth) return showLogin();
+  if (!auth) return showLogin(undefined, location.search.includes('r=') ? 'reg' : 'login');   // ссылка партнёра ?r=код — сразу регистрация
   try { meta = await call('init'); }
   catch (e) { return e.gate ? showLogin(e.gate) : gate(`<h2>Ошибка</h2><p>${esc(e.message)}</p>`); }
   me = meta.me;
+  if (me.guest) GUEST.use(me);   // гостевой доступ: только посмотреть (site/guest.js)
   PLANS.use({ call, sheet, toast }, meta);
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
   ADMIN.use({ call, sheet, toast, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });

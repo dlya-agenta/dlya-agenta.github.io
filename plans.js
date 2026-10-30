@@ -58,7 +58,7 @@ window.PLANS = (() => {
     try { info = { ...(await ui.call('plans')) }; } catch (e) { if (!info) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; } }
     const my = info.my, waits = new Set((info.seat ?? []).map(w => w.plan));
     const btn = p => p.id === my ? '<span class="tag ok">Ваш тариф</span>'
-      : p.id === 'sub' ? '' : p.free === 0 ? (waits.has(p.id) ? '<span class="tag grey">Вы в очереди</span>' : `<button class="btn soft" data-wait="${p.id}">Встать в очередь</button>`)
+      : p.id === 'sub' && my ? '' : p.free === 0 ? (waits.has(p.id) ? '<span class="tag grey">Вы в очереди</span>' : `<button class="btn soft" data-wait="${p.id}">Встать в очередь</button>`)
       : `<button class="btn primary" data-pay="${p.id}">Оформить ${esc(p.name)}</button>`;
     $('#sheet-body').innerHTML = `${why ? `<p>${esc(why)}</p>` : ''}
       <div class="ptable-wrap"><table class="ptable"><thead><tr><th></th>${info.plans.map(p => `<th class="${p.id === my ? 'my' : ''}">${esc(p.name)}</th>`).join('')}</tr></thead>

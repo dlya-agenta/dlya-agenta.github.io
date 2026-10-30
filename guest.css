@@ -1,0 +1,9 @@
+/* Гостевой доступ: на карточке только фото, тип и район; всё остальное скрыто (сервер этих данных и не отдаёт) */
+body.guest .card .price, body.guest .card .zk, body.guest .card .tags, body.guest .card .meta, body.guest .card .descr, body.guest .card .actions, body.guest .card .src, body.guest .card .note,
+body.guest .card .fav, body.guest .card .deal, body.guest .card .pick, body.guest .card .newmark, body.guest .card .seenmark { display: none !important; }
+body.guest .card { cursor: pointer; }
+body.guest .card img { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+body.guest .card .body::after { content: '🔒 Адрес, цена и телефон — с подпиской'; display: block; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--link); }
+.guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius);
+  background: var(--soft); font-size: 14.5px; }
+.guest-bar .btn { text-decoration: none; }

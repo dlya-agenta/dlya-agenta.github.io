@@ -34,6 +34,17 @@ window.PAYADM = (() => {
           <label class="chk opt"><input type="checkbox" name="enabled" ${p.enabled ? 'checked' : ''}><span>Принимать оплату: кнопка «Продлить доступ» в меню и оплата при входе с истёкшим доступом или неодобренной заявкой</span></label>
           <label class="field">Сколько живёт счёт, минут<input name="minutes" type="number" min="15" max="180" value="${p.invoice_minutes}"></label>
           <button class="btn primary">Сохранить режим</button></form></section>
+      <section class="pcard"><h2>Регистрация по коду партнёра</h2>
+        <form id="pa-inv" class="pa-sec">
+          <label class="chk opt"><input type="checkbox" name="required" ${R.invite.required ? 'checked' : ''}><span>Регистрация только по коду партнёра (выключено — заявка, которую одобряет администратор)</span></label>
+          <div class="agrid"><label class="field">Гостевой доступ, дней<input name="guest_days" type="number" min="1" max="365" value="${R.invite.guest_days}"></label>
+            <label class="field">Приглашений в первый месяц после оплаты<input name="first_month" type="number" min="0" value="${R.invite.first_month}"></label>
+            <label class="field">Приглашений за 30 дней потом (пусто — без ограничения)<input name="per_month" type="number" min="0" value="${R.invite.per_month ?? ''}"></label></div>
+          <button class="btn primary">Сохранить</button></form>
+        <div class="pa-sec"><div class="lbl">Ваш код партнёра — с него начинаются приглашения: у администратора нет ограничений</div>
+          <code class="addr">${esc(R.ref?.code ?? '—')}</code>
+          <div class="pa-row"><button type="button" class="btn soft" data-copy="${esc(R.ref?.code ?? '')}" data-msg="Код скопирован">Скопировать код</button>
+            <button type="button" class="btn ghost" data-copy="${esc(location.origin + '/?r=' + (R.ref?.code ?? ''))}" data-msg="Ссылка скопирована">Скопировать ссылку</button></div></div></section>
       <section class="pcard"><h2>@CryptoBot</h2>
         <form id="pa-cb" class="pa-sec">
           <label class="chk opt"><input type="checkbox" name="enabled" ${cb.enabled ? 'checked' : ''}><span>Принимать через CryptoBot (USDT и TON)</span></label>
@@ -88,6 +99,10 @@ window.PAYADM = (() => {
       e.preventDefault(); const f = e.target;
       if (f.live.checked && !R.pay.live && !confirm('Включить оплату тарифов для всех участников? Проверьте, что тестовый режим CryptoBot выключен и сети настроены.')) return;
       save({ pay: { live: f.live.checked, enabled: f.enabled.checked, invoice_minutes: f.minutes.value, testers: f.testers.value.split(/[\s,;]+/).filter(Boolean) } }, 'Режим сохранён');
+    };
+    $('#pa-inv').onsubmit = e => {
+      e.preventDefault(); const f = e.target;
+      save({ invite: { required: f.required.checked, guest_days: f.guest_days.value, first_month: f.first_month.value, per_month: f.per_month.value } }, 'Регистрация сохранена');
     };
     $('#pa-cb').onsubmit = e => {
       e.preventDefault(); const f = e.target, body = { pay: { cryptobot: { enabled: f.enabled.checked, test: f.test.checked } } };
