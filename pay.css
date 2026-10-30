@@ -25,7 +25,7 @@
 .pc-price b { font-size: 21px; }
 .pc-price small { color: var(--muted); }
 .plan-card ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 2px; }
-.plan-card .tag { justify-self: start; }
+.plan-card .tag { justify-self: start; white-space: normal; }
 @media (min-width: 720px) { .plans { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* расшифровка цены */
@@ -37,6 +37,9 @@
 .quote .hint, .quote .err { margin: 2px 0 0; }
 .way { display: grid; gap: 6px; }
 .way + .way { margin-top: 4px; }
+.way .lbl .tag { text-transform: none; letter-spacing: 0; margin-left: 4px; }
+details.way summary { cursor: pointer; color: var(--link); font-size: 14px; padding: 4px 0; }
+details.way .segs { margin-top: 6px; }
 .lbl { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .pgo { padding: 13px 16px; font-size: 16px; width: 100%; white-space: normal; }
 @media (min-width: 720px) { .pgo { width: auto; justify-self: start; min-width: 320px; } }

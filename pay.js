@@ -108,7 +108,8 @@ window.PAYUI = (() => {
       const seat = p.seats == null ? '' : p.free === 0 && !(mine && act) ? '<span class="tag grey">мест нет</span>' : `<span class="muted small">свободно мест: ${p.free} из ${p.seats}</span>`;
       return `<button type="button" class="plan-card ${sel.plan === p.id ? 'on' : ''}" data-plan="${p.id}" ${low ? 'disabled title="Тариф ниже — после окончания текущего"' : ''}>
         <span class="pc-top"><b class="pc-name">${esc(p.name)}</b><span class="pc-price"><b>${money(p.usd)}</b> <small>/ мес</small></span></span>
-        ${mine ? `<span class="tag ${act ? 'ok' : 'grey'}">Ваш тариф${act ? (I.me.expires_at ? ` до ${day(I.me.expires_at)}` : '') : ' · закончился'}</span>` : ''}
+        ${mine ? `<span class="tag ${act ? 'ok' : 'grey'}">Ваш тариф${act ? (I.me.expires_at ? ` до ${day(I.me.expires_at)}` : '') : ' · закончился'}</span>`
+          : !adm && RANK[p.id] > RANK[cur] ? `<span class="tag">Перейти на ${esc(p.name)}${act ? ' — неиспользованные дни в зачёт' : ''}</span>` : ''}
         <ul>${FEAT(p).map(t => `<li>${esc(t)}</li>`).join('')}</ul>${seat}${low ? '<span class="muted small">Тариф ниже — можно после окончания текущего</span>' : ''}</button>`; }).join('')}</div>
       <div class="segs">${[1, 3, 12].map(mo => { const d = mo === 3 ? plan(sel.plan)?.disc_m3 : mo === 12 ? plan(sel.plan)?.disc_m12 : 0;
         return `<button type="button" class="chip ${sel.months === mo ? 'on' : ''}" data-months="${mo}">${{ 1: '1 месяц', 3: '3 месяца', 12: '12 месяцев' }[mo]}${d ? ` <small>−${d}%</small>` : ''}</button>`; }).join('')}</div>`;
@@ -136,15 +137,15 @@ window.PAYUI = (() => {
       <div class="qrow total"><span>К оплате</span><span>${money(q.total)}</span></div>${note ? `<p class="hint">${esc(note)}</p>` : ''}`;
   }
   function ways() {
-    const m = I.methods, el = $('#p-ways'), groups = [];
-    if (m.cryptobot) groups.push([`Через @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} — в Telegram`, m.cryptobot.assets.map(a => ['cryptobot', a, a])]);
-    if (m.nets.length) groups.push(['Перевод USDT с кошелька или биржи', m.nets.map(n => ['direct', n.id, n.name])]);
-    if (!groups.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
-    const all = groups.flatMap(g => g[1]);
-    if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };
-    el.innerHTML = groups.map(([t, list]) => `<div class="way"><div class="lbl">${esc(t)}</div><div class="segs">${list.map(([mt, x, label]) =>
-      `<button type="button" class="chip ${way.method === mt && way.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div></div>`).join('')
-      + '<p class="hint" id="p-rate"></p>';
+    const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
+      `<button type="button" class="chip ${way?.method === mt && way?.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div>`;
+    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, a]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...cb, ...nets];
+    if (!all.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
+    if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // основной способ — CryptoBot
+    const main = cb.length ? `<div class="way main"><div class="lbl">Основной способ: @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} в Telegram <span class="tag ok">Рекомендуем</span></div>${chips(cb)}</div>` : '';
+    const other = !nets.length ? '' : cb.length ? `<details class="way" ${way.method === 'direct' ? 'open' : ''}><summary>Другой способ: перевод USDT с кошелька или биржи</summary>${chips(nets)}</details>`
+      : `<div class="way"><div class="lbl">Перевод USDT с кошелька или биржи</div>${chips(nets)}</div>`;
+    el.innerHTML = `${main}${other}<p class="hint" id="p-rate"></p>`;
     rateLine(); goBtn();
   }
   function rateLine() {
