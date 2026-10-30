@@ -47,7 +47,7 @@ window.PAYADM = (() => {
             <button type="button" class="btn ghost" data-copy="${esc(location.origin + '/?r=' + (R.ref?.code ?? ''))}" data-msg="Ссылка скопирована">Скопировать ссылку</button></div></div></section>
       <section class="pcard"><h2>@CryptoBot</h2>
         <form id="pa-cb" class="pa-sec">
-          <label class="chk opt"><input type="checkbox" name="enabled" ${cb.enabled ? 'checked' : ''}><span>Принимать через CryptoBot (USDT и TON)</span></label>
+          <label class="chk opt"><input type="checkbox" name="enabled" ${cb.enabled ? 'checked' : ''}><span>Принимать через CryptoBot (USDT и Gram, бывший TON)</span></label>
           <label class="chk opt"><input type="checkbox" name="test" ${cb.test ? 'checked' : ''}><span>Тестовый режим — счета в @CryptoTestnetBot (тестовые монеты; видят только админы и тестовые логины)</span></label>
           <div class="field">Токен приложения @CryptoBot (боевой): ${saved(R.saved.token)}
             <div class="pa-row"><input name="token" type="password" autocomplete="off" placeholder="вставьте новый токен, чтобы заменить"><button type="button" class="btn ghost" data-a="cb-check" data-test="">Проверить</button></div></div>

@@ -21,6 +21,7 @@ window.PAYUI = (() => {
   const fixed = s => { const d = new Date(s), o = { timeZone: 'Europe/Moscow' };   // «30.10 в 10:00»
     return `${d.toLocaleDateString('ru-RU', { ...o, day: '2-digit', month: '2-digit' })} в ${d.toLocaleTimeString('ru-RU', { ...o, hour: '2-digit', minute: '2-digit' })}`; };
   const RANK = { sub: 1, pro: 2, max: 3 };
+  const coin = a => a === 'TON' ? 'Gram (TON)' : a;   // Toncoin с 15.06.2026 называется Gram; код валюты у CryptoBot остался TON
   const CLOSED = 'Оплата тарифов PRO и MAX и пакетов номеров на сайте откроется в ближайшие дни. Сейчас их подключает администратор — напишите ему, через кого получали доступ.';
   // предупреждения ТЗ — дословно
   const WARN1 = '❗ Переведите сумму точно до цента. Учтите, что некоторые биржи и кошельки списывают комиссию из суммы перевода — до нас должна дойти ровно указанная сумма';
@@ -81,7 +82,7 @@ window.PAYUI = (() => {
     if (!I.live) notes.push(['', 'Оплата на сайте пока включена только для проверки: счета создают администраторы и тестовые логины.']);
     if (I.methods.cryptobot?.test) notes.push(['', `🧪 CryptoBot в тестовом режиме: счёт откроется в @${I.methods.cryptobot.bot}, настоящие деньги не списываются.`]);
     main().innerHTML = `${notes.map(([c, t]) => `<p class="pnote ${c}">${esc(t)}</p>`).join('')}
-      ${I.open.length ? `<section class="pcard" id="p-open"><h2>Незавершённый счёт</h2>${I.open.map(x => `<div class="prow"><span>${esc(x.what)} · <b>${num(x.amount)} ${esc(x.asset)}</b>
+      ${I.open.length ? `<section class="pcard" id="p-open"><h2>Незавершённый счёт</h2>${I.open.map(x => `<div class="prow"><span>${esc(x.what)} · <b>${num(x.amount)} ${esc(coin(x.asset))}</b>
         <small class="muted">до ${when(x.expires_at)}</small></span><button class="btn soft" data-inv="${x.id}">Открыть</button></div>`).join('')}</section>` : ''}
       <section class="pcard" id="p-what"><h2>1. Что оплачиваем</h2>
         <div class="segs"><button type="button" class="chip ${sel.kind === 'plan' ? 'on' : ''}" data-kind="plan">Тариф</button><button type="button" class="chip ${sel.kind === 'pack' ? 'on' : ''}" data-kind="pack">Пакет номеров</button></div>
@@ -140,7 +141,7 @@ window.PAYUI = (() => {
   function ways() {
     const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
       `<button type="button" class="chip ${way?.method === mt && way?.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div>`;
-    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, a]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...cb, ...nets];
+    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...cb, ...nets];
     if (!all.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
     if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // основной способ — CryptoBot
     const main = cb.length ? `<div class="way main"><div class="lbl">Основной способ: @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} в Telegram <span class="tag ok">Рекомендуем</span></div>${chips(cb)}</div>` : '';
@@ -152,8 +153,8 @@ window.PAYUI = (() => {
   function rateLine() {
     const el = $('#p-rate'), r = I.rate?.TON;
     if (!el) return;
-    el.textContent = way?.method === 'cryptobot' && way.x === 'TON' ? (r ? `1 TON = ${r.usd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ · курс зафиксирован ${fixed(r.fixed_at)} МСК`
-        + (Q ? ` · к оплате ${num(Math.ceil(Math.round(Q.total / r.usd * 1e6) / 1e4) / 100)} TON` : '') : 'Курс TON обновляется — сумма будет в счёте.')
+    el.textContent = way?.method === 'cryptobot' && way.x === 'TON' ? (r ? `1 Gram (TON) = ${r.usd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ · курс зафиксирован ${fixed(r.fixed_at)} МСК`
+        + (Q ? ` · к оплате ${num(Math.ceil(Math.round(Q.total / r.usd * 1e6) / 1e4) / 100)} Gram` : '') : 'Курс Gram обновляется — сумма будет в счёте.')
       : way?.method === 'direct' ? 'В счёте будет своя сумма с центами (например, 99.07) — по ней мы находим ваш перевод.'
       : way?.method === 'cryptobot' ? 'Сумма и валюта будут в счёте @CryptoBot — останется нажать «Оплатить».' : '';
   }
@@ -223,8 +224,8 @@ window.PAYUI = (() => {
         : 'Время счёта вышло. Если вы уже перевели — платёж найдётся автоматически в течение 2 часов, иначе его проверит администратор. Если не переводили — создайте новый счёт.'}</p>
         <button type="button" class="btn primary" data-new>Новый счёт</button>`;
     } else if (x.method === 'cryptobot') {
-      html = `<div class="lbl">Сумма в счёте @CryptoBot</div><div class="amt">${num(x.amount)} <small>${esc(x.asset)}</small></div>
-        ${x.asset === 'TON' && x.rate ? `<p class="hint">1 TON = ${Number(x.rate).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ · курс зафиксирован ${fixed(x.rate_at)} МСК</p>` : ''}
+      html = `<div class="lbl">Сумма в счёте @CryptoBot</div><div class="amt">${num(x.amount)} <small>${esc(coin(x.asset))}</small></div>
+        ${x.asset === 'TON' && x.rate ? `<p class="hint">1 Gram (TON) = ${Number(x.rate).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ · курс зафиксирован ${fixed(x.rate_at)} МСК</p>` : ''}
         <a class="btn primary cbbtn" href="${esc(x.pay_url)}" target="_blank" rel="noopener" data-tglink>Оплатить в @${x.test ? 'CryptoTestnetBot' : 'CryptoBot'}</a>
         <p class="hint">Откроется бот в Telegram: нажмите «Оплатить» — валюта и сумма уже в счёте. Потом вернитесь сюда, статус обновится сам.</p>
         <p class="timer">Счёт действует ещё <b id="left"></b></p><p class="muted small" id="inv-st">Проверяем оплату каждые 30 секунд — страницу можно не закрывать.</p>
@@ -259,7 +260,7 @@ window.PAYUI = (() => {
   function hist() {
     const el = $('#p-hist'), list = I.history ?? [];
     el.innerHTML = list.length ? `<div class="phist">${list.map(x => `<div class="ph"><span class="ph-what"><b>${esc(x.what)}</b><small class="muted">${when(x.created_at)} · ${esc(how(x))}</small></span>
-      <span class="ph-sum">${num(x.amount)} ${esc(x.asset ?? 'USDT')}${x.amount_usd != null && x.asset !== 'USDT' ? `<small class="muted">${money(x.amount_usd)}</small>` : ''}</span>
+      <span class="ph-sum">${num(x.amount)} ${esc(coin(x.asset ?? 'USDT'))}${x.amount_usd != null && x.asset !== 'USDT' ? `<small class="muted">${money(x.amount_usd)}</small>` : ''}</span>
       <span class="tag ${ST[x.status]?.[1] ?? ''}">${ST[x.status]?.[0] ?? esc(x.status)}</span>
       <span class="ph-act">${waiting(x) && Date.parse(x.expires_at) > Date.now() && x.kind ? `<button type="button" class="btn ghost" data-inv="${x.id}">Открыть</button>` : ''}${x.tx_url ? `<a class="small" href="${esc(x.tx_url)}" target="_blank" rel="noopener">транзакция</a>` : ''}</span></div>`).join('')}</div>`
       : '<p class="muted">Платежей пока нет.</p>';
