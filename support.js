@@ -157,7 +157,7 @@ window.SUPPORT = (() => {
     const waitAi = t.wait ? '<div class="sup-msg sup-ai sup-typing"><small class="sup-from">🤖 ИИ-помощник</small><div class="sup-text">Отвечает<span class="sup-dots"><i></i><i></i><i></i></span></div></div>' : '';
     const quiet = !t.wait && t.status !== 'done' && (T.msgs[T.msgs.length - 1]?.role === 'user')
       ? `<p class="sup-hint">${t.status === 'admin' || t.ai_state ? 'Вопрос у специалиста. Ответ придёт сюда' + (S?.me?.login ? ' и в Telegram-бот, если он привязан' : '') + '.' : ''}</p>` : '';
-    render(`${head(`№${t.id} · ${esc(CAT[t.category] ?? t.category)}`, !page || (S?.items ?? []).length > 0)}<div class="sup-body sup-chat">
+    render(`${head(`№${t.id} · ${esc(CAT[t.category] ?? t.category)}`, true)}<div class="sup-body sup-chat">
       <div class="sup-meta">${pill(t.status)}<small>создано ${when(t.created_at)}</small></div>
       ${msgs}${waitAi}${quiet}</div>
       <form class="sup-reply" id="sup-reply" novalidate>
