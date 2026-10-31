@@ -107,6 +107,7 @@ window.NOTIFY = (() => {
       const b = e.target.closest('[data-push-on], [data-push-off], [data-push-test]');
       if (!b) return;
       b.disabled = true;
+      if (b.matches('[data-push-on]')) b.textContent = 'Включаю…';   // первая подписка в браузере бывает долгой (регистрация у службы push)
       try {
         if (b.matches('[data-push-on]')) { await subscribe(); ui.toast('Уведомления включены'); }
         if (b.matches('[data-push-off]')) { const s = await subscription(); if (s) { await ui.call('push_unsub', { endpoint: s.endpoint }); await s.unsubscribe(); } ui.toast('Уведомления выключены'); }
@@ -148,7 +149,7 @@ window.NOTIFY = (() => {
   async function poll() {
     if (!ui || document.hidden || meta?.ntf?.site === false) return;
     let r;
-    try { r = await ui.call('notes'); } catch { return; }
+    try { r = await ui.call('notes'); } catch { clearTimeout(poll.t); poll.t = setTimeout(poll, 15e3); return; }   // сбой связи — ещё раз через 15 с, а не через 3 минуты
     const box = $('#notes') ?? Object.assign(document.createElement('div'), { id: 'notes', className: 'notes agent-only' });
     if (!box.isConnected) { box.setAttribute('aria-live', 'polite'); document.body.append(box); }
     for (const n of (r.items ?? []).reverse()) {
@@ -183,7 +184,7 @@ window.NOTIFY = (() => {
     try { r = await u.call('admin_bot'); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     el.innerHTML = `<p>Бот: <b>@${esc(r.name)}</b> · ${r.webhook_ok ? '<span class="tag ok">принимает сообщения</span>' : `<span class="tag warn">вебхук: ${esc(r.webhook_error ?? 'не настроен')}</span>`}</p>
       <p class="hint">Токен: ${r.token_saved ? 'свой, сохранён ••••' : 'из настроек функции (как при запуске)'}. Значение токена сайт не показывает.</p>
-      <div class="u-grid"><label class="field">Новый токен бота (от @BotFather)<input type="password" id="a-bot-tok" autocomplete="off" placeholder="123456789:AA…"></label></div>
+      <label class="field">Новый токен бота (от @BotFather)<input type="password" id="a-bot-tok" autocomplete="off" placeholder="123456789:AA…"></label>
       <div class="sheet-foot">${r.token_saved ? '<button type="button" class="btn ghost" id="a-bot-reset">Вернуть токен из настроек функции</button>' : '<span></span>'}
         <button type="button" class="btn soft" id="a-bot-save">Проверить и сохранить токен</button></div>`;
     const go = async t => {

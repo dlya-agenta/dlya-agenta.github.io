@@ -789,7 +789,7 @@ async function showSelections() {
   sheet('Мои подборки', '<p class="muted">Загрузка…</p>');
   try {
     const r = await call('sel_list');
-    $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="opt" style="cursor:default"><span><b>${esc(s.title)}</b><br>
+    $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="opt selrow" style="cursor:default"><span><b>${esc(s.title)}</b><br>
       <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU')} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}
       ${s.url ? `<br>PDF удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}` : ''}</small>${SHARE.row(s)}</span>
       ${SHARE.btns(s)}

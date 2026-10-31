@@ -4,6 +4,9 @@
 .note-card p { margin: 0 0 8px; white-space: pre-line; font-size: 14px; overflow-wrap: anywhere; }
 .note-foot { display: flex; justify-content: flex-end; gap: 6px; }
 .note-foot .btn { padding: 7px 12px; }
+.note-foot a.btn, #tg-box a.btn, .share-box a.btn { text-decoration: none; }
+.note-card:nth-child(n+4) { display: none; }   /* не больше трёх сразу, на телефоне — двух; остальные — после «Понятно» */
+body:has(#sheet:not([hidden])) .notes, body:has(#viewer:not([hidden])) .notes { display: none; }   /* поверх открытого окна не показываем */
 .fmt .chip { position: relative; }
 .fmt .chip input { position: absolute; opacity: 0; pointer-events: none; }
 .fmt .chip:has(input:focus-visible) { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -12,4 +15,4 @@
 .share-box .sheet-foot { flex-wrap: wrap; justify-content: flex-start; }
 .pwa-more summary { cursor: pointer; color: var(--link); margin: 6px 0; }
 @media (prefers-color-scheme: dark) { .note-card { box-shadow: 0 6px 24px rgba(0, 0, 0, .5); } }
-@media (max-width: 760px) { .notes { left: 12px; right: 12px; width: auto; } }
+@media (max-width: 760px) { .selrow { flex-wrap: wrap; } .selrow > span { flex: 1 1 100%; } .notes { left: 12px; right: 12px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); } .note-card:nth-child(n+3) { display: none; } }
