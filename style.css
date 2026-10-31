@@ -660,3 +660,20 @@ button.who:hover, button.who.on { background: var(--soft); }
   .top .menu #logout { margin-left: auto; }
 }
 @media (min-width: 761px) and (max-width: 1199px) { .menu .lbl-long { display: none; } .menu .lbl-short { display: inline; } .top .menu .link { font-size: 14px; padding: 9px 7px; } }
+/* v5.7: второй шаг входа администратора (site/mfa.js), частота запросов и журнал действий админа (site/admin.js) */
+.mfa { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); }
+.mfa p { margin: 0; }
+.mfa .err:empty { display: none; }
+.mfa > .btn { justify-self: start; }
+.mfa .sheet-foot { flex-wrap: wrap; }
+.mfa.off { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); background: color-mix(in srgb, var(--bad) 8%, var(--card)); }
+.mfa-red { color: color-mix(in srgb, var(--bad) 85%, var(--text)); font-weight: 600; }
+.mfa-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.mfa-form input { flex: 1 1 130px; }
+.mfa-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; margin: 0; padding: 0; list-style: none; font: 16px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
+.a-sec .group { margin: 12px 0 6px; }
+#a-log-q { width: 100%; }
+.log-rows { display: grid; margin-top: 8px; }
+.log-row { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
+.log-det { color: var(--muted); font-size: 13px; }

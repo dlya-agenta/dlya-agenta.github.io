@@ -2,16 +2,26 @@
 // она сохраняет всё изменённое (участники — admin_user по каждому, настройки — одним admin_settings). Кнопки-действия
 // (одобрить, +30 дней, пакет номеров, пароль, выкинуть входы, админ, отключить) срабатывают сразу; несохранённые правки перед этим сохраняются.
 // Групп больше нет: доступ к Архиву и Рекламе — по тарифу, у участника можно включить или выключить вручную.
+// Шаг 2.4: первый блок панели — второй шаг входа (site/mfa.js), в лимитах — частота запросов, внизу — журнал действий админа (грузится при первом открытии).
 window.ADMIN = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : '—';
   const dIn = s => s ? new Date(s).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' }) : '';   // ГГГГ-ММ-ДД по МСК для поля даты
+  const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const IDS = ['sub', 'pro', 'max'];
   const ST = { pending: ['заявка', 'warn'], active: ['активен', 'ok'], off: ['отключён', 'grey'] };
   const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
     modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
   const LIM = { phone_hour: 'Номеров в час (защита от выкачивания базы)', sel_hour: 'Подборок PDF в час', access_days: 'Дней доступа при одобрении' };
+  const RATE = [['login_ip', 'Вход: попыток в минуту с одного адреса'], ['web.ip', 'Сайт: запросов в минуту с одного адреса'], ['web.user', 'Сайт: запросов в минуту от участника'],
+    ['pay.ip', 'Оплата: запросов в минуту с одного адреса'], ['pay.user', 'Оплата: запросов в минуту от участника'],
+    ['support.ip', 'Поддержка: запросов в минуту с одного адреса'], ['support.user', 'Поддержка: запросов в минуту от участника']];
+  const LOG = { login_ok: 'Вход', login_fail: 'Неудачный вход', login_lock: 'Вход заблокирован', mfa_on: 'Включён второй шаг входа', mfa_backup: 'Новые запасные коды',
+    user_set: 'Изменён участник', user_create: 'Создан участник', settings: 'Изменены настройки', pay_settings: 'Изменены настройки оплаты', pay_manual: 'Подписка выдана вручную',
+    pay_activate: 'Платёж подтверждён вручную', pay_reject: 'Платёж отклонён', pay_hook_test: 'Проверка связи с CryptoBot', pay_sim_tx: 'Имитация перевода' };
+  const LOGK = { device: 'Устройство', ip: 'IP', why: 'Подробности', password: 'Новый пароль', kick: 'Выкинут со всех устройств', pack: 'Пакет номеров', plan: 'Тариф', days: 'Дней', changed: 'Изменено', id: 'Счёт', tx: 'Перевод',
+    what: 'Что', was: 'Было', now: 'Стало', ok: 'Успешно', usd: 'Сумма, $', amount: 'Сумма', note: 'Заметка', late: 'С опозданием', result: 'Результат' };
   const PF = [['name', 'Название', 'text'], ['usd', 'Цена в месяц, $', 'number'], ['phones_day', 'Номеров в день', 'number'], ['phones_month', 'Номеров в месяц', 'number'],
     ['devices', 'Устройств', 'number'], ['seats', 'Мест (пусто — без ограничений)', 'number'], ['disc_m3', 'Скидка за 3 мес, %', 'number'], ['disc_m12', 'Скидка за 12 мес, %', 'number'],
     ['opts.arch', 'Архив и старые объявления', 'check'], ['opts.rk_month', 'Черновики для рекламы в месяц', 'number'], ['opts.rk_daily', 'Готовых черновиков в день', 'number'],
@@ -59,7 +69,8 @@ window.ADMIN = (() => {
     const cnt = id => r.users.filter(u => u.plan === id && u.status === 'active' && u.role !== 'admin').length;
     const pend = r.users.filter(u => u.status === 'pending').length, off = r.users.filter(u => u.status === 'off').length;
     const chips = [['all', `Все (${r.users.length})`], ['pending', `Заявки (${pend})`], ...IDS.map(id => [id, `${esc(r.plans[id].name)} (${cnt(id)}${r.plans[id].seats ? ` из ${r.plans[id].seats}` : ''})`]), ['off', `Отключены (${off})`]];
-    return `<div class="a-top"><input id="a-find" type="search" placeholder="Поиск: имя, логин, телефон" autocomplete="off">
+    return `<div id="a-mfa"></div>
+      <div class="a-top"><input id="a-find" type="search" placeholder="Поиск: имя, логин, телефон" autocomplete="off">
         <div class="chips" id="a-show">${chips.map(([k, t]) => `<button type="button" class="chip${show === k ? ' on' : ''}" data-show="${k}">${t}</button>`).join('')}</div></div>
       <div id="a-users" class="ucards">${r.users.map(card).join('')}</div>
       <details class="a-sec"><summary>Тарифы и пакет номеров</summary>
@@ -67,12 +78,20 @@ window.ADMIN = (() => {
           ${PF.map(([k, t, type]) => `<tr><td>${t}</td>${IDS.map(id => `<td>${sIn(`plans.${id}.${k}`, type, get(r.plans[id], k))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
         <div class="u-grid"><label class="field">Пакет: номеров${sIn('pack.qty', 'number', r.pack.qty)}</label><label class="field">Пакет: цена, $${sIn('pack.usd', 'number', r.pack.usd)}</label></div></details>
       <details class="a-sec"><summary>Лимиты для всех тарифов</summary><div class="u-grid">${Object.entries(LIM).map(([k, t]) => `<label class="field">${t}${sIn(`limits.${k}`, 'number', r.limits[k])}</label>`).join('')}</div>
-        <p class="hint">Номера в день и в месяц, устройства — в тарифах. Свои лимиты участника — в его карточке.</p></details>
+        <p class="hint">Номера в день и в месяц, устройства — в тарифах. Свои лимиты участника — в его карточке.</p>
+        <div class="group">Частота запросов</div>
+        <div class="u-grid">${RATE.map(([k, t]) => `<label class="field">${t}${sIn(`rate.${k}`, 'number', get(r.rate, k))}</label>`).join('')}</div>
+        <p class="hint">Сверх этого числа сервер отвечает «Слишком часто, подождите минуту». Адрес — интернет-адрес посетителя, в одном офисе он часто общий на всех.
+          Пустое поле или ноль — значение не меняется. Совсем малое число сервер поднимет: до 20, а на входе до 5.</p></details>
       <details class="a-sec"><summary>Объявления: источники и уникальность</summary><div class="u-grid">
         <label class="field">Ссылки на источники (Авито, Циан…) в карточке<select data-s="src_links">${opt(r.src_links, [['off', 'никому'], ['admin', 'только администраторам'], ['all', 'всем участникам']])}</select></label>
         <label class="field">Проверять ночью новых объявлений<input type="number" min="0" max="300" data-s="uniq.per_night" value="${r.uniq?.per_night ?? 40}"></label>
         <label class="chk opt">${sIn('uniq.enabled', 'check', r.uniq?.enabled)}<span>Проверка уникальности: есть ли живое объявление на площадках</span></label></div></details>
       <details class="a-sec"><summary>Инструменты сайта</summary><div class="u-grid">${Object.entries(FEAT).map(([k, t]) => `<label class="chk opt">${sIn(`features.${k}`, 'check', r.features[k])}<span>${t}</span></label>`).join('')}</div></details>
+      <details class="a-sec" id="a-log"><summary>Журнал действий админа</summary>
+        <input id="a-log-q" type="search" placeholder="Поиск: логин админа или участника" autocomplete="off" aria-label="Поиск по журналу">
+        <div id="a-log-rows" class="log-rows"><p class="muted">Загрузка…</p></div>
+        <button type="button" class="btn more" id="a-log-more" hidden>Показать ещё</button></details>
       <a class="btn soft a-pay" href="pay.html#admin">⚙ Оплата: CryptoBot, кошельки, журнал платежей →</a>
       <div class="a-save"><span id="a-n" class="muted">Изменений нет</span><button type="button" class="btn ghost" id="a-undo" disabled>Отменить</button><button type="button" class="btn primary" id="a-go" disabled>Сохранить</button></div>`;
   }
@@ -111,6 +130,8 @@ window.ADMIN = (() => {
       }
     }
     if (set.uniq) set.uniq = { enabled: $('[data-s="uniq.enabled"]').checked, per_night: $('[data-s="uniq.per_night"]').value, ...set.uniq };   // сервер ждёт оба поля
+    const rt = k => { const v = +$(`[data-s="rate.${k}"]`).value; return v > 0 && Number.isFinite(v) ? v : get(r.rate, k); };   // пусто, ноль и мусор — прежнее значение, null в rate не уходит
+    if (set.rate) set.rate = { login_ip: rt('login_ip'), ...Object.fromEntries(['web', 'pay', 'support'].map(fn => [fn, { ip: rt(`${fn}.ip`), user: rt(`${fn}.user`) }])) };   // блок целиком: чего нет — у сервера стало бы значением по умолчанию
     const btn = $('#a-go'); btn.disabled = true; btn.textContent = 'Сохраняю…';
     try {
       for (const [login, s] of users) { const x = await ui.call('admin_user', { login, set: s }); if (x.error) throw new Error(`${login}: ${x.message}`); }
@@ -141,6 +162,32 @@ window.ADMIN = (() => {
     if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) { e.stopPropagation(); e.preventDefault(); } else changed.clear();
   }, true);
 
+  // журнал действий админа: detail.changes — { поле: [было, стало] }, остальное — «ключ: значение». Логины и цели вводят люди — всё через esc
+  const val = v => v == null || v === '' ? '—' : v === true ? 'да' : v === false ? 'нет' : Array.isArray(v) ? v.map(val).join(', ')
+    : typeof v === 'object' ? Object.entries(v).map(([k, x]) => `${k}: ${val(x)}`).join(', ') : String(v);
+  const logDet = d => !d ? [] : typeof d !== 'object' ? [val(d)] : Object.entries(d).filter(([, v]) => v != null && v.length !== 0).flatMap(([k, v]) => k === 'changes' && typeof v === 'object'
+    ? Object.entries(v).map(([f, c]) => `${f}: ${val(c?.[0])} → ${val(c?.[1])}`) : [`${LOGK[k] ?? k}: ${val(v)}`]);
+  const logRow = x => `<div class="log-row"><small class="muted">${esc(when(x.at))} · ${esc(x.admin)}</small>
+      <span><b>${esc(LOG[x.action] ?? x.action)}</b>${x.target ? ` · ${esc(x.target)}` : ''}</span>
+      ${logDet(x.detail).map(t => `<small class="log-det">${esc(t)}</small>`).join('')}</div>`;
+  let logOff = 0, logNo = 0, logT = 0;   // сдвиг, номер последнего запроса (устаревший ответ не показываем), таймер паузы в поиске
+  async function logLoad(offset = 0) {
+    if (!$('#a-log')?.open) return;
+    const rows = $('#a-log-rows'), more = $('#a-log-more'), no = ++logNo;
+    more.disabled = true;
+    try {
+      const x = await ui.call('admin_log_list', { offset, q: $('#a-log-q').value.trim() });
+      if (no !== logNo || !rows.isConnected) return;
+      logOff = offset; more.hidden = x.items.length < 50;
+      const list = x.items.map(logRow).join('');
+      if (offset) rows.insertAdjacentHTML('beforeend', list); else rows.innerHTML = list || '<p class="muted">Записей нет.</p>';
+    } catch (e) {
+      if (no !== logNo || !rows.isConnected) return;
+      if (offset) ui.toast(e.message, 5000); else { rows.innerHTML = `<p class="err">${esc(e.message)}</p>`; more.hidden = true; }
+    }
+    more.disabled = false;
+  }
+
   async function open() {
     ui.sheet('Админ-панель', '<p class="muted">Загрузка…</p>', true);
     try { r = await ui.call('admin_users'); } catch (e) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
@@ -148,6 +195,11 @@ window.ADMIN = (() => {
     changed.clear();
     const body = $('#sheet-body');
     body.innerHTML = html(); filter();
+    window.MFA?.panel($('#a-mfa'), ui);
+    const log = $('#a-log');   // его поле и кнопка без data-k / data-s: mark() их не видит, «Сохранить» не загорается
+    log.ontoggle = () => { if (log.open && !log.dataset.on) { log.dataset.on = 1; logLoad(); } };
+    $('#a-log-q').oninput = () => { clearTimeout(logT); logT = setTimeout(() => logLoad(), 350); };
+    $('#a-log-more').onclick = () => logLoad(logOff + 50);
     body.oninput = body.onchange = e => { if (e.target.matches('[data-k], [data-s]')) mark(e.target); if (e.target.id === 'a-find') filter(); };
     body.onclick = e => {
       const s = e.target.closest('[data-show]'), b = e.target.closest('button[data-a]');

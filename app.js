@@ -76,7 +76,7 @@ function showLogin(reason, tab = 'login') {
     return;
   }
   const why = { expired: 'Доступ закончился. Войдите снова: если оплата открыта, продлите доступ сразу, иначе обратитесь к администратору.', no_access: 'Ваш Telegram не одобрен в боте. Войдите по логину и паролю.', kicked: 'Выполнен вход на другом устройстве — войдите снова.',
-    off: 'Доступ закрыт — обратитесь к администратору.', no_auth: '' }[reason] ?? '';
+    off: 'Доступ закрыт — обратитесь к администратору.', no_auth: '' }[reason] ?? reason ?? '';   // не код из списка — готовый текст (второй шаг входа, вход админа в Mini App)
   gate(`
     <div class="tabs2"><button class="seg ${tab === 'login' ? 'on' : ''}" data-tab="login">Вход</button><button class="seg ${tab === 'reg' ? 'on' : ''}" data-tab="reg">Регистрация</button></div>
     ${why ? `<p class="muted">${esc(why)}</p>` : ''}
@@ -105,6 +105,7 @@ function showLogin(reason, tab = 'login') {
     btn.disabled = true; $('#gerr').textContent = '';
     try {
       const r = await call('login', { login: fm.login.value, password: fm.password.value, fp: await fp() });
+      if (r.need_code) return MFA.ask(r, { call, gate, fp, done: t => { token = t; store.set('token', token); auth = { token }; start(); }, back: m => showLogin(m) });   // админ со вторым шагом (site/mfa.js)
       token = r.token; store.set('token', token); auth = { token }; start();
     } catch (err) {
       if (err.data?.pay) return payGate(err.data.pay, err.message);   // доступ истёк или заявка не одобрена — можно оплатить сразу
@@ -127,7 +128,7 @@ function logout() { token = null; auth = null; store.set('token', null); showLog
 // Mini App (кнопка «Сайт» в боте): initData → токен своей сессии, как вход по паролю
 async function tgLogin() {
   try { const r = await call('tg_login', { auth: tg.initData, fp: await fp() }); token = r.token; store.set('token', token); auth = { token }; return true; }
-  catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || 'no_auth'); return false; }
+  catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || (e.data ? e.message : 'no_auth')); return false; }   // текст сервера: админу Mini App закрыт, «Слишком часто…»
 }
 // отпечаток браузера для «Активных устройств» и защиты партнёрки: хеш общих свойств браузера, не личные данные
 async function fp() {
@@ -145,7 +146,7 @@ async function start() {
   if (me.guest) GUEST.use(me);   // гостевой доступ: только посмотреть (site/guest.js)
   PLANS.use({ call, sheet, toast }, meta);
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
-  ADMIN.use({ call, sheet, toast, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
+  ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
     if (p.f && typeof p.f === 'object') f = p.f;
