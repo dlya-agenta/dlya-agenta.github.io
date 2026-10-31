@@ -73,3 +73,4 @@
 .crm-badge[hidden] { display: none; }
 /* окно уведомлений: кнопки задачи в несколько строк */
 .note-card .note-foot { flex-wrap: wrap; }
+.crm a.btn { text-decoration: none; }
