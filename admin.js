@@ -12,6 +12,8 @@ window.ADMIN = (() => {
   const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const IDS = ['sub', 'pro', 'max'];
   const ST = { pending: ['заявка', 'warn'], active: ['активен', 'ok'], off: ['отключён', 'grey'] };
+  // ссылка на окно Менеджера — только владельцу (логин из токена; доступ всё равно проверяет функция manager)
+  const owner = () => { try { const b = JSON.parse(localStorage.getItem('token')).split('.')[0]; return JSON.parse(atob(b.replace(/-/g, '+').replace(/_/g, '/'))).l === 'admin'; } catch { return false; } };
   const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
     modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
   const LIM = { phone_hour: 'Номеров в час (защита от выкачивания базы)', sel_hour: 'Подборок PDF в час', access_days: 'Дней доступа при одобрении' };
@@ -104,6 +106,7 @@ window.ADMIN = (() => {
       <a class="btn soft a-pay" href="pay.html#admin">⚙ Оплата: CryptoBot, кошельки, журнал платежей →</a>
       <a class="btn soft a-pay" href="partner.html#admin">🤝 Партнёрская программа: выплаты, проверка накруток →</a>
       <a class="btn soft a-pay" href="support.html#admin">💬 Обращения в поддержку: ответы, ИИ, сводка →</a>
+      ${owner() ? '<a class="btn soft a-pay" href="manager.html">🤖 Менеджер проекта: задачи, правки, одобрения →</a>' : ''}
       <div class="a-save"><span id="a-n" class="muted">Изменений нет</span><button type="button" class="btn ghost" id="a-undo" disabled>Отменить</button><button type="button" class="btn primary" id="a-go" disabled>Сохранить</button></div>`;
   }
 

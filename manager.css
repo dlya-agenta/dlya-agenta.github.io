@@ -1,0 +1,36 @@
+/* Окно «Менеджер проекта» (manager.html): переписка, карточки на одобрение, ход работы. Основа — style.css и pay.css (pcard, btn, chip, tag) */
+.mgrpage .pmain { max-width: 860px; }
+.mg-head { grid-template-columns: 1fr auto; align-items: center; }
+.mg-status { font-weight: 600; overflow-wrap: anywhere; }
+.mg-status.on { color: var(--accent); }
+.mg-spend { grid-column: 1; font-size: 13px; }
+.mg-head #mg-stop { grid-column: 2; grid-row: 1 / span 2; }
+.mg-cards details > summary { cursor: pointer; color: var(--muted); }
+.mg-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.mg-card.mg-pending { border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); background: color-mix(in srgb, var(--warn) 5%, var(--card)); }
+.mg-card-top { display: flex; gap: 8px; justify-content: space-between; align-items: flex-start; }
+.mg-card-top b { overflow-wrap: anywhere; }
+.mg-kinds { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mg-files { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+.mg-files code, .mg-text code { font-size: 12px; background: var(--soft); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
+.mg-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.mg-chat { max-height: 62vh; overflow-y: auto; gap: 12px; }
+.mg-msg { display: grid; gap: 4px; max-width: 92%; min-width: 0; }
+.mg-msg .mg-who { font-size: 12px; color: var(--muted); }
+.mg-msg .mg-text { padding: 10px 12px; border-radius: 12px; background: var(--soft); }
+.mg-owner { justify-self: end; }
+.mg-owner .mg-who { text-align: right; }
+.mg-owner .mg-text { background: var(--accent); color: var(--accent-text); }
+.mg-owner .mg-text a, .mg-owner .mg-text code { color: inherit; }
+.mg-sys { justify-self: center; max-width: 100%; }
+.mg-sys .mg-text { background: transparent; border: 1px dashed var(--line); font-size: 13px; color: var(--muted); }
+.mg-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+.mg-send textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 90px; font: inherit; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); }
+.mg-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-send #mg-go { justify-self: end; }
+@media (max-width: 560px) {
+  .mg-head { grid-template-columns: 1fr; }
+  .mg-head #mg-stop { grid-column: 1; grid-row: auto; justify-self: start; }
+  .mg-msg { max-width: 100%; }
+}
