@@ -1,7 +1,7 @@
 /* Поддержка (ТЗ v2, шаг 3.3): кнопка «💬 Помощь» и окно. Токены — из style.css или doc.css (страницы документов), здесь запасные значения */
 .sup-fab { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 50; display: inline-flex; align-items: center; gap: 6px;
   border: 0; border-radius: 999px; padding: 10px 15px; cursor: pointer; font: 600 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--card, #fff); color: var(--link, var(--accent, #1453d8)); box-shadow: 0 4px 16px rgba(16, 24, 40, .16); }
+  background: var(--card, #fff); color: var(--link, var(--accent, #1453d8)); box-shadow: 0 4px 16px rgba(16, 24, 40, .16); outline: 1px solid var(--line, #e3e6eb); }
 .sup-fab:hover { box-shadow: 0 6px 22px rgba(16, 24, 40, .24); }
 .sup-fab span { font-size: 17px; }
 .sup-dot { position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--bad, #d23c3c); border: 2px solid var(--card, #fff); }
@@ -9,7 +9,7 @@ body:has(#selbar:not([hidden])) .sup-fab { bottom: calc(76px + env(safe-area-ins
 @media (max-width: 560px) { .sup-fab { padding: 12px; } .sup-fab b { display: none; } .sup-fab span { font-size: 20px; } }
 html.sup-on body { overflow: hidden; }
 
-.sup-wrap { position: fixed; inset: 0; z-index: 2500; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-end; justify-content: flex-end; }
+.sup-wrap { position: fixed; inset: 0; z-index: 3600; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-end; justify-content: flex-end; }
 .sup-wrap[hidden] { display: none; }
 .sup-panel { --sup-r: 16px; background: var(--card, #fff); color: var(--text, #121722); width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
   font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }

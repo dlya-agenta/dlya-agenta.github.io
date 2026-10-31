@@ -131,7 +131,7 @@ window.SUPPORT = (() => {
         <input name="contact" maxlength="80" placeholder="Телефон или Telegram для ответа — по желанию" autocomplete="tel">` : ''}
       <div class="sup-files"></div>
       ${S.files ? `<label class="btn soft sup-attach">📎 Скриншот (до ${S.files})<input type="file" accept="image/*" multiple hidden name="file"></label>` : ''}
-      <p class="sup-warn">⚠️ ${limText()}</p>
+      ${limText() ? `<p class="sup-warn">⚠️ ${limText()}</p>` : ''}
       <p class="sup-err" hidden></p>
       <button class="btn primary" type="submit" ${none ? 'disabled' : ''}>${none ? 'Лимит на сегодня исчерпан' : 'Отправить'}</button>
       ${S.ai ? '<p class="sup-hint">Сначала отвечает ИИ-помощник — обычно за минуту. Сложные вопросы он передаёт специалисту.</p>' : '<p class="sup-hint">Ответ специалиста придёт сюда' + (S.me.login ? ' и в Telegram-бот, если он привязан в профиле' : '') + '.</p>'}
