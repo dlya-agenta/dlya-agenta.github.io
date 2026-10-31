@@ -21,6 +21,7 @@ window.ADMIN = (() => {
   const LOG = { login_ok: 'Вход', login_fail: 'Неудачный вход', login_lock: 'Вход заблокирован', mfa_on: 'Включён второй шаг входа', mfa_backup: 'Новые запасные коды',
     user_set: 'Изменён участник', user_create: 'Создан участник', settings: 'Изменены настройки', pay_settings: 'Изменены настройки оплаты', pay_manual: 'Подписка выдана вручную',
     pay_activate: 'Платёж подтверждён вручную', pay_reject: 'Платёж отклонён', pay_hook_test: 'Проверка связи с CryptoBot', pay_sim_tx: 'Имитация перевода' };
+  Object.assign(LOG, { support_reply: 'Ответ на обращение', support_status: 'Статус обращения', support_settings: 'Изменены настройки поддержки', support_digest: 'Сводка поддержки' });   // шаг 3.3
   const LOGK = { device: 'Устройство', ip: 'IP', why: 'Подробности', password: 'Новый пароль', kick: 'Выкинут со всех устройств', pack: 'Пакет номеров', plan: 'Тариф', days: 'Дней', changed: 'Изменено', id: 'Счёт', tx: 'Перевод',
     what: 'Что', was: 'Было', now: 'Стало', ok: 'Успешно', usd: 'Сумма, $', amount: 'Сумма', note: 'Заметка', late: 'С опозданием', result: 'Результат' };
   const PF = [['name', 'Название', 'text'], ['usd', 'Цена в месяц, $', 'number'], ['phones_day', 'Номеров в день', 'number'], ['phones_month', 'Номеров в месяц', 'number'],
@@ -102,6 +103,7 @@ window.ADMIN = (() => {
         <button type="button" class="btn more" id="a-log-more" hidden>Показать ещё</button></details>
       <a class="btn soft a-pay" href="pay.html#admin">⚙ Оплата: CryptoBot, кошельки, журнал платежей →</a>
       <a class="btn soft a-pay" href="partner.html#admin">🤝 Партнёрская программа: выплаты, проверка накруток →</a>
+      <a class="btn soft a-pay" href="support.html#admin">💬 Обращения в поддержку: ответы, ИИ, сводка →</a>
       <div class="a-save"><span id="a-n" class="muted">Изменений нет</span><button type="button" class="btn ghost" id="a-undo" disabled>Отменить</button><button type="button" class="btn primary" id="a-go" disabled>Сохранить</button></div>`;
   }
 
