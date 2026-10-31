@@ -1,11 +1,23 @@
 // Настройки оплаты для администратора (pay.html#admin; ТЗ v2, шаг 2.2): «боевая» оплата и тестовые логины, @CryptoBot (токены — только запись
 // в Vault, сайт видит лишь «сохранён»; адрес вебхука; проверка токена и вебхука), сети прямого перевода (адрес, контракт USDT, включение,
 // тестовый счёт на 1 $), курс TON, «Разобрать вручную», ручная активация (пишется в журнал админа), журнал всех платежей с фильтром по статусу.
+// Шаг 2.3: «Скидка на PRO» (app_settings.offer и статистика: показано, открыто, оплачено, выручка) и «Напоминания после окончания подписки» (app_settings.remind).
 window.PAYADM = (() => {
   const $ = s => document.querySelector(s);
   const U = () => window.PAYUI;
   let R = null, filter = 'all', find = '', offset = 0;
   const ST = { all: 'Все', wait: 'Ждём', paid: 'Оплачен', expired: 'Истёк', review: 'Разобрать', rejected: 'Отклонён' };
+  const WHY = { limit: 'кончились номера', arch: 'Архив', rk: 'Реклама', mail: 'Рассылки', pro: 'окно «Что даёт PRO»', visit: 'без повода' };
+  // статистика скидки: за 30 дней и за всё время
+  function offerStats(st) {
+    const { esc } = U(), money = v => `${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} $`, a = st?.d30 ?? {}, b = st?.all ?? {};
+    const rows = [['Показано', x => x.shown ?? 0], ['Из них в бот', x => x.bot ?? 0], ['Открыли оплату', x => x.opened ?? 0], ['Оплатили', x => x.paid ?? 0],
+      ['Выручка по скидке', x => money(x.revenue)], ['Скидка (недополучено)', x => money(x.discount)]];
+    const why = Object.entries(b.reasons ?? {}).map(([k, n]) => `${esc(WHY[k] ?? k)} — ${n}`).join(', ');
+    return `<div class="ptable-wrap"><table class="ptable"><thead><tr><th></th><th>30 дней</th><th>Всё время</th></tr></thead>
+      <tbody>${rows.map(([t, f]) => `<tr><th>${t}</th><td>${f(a)}</td><td>${f(b)}</td></tr>`).join('')}</tbody></table></div>
+      ${why ? `<p class="hint">Повод показа (всё время): ${why}.</p>` : ''}`;
+  }
   const STL = { wait: 'ждём', pending: 'ждём (старый)', paid: 'оплачен', timeout: 'истёк', expired: 'истёк', review: 'разобрать', rejected: 'отклонён' };
 
   async function open() {
@@ -45,6 +57,24 @@ window.PAYADM = (() => {
           <code class="addr">${esc(R.ref?.code ?? '—')}</code>
           <div class="pa-row"><button type="button" class="btn soft" data-copy="${esc(R.ref?.code ?? '')}" data-msg="Код скопирован">Скопировать код</button>
             <button type="button" class="btn ghost" data-copy="${esc(location.origin + '/?r=' + (R.ref?.code ?? ''))}" data-msg="Ссылка скопирована">Скопировать ссылку</button></div></div></section>
+      <section class="pcard"><h2>Скидка на PRO</h2>
+        <form id="pa-offer" class="pa-sec">
+          <label class="chk opt"><input type="checkbox" name="enabled" ${R.offer.enabled ? 'checked' : ''}><span><b>Предлагать скидку участникам.</b> Выключено — только тестовым логинам из «Режима».</span></label>
+          <div class="agrid"><label class="field">Скидка на первый месяц, %<input name="pct" type="number" min="1" max="90" value="${R.offer.pct}"></label>
+            <label class="field">Не чаще раза в, дней<input name="every_days" type="number" min="1" max="365" value="${R.offer.every_days}"></label>
+            <label class="field">Предложение действует, часов<input name="ttl_hours" type="number" min="1" max="720" value="${R.offer.ttl_hours}"></label>
+            <label class="field">Без PRO и MAX не меньше, дней<input name="after_days" type="number" min="0" max="365" value="${R.offer.after_days}"></label></div>
+          <p class="hint">Сейчас: ${esc(R.plans.find(x => x.id === 'pro')?.name ?? 'PRO')} за ${(() => { const u = R.plans.find(x => x.id === 'pro')?.usd ?? 99; return `${(Math.round(u * (100 - R.offer.pct)) / 100).toLocaleString('ru-RU')} $ вместо ${u} $`; })()} на первый месяц.
+            Показ — когда кончились номера на сегодня, при нажатии на Архив, Рекламу, Рассылки или «Что даёт PRO», без повода — в случайный момент недели. Новое предложение дублируется в бот, если Telegram привязан.</p>
+          <button class="btn primary">Сохранить</button></form>
+        <div class="pa-sec">${offerStats(R.offer_stats)}</div></section>
+      <section class="pcard"><h2>Напоминания после окончания подписки</h2>
+        <form id="pa-remind" class="pa-sec">
+          <label class="chk opt"><input type="checkbox" name="enabled" ${R.remind.enabled ? 'checked' : ''}><span>Писать в Telegram-бот, если подписка закончилась и не продлена (только тем, у кого привязан Telegram)</span></label>
+          <div class="agrid"><label class="field">Раз в, дней<input name="every_days" type="number" min="1" max="60" value="${R.remind.every_days}"></label>
+            <label class="field">Не больше, раз<input name="times" type="number" min="0" max="20" value="${R.remind.times}"></label></div>
+          <p class="hint">Текст: «${esc(R.remind_text)}» и кнопка «Продлить подписку». Каждый день в 11:00 МСК. За 30 дней отправлено: ${R.offer_stats?.remind?.sent ?? 0} (участников: ${R.offer_stats?.remind?.people ?? 0}).</p>
+          <div class="pa-row"><button class="btn primary">Сохранить</button><button type="button" class="btn soft" data-a="offer-preview">Прислать оба сообщения себе в Telegram</button></div></form></section>
       <section class="pcard"><h2>@CryptoBot</h2>
         <form id="pa-cb" class="pa-sec">
           <label class="chk opt"><input type="checkbox" name="enabled" ${cb.enabled ? 'checked' : ''}><span>Принимать через CryptoBot (USDT и Gram, бывший TON)</span></label>
@@ -104,6 +134,14 @@ window.PAYADM = (() => {
       e.preventDefault(); const f = e.target;
       save({ invite: { required: f.required.checked, guest_days: f.guest_days.value, first_month: f.first_month.value, per_month: f.per_month.value } }, 'Регистрация сохранена');
     };
+    $('#pa-offer').onsubmit = e => {
+      e.preventDefault(); const f = e.target;
+      save({ offer: Object.fromEntries(['pct', 'every_days', 'ttl_hours', 'after_days'].map(k => [k, f[k].value]).concat([['enabled', f.enabled.checked]])) }, 'Скидка сохранена');
+    };
+    $('#pa-remind').onsubmit = e => {
+      e.preventDefault(); const f = e.target;
+      save({ remind: { enabled: f.enabled.checked, every_days: f.every_days.value, times: f.times.value } }, 'Напоминания сохранены');
+    };
     $('#pa-cb').onsubmit = e => {
       e.preventDefault(); const f = e.target, body = { pay: { cryptobot: { enabled: f.enabled.checked, test: f.test.checked } } };
       if (f.token.value.trim()) body.token = f.token.value.trim();
@@ -140,6 +178,7 @@ window.PAYADM = (() => {
             + `повтор — ${r.second.status}, ${r.second.body?.result?.already ? 'ничего не изменилось' : JSON.stringify(r.second.body)}; поддельная подпись — ${r.forged.status}. Статус счёта: ${r.after?.status} (${r.after?.paid_by}).`);
         }
         if (a === 'rate') { R.rate = await call('adm_rate'); draw(); toast('Курс обновлён'); }
+        if (a === 'offer-preview') { const r = await call('adm_offer_preview'); U().toast(r.ok ? 'Отправлено — проверьте Telegram' : 'Не дошло — проверьте, что бот не заблокирован', 6000); }
         if (a === 'test-inv') { const r = await call('adm_test', { network: b.dataset.net }); U().showInvoice(r.invoice); }
         if (a === 'more') { offset += 50; list(true); }
       } catch (err) { U().toast(err.message, 6000); }

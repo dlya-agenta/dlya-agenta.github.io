@@ -1,0 +1,15 @@
+/* Скидка на PRO (шаг 2.3, site/offer.js): окно поверх «Что даёт PRO» и плашка с таймером. Цвета — токены style.css (обе темы, оба оформления) */
+.sheet.offer { z-index: 2100; }
+.offer-box { max-width: 440px; gap: 12px; }
+.offer-box h2 { font-size: 21px; line-height: 1.25; margin: 0; letter-spacing: -.01em; }
+.offer-badge { background: var(--bad); color: #fff; font-weight: 700; border-radius: 8px; padding: 3px 9px; font-size: 14px; }
+.offer-lead { margin: 0; color: var(--muted); font-size: 14.5px; }
+.offer-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
+.offer-timer { background: var(--soft); border-radius: 12px; padding: 10px 12px; font-size: 14.5px; }
+.offer-timer b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.offer-go { display: block; text-align: center; text-decoration: none; font-size: 16px; padding: 12px 16px; white-space: normal; }
+.offer-box .hint { margin: 0; }
+.offer-chip { position: fixed; left: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 1500; border: 0; border-radius: 999px; padding: 8px 14px;
+  background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; font-size: 14px; box-shadow: 0 4px 14px rgba(0, 0, 0, .2); cursor: pointer; }
+.offer-chip span { font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .offer-chip { left: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 7px 12px; font-size: 13px; } }

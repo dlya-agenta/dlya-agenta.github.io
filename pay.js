@@ -3,7 +3,8 @@
 // Цены, зачёт, места и проверку оплаты считает только сервер (функция pay); здесь — показ. Вход — токен сайта (localStorage token, как у главной)
 // или pay-токен со страницы входа (sessionStorage pay_token: доступ истёк или заявка не одобрена).
 // Пока не включена «боевая» оплата (pay.live), обычным участникам — прежняя оплата доступа через функцию web (pay_info | pay_create | pay_check).
-// Адреса: pay.html?plan=sub|pro|max&months=1|3|12, ?pack=1, ?id=<счёт> (возврат из CryptoBot), #admin — настройки оплаты (pay.admin.js).
+// Адреса: pay.html?plan=sub|pro|max&months=1|3|12, ?pack=1, ?id=<счёт> (возврат из CryptoBot), ?offer=<предложение> (скидка на PRO, шаг 2.3:
+// сервер применяет её сам к PRO на 1 месяц, пока предложение действует), #admin — настройки оплаты (pay.admin.js).
 window.PAYUI = (() => {
   const tg = window.Telegram?.WebApp;
   const $ = s => document.querySelector(s);
@@ -49,6 +50,7 @@ window.PAYUI = (() => {
   let sel = { kind: 'plan', plan: 'pro', months: 1 };   // что оплачиваем
   let way = null;                                      // { method: cryptobot | direct, x: USDT | TON | TRC20 | BEP20 }
   let Q = null, qn = 0;                                // расшифровка цены с сервера
+  let offerId = null;                                  // ?offer= — из окна скидки или кнопки бота
   const main = () => $('#pay');
   const plan = id => I.plans.find(p => p.id === id);
   // по умолчанию — свой тариф (продлить), у админа и без тарифа — PRO
@@ -67,6 +69,8 @@ window.PAYUI = (() => {
     if (location.hash === '#admin' && I.me.role === 'admin' && window.PAYADM) return PAYADM.open();
     const q = new URLSearchParams(location.search);
     sel = q.get('pack') ? { kind: 'pack' } : { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : defPlan(), months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1 };
+    offerId = +q.get('offer') || null;
+    if (offerId) sel = { kind: 'plan', plan: 'pro', months: 1 };
     if (!I.can) return legacy(q);
     render();
     if (+q.get('id')) openInvoice(+q.get('id'));
@@ -79,6 +83,7 @@ window.PAYUI = (() => {
     if (m.guest) notes.push(['warn', 'У вас гостевой доступ: адреса, цены и телефоны скрыты. Оформите подписку — всё откроется сразу после оплаты.']);
     else if (m.status === 'pending') notes.push(['warn', 'Заявка ещё не одобрена — доступ откроется сразу после оплаты.']);
     else if (!m.active && m.role !== 'admin') notes.push(['warn', `Ваша подписка закончилась${m.expires_at ? ` ${day(m.expires_at)}` : ''}. Продлите её или перейдите на PRO — сравнение тарифов ниже.`]);
+    if (I.offer && Date.parse(I.offer.expires_at) > Date.now()) notes.push(['', `🎁 Ваша скидка: ${plan('pro')?.name ?? 'PRO'} за ${money(I.offer.price)} вместо ${money(I.offer.usd)} на первый месяц — до ${when(I.offer.expires_at)} МСК. Выберите ${plan('pro')?.name ?? 'PRO'} на 1 месяц.`]);
     if (!I.live) notes.push(['', 'Оплата на сайте пока включена только для проверки: счета создают администраторы и тестовые логины.']);
     if (I.methods.cryptobot?.test) notes.push(['', `🧪 CryptoBot в тестовом режиме: счёт откроется в @${I.methods.cryptobot.bot}, настоящие деньги не списываются.`]);
     main().innerHTML = `${notes.map(([c, t]) => `<p class="pnote ${c}">${esc(t)}</p>`).join('')}
@@ -112,6 +117,7 @@ window.PAYUI = (() => {
         <span class="pc-top"><b class="pc-name">${esc(p.name)}</b><span class="pc-price"><b>${money(p.usd)}</b> <small>/ мес</small></span></span>
         ${mine ? `<span class="tag ${act ? 'ok' : 'grey'}">Ваш тариф${act ? (I.me.expires_at ? ` до ${day(I.me.expires_at)}` : '') : ' · закончился'}</span>`
           : !adm && !gst && RANK[p.id] > RANK[cur] ? `<span class="tag">Перейти на ${esc(p.name)}${act ? ' — неиспользованные дни в зачёт' : ''}</span>` : ''}
+        ${p.id === 'pro' && I.offer && !(act && RANK[cur] >= RANK.pro) ? `<span class="tag warn">🎁 первый месяц — ${money(I.offer.price)}</span>` : ''}
         <ul>${FEAT(p).map(t => `<li>${esc(t)}</li>`).join('')}</ul>${seat}${low ? '<span class="muted small">Тариф ниже — можно после окончания текущего</span>' : ''}</button>`; }).join('')}</div>
       <div class="segs">${[1, 3, 12].map(mo => { const d = mo === 3 ? plan(sel.plan)?.disc_m3 : mo === 12 ? plan(sel.plan)?.disc_m12 : 0;
         return `<button type="button" class="chip ${sel.months === mo ? 'on' : ''}" data-months="${mo}">${{ 1: '1 месяц', 3: '3 месяца', 12: '12 месяцев' }[mo]}${d ? ` <small>−${d}%</small>` : ''}</button>`; }).join('')}</div>`;
@@ -120,7 +126,7 @@ window.PAYUI = (() => {
     const el = $('#p-quote'), n = ++qn;
     Q = null; goBtn(); el.innerHTML = '<span class="muted">Считаем…</span>';
     try {
-      const r = await call('quote', sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months });
+      const r = await call('quote', sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId });
       if (n !== qn) return;
       Q = r; el.innerHTML = quoteHtml(r);
     } catch (e) {
@@ -131,12 +137,13 @@ window.PAYUI = (() => {
   }
   function quoteHtml(q) {
     const rows = q.kind === 'pack' ? [[`Пакет ${q.qty} номеров`, money(q.price)]]
-      : [[`${plan(q.plan).name} × ${q.months} мес.`, money(q.price)], q.disc && [`Скидка ${q.disc_pct}% за ${q.months} мес.`, `−${money(q.disc)}`],
+      : [[`${plan(q.plan).name} × ${q.months} мес.`, money(q.price)], q.disc && [q.offer ? `Скидка ${q.disc_pct}% на первый месяц` : `Скидка ${q.disc_pct}% за ${q.months} мес.`, `−${money(q.disc)}`],
         q.credit && [`Зачёт: ${q.credit_days} дн. тарифа ${plan(q.from).name}`, `−${money(q.credit)}`]].filter(Boolean);
     const note = q.kind === 'upgrade' ? `Переход на ${plan(q.plan).name}: неиспользованные дни засчитаны, новый период — с даты оплаты.`
       : q.renew ? `Продление: ${q.months} мес. добавятся к текущему сроку.` : q.kind === 'plan' ? 'Период начнётся с даты оплаты.' : '';
-    return `${rows.map(([a, b]) => `<div class="qrow"><span>${esc(a)}</span><span>${b}</span></div>`).join('')}
-      <div class="qrow total"><span>К оплате</span><span>${money(q.total)}</span></div>${note ? `<p class="hint">${esc(note)}</p>` : ''}`;
+    const off = q.offer ? `Скидка по вашему предложению действует до ${when(q.offer.expires_at)} МСК; следующий месяц — ${money(q.price)}.` : '';
+    return `${q.offer_note ? `<p class="pnote warn">${esc(q.offer_note)}</p>` : ''}${rows.map(([a, b]) => `<div class="qrow"><span>${esc(a)}</span><span>${b}</span></div>`).join('')}
+      <div class="qrow total"><span>К оплате</span><span>${money(q.total)}</span></div>${note ? `<p class="hint">${esc(note)}</p>` : ''}${off ? `<p class="hint">${esc(off)}</p>` : ''}`;
   }
   function ways() {
     const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
@@ -167,7 +174,7 @@ window.PAYUI = (() => {
   async function createInv(btn) {
     btn.disabled = true;
     try {
-      const r = await call('create', { ...(sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months }),
+      const r = await call('create', { ...(sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId }),
         method: way.method, ...(way.method === 'cryptobot' ? { asset: way.x } : { network: way.x }) });
       showInvoice(r.invoice);
     } catch (e) { toast(e.message, 6000); btn.disabled = false; }

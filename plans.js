@@ -11,6 +11,7 @@ window.PLANS = (() => {
   function use(deps, meta) {
     ui = deps;
     if (meta?.plans) info = { plans: meta.plans, pack: meta.pack, my: meta.me?.plan, seat: meta.seat ?? [] };
+    if (meta?.me) window.OFFER?.use(meta);   // скидка на PRO (шаг 2.3, site/offer.js): сервер решает, показать ли
   }
   const plan = id => info?.plans.find(p => p.id === id);
   const packText = () => info?.pack ? `${info.pack.qty} номеров за ${info.pack.usd} $` : '100 номеров за 20 $';
@@ -54,6 +55,7 @@ window.PLANS = (() => {
     ['Мест', p => p.seats == null ? 'без ограничений' : p.free == null ? p.seats : p.free ? `свободно ${p.free} из ${p.seats}` : `мест нет (из ${p.seats})`],
   ];
   async function pro(why) {
+    window.OFFER?.hit('pro');
     ui.sheet('Что даёт PRO', '<p class="muted">Загрузка…</p>');
     try { info = { ...(await ui.call('plans')) }; } catch (e) { if (!info) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; } }
     const my = info.my, waits = new Set((info.seat ?? []).map(w => w.plan));
@@ -82,14 +84,14 @@ window.PLANS = (() => {
     rk: ['📣 Реклама на площадках', 'Объекты переносятся в черновики вашего рекламного кабинета: фото, адрес, цена, описание. Публикуете вы — после проверки.'],
     mail: ['✉️ Рассылки в мессенджеры', 'Объявления из «Избранного» уходят в ваши группы Telegram, WhatsApp и MAX по расписанию — не чаще раза в 3 часа в группу.'],
   };
-  const lockedHtml = what => `<div class="locked"><b>${ABOUT[what][0]}</b><p>${ABOUT[what][1]}</p><p class="muted">Доступно в тарифах PRO и MAX.</p>
-    <button class="btn primary" data-pro-open>Оформить PRO</button></div>`;
+  const lockedHtml = what => (window.OFFER?.hit(what), `<div class="locked"><b>${ABOUT[what][0]}</b><p>${ABOUT[what][1]}</p><p class="muted">Доступно в тарифах PRO и MAX.</p>
+    <button class="btn primary" data-pro-open>Оформить PRO</button></div>`);
   const locked = what => ui.sheet(ABOUT[what][0].replace(/^\S+\s/, ''), lockedHtml(what));
   // Рассылки для PRO и MAX — следующим шагом (окно В, шаг 4.2)
   const soon = what => ui.sheet(ABOUT[what][0].replace(/^\S+\s/, ''), `<div class="locked"><b>${ABOUT[what][0]}</b><p>${ABOUT[what][1]}</p><p class="muted">Скоро: раздел подключается — сообщим, когда заработает.</p></div>`);
 
   // отказ по лимиту номеров: текст сервера и кнопка «Докупить» (у дневного и месячного лимита)
-  const limitHtml = (msg, st) => `<span class="err">${esc(msg)}</span>${st === 'day' || st === 'month' ? ` <button class="btn soft" data-pack>Докупить ${esc(packText())}</button>` : ''}`;
+  const limitHtml = (msg, st) => (window.OFFER?.hit('limit'), `<span class="err">${esc(msg)}</span>${st === 'day' || st === 'month' ? ` <button class="btn soft" data-pack>Докупить ${esc(packText())}</button>` : ''}`);
   document.addEventListener('click', e => { if (e.target.closest('[data-pack]')) { e.preventDefault(); pay({ pack: 1 }); } if (e.target.closest('[data-pro-open]')) { e.preventDefault(); pro(); } });
 
   // внизу выдачи у тарифа без Архива: сколько объявлений старше 6 месяцев нашлось бы
