@@ -33,7 +33,7 @@ window.PARTNERADM = (() => {
             `<label><input type="checkbox" name="net" value="${id}"${s.nets.includes(id) ? ' checked' : ''}> ${esc(n)}</label>`).join('')}</div>
           <div class="ra-act" style="grid-column: 1 / -1"><button class="btn primary">Сохранить</button>
             <button type="button" class="btn soft" data-run>Создать заявки сейчас</button>
-            <span class="hint">Сами — по понедельникам в 10:00 МСК; ближайшие — ${U.day(R.next_run)}.</span></div>
+            <span class="hint">Заявки создаются сами по понедельникам в 10:00 МСК, ближайшие — ${U.day(R.next_run)}.</span></div>
         </form></section>
       <div class="ra-tabs">${[['pay', `Заявки (${open.length})`], ['flags', `На проверке (${waiting.length})`], ['partners', `Партнёры (${R.partners.length})`], ['acc', 'Начисления']]
         .map(([k, t]) => `<button type="button" class="chip${tab === k ? ' on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div>

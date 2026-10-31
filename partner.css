@@ -20,6 +20,7 @@
 .rwhat { display: grid; min-width: 0; }
 .rwhat small { overflow-wrap: anywhere; }
 .rrow > a.small { grid-column: 2 / -1; }
+.rrow .tag { justify-self: start; }
 .raddr code { overflow-wrap: anywhere; font-size: 14px; }
 .rform { display: grid; gap: 10px; }
 .rform label { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
@@ -42,6 +43,7 @@
 .ra-set label { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
 .ra-set input { font-size: 16px; }
 .ra-nets { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.ra-set label.ra-nets { display: flex; gap: 8px; align-items: center; color: var(--text); }
 .ra-nets label { display: inline-flex; gap: 6px; align-items: center; color: var(--text); }
 .ra-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; font-size: 14px; }
 .ra-card h3 { margin: 0; font-size: 15px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
@@ -67,3 +69,4 @@
   .rlink .btn { flex: 1; }
   .ra-table { font-size: 12.5px; }
 }
+#r-wallet p { margin: 0; }
