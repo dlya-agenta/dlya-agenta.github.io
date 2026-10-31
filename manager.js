@@ -15,6 +15,8 @@
   const KIND = { code: 'Код', db: 'База', functions: 'Функции', site: 'Сайт', team: 'Команда', self: 'Сам Менеджер' };
   const WHO = { owner: 'Вы', manager: '🤖 Менеджер', sys: 'Система' };
   let S = null, msgs = [], mode = 'auto', timer = null, sending = false;
+  let pend = [];            // файлы, приложенные к ещё не отправленной задаче [{id, name, size, kind, url}]
+  let upBusy = 0;           // сколько файлов сейчас загружается
 
   async function call(action, extra = {}) {
     const t = tokenOf();
@@ -30,6 +32,52 @@
   const rich = s => esc(s).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/`([^`\n]+)`/g, '<code>$1</code>')
     .replace(/(https:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
   const mins = s => Math.max(0, Math.round((Date.now() - Date.parse(s)) / 60e3));
+  const kbs = n => n >= 1048576 ? `${(n / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`;
+  const ICON = { img: '🖼', pdf: '📄', text: '📝' };
+  // файл в переписке: картинка — миниатюрой (по нажатию открывается), остальные — строкой со ссылкой на 1 час
+  const fileChip = f => f.kind === 'img' && f.url
+    ? `<a class="mg-fimg" href="${esc(f.url)}" target="_blank" rel="noopener" title="${esc(f.name)}"><img src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy"></a>`
+    : `<a class="mg-fchip" ${f.url ? `href="${esc(f.url)}" target="_blank" rel="noopener"` : ''} title="${esc(f.name)}">${ICON[f.kind] ?? '📎'} <span>${esc(f.name)}</span><small>${kbs(f.size)}</small></a>`;
+
+  // приложенные, но не отправленные: список приходит с сервера (переживает перезагрузку окна и перезапуск Менеджера)
+  function syncPend(server) {
+    if (!Array.isArray(server)) return;
+    for (const f of server) { const i = pend.findIndex(x => x.id === f.id); if (i >= 0) pend[i] = { ...pend[i], ...f }; else pend.push(f); }
+    const ids = new Set(server.map(f => f.id));
+    pend = pend.filter(f => ids.has(f.id));
+  }
+  const canAdd = () => Math.max(0, (S?.limits?.msg ?? 5) - pend.length - upBusy);
+  async function addFiles(list) {
+    const max = S?.limits?.max ?? 6291456, many = S?.limits?.msg ?? 5;
+    let room = canAdd();
+    for (const f of [...list]) {
+      if (room <= 0) { toast(`К одной задаче можно приложить не больше ${many} файлов`); break; }
+      if (f.size > max) { toast(`«${f.name}» больше ${Math.round(max / 1048576)} МБ — уменьшите файл`); continue; }
+      room--; upBusy++; paintPend();
+      try {
+        const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = no; r.readAsDataURL(f); });
+        const d = await call('upload', { file: { name: f.name, type: f.type, data } });
+        pend.push({ ...d.file });
+      } catch (e) { toast(e.message); }
+      finally { upBusy--; paintPend(); }
+    }
+  }
+  // только список приложенных и кнопка «Отправить» — чтобы загрузка не перерисовывала поле с текстом
+  function paintPend() {
+    const box = $('#mg-pend');
+    if (box) box.innerHTML = pend.map(f => `<span class="mg-pendone">${ICON[f.kind] ?? '📎'}<span class="mg-pendname">${esc(f.name)}</span>
+      <small>${kbs(f.size)}</small><button type="button" class="mg-pendx" data-del="${f.id}" title="Убрать">✕</button></span>`).join('')
+      + (upBusy ? `<span class="mg-pendone muted">загружается… ${upBusy}</span>` : '');
+    if (box) box.hidden = !pend.length && !upBusy;
+    const go = $('#mg-go');
+    if (go) go.disabled = sending || upBusy > 0 || (!pend.length && !$('#mg-text')?.value.trim());
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      const id = +b.dataset.del;
+      pend = pend.filter(f => f.id !== id);
+      paintPend();
+      try { await call('file_del', { id }); } catch (e) { toast(e.message); }
+    });
+  }
 
   function merge(d) {
     S = d;
@@ -77,20 +125,41 @@
   const chat = () => `<section class="pcard mg-chat" id="mg-chat">${msgs.length ? msgs.map(m => `<div class="mg-msg mg-${esc(m.role)}">
       <div class="mg-who">${WHO[m.role] ?? esc(m.role)} · ${when(m.at)}${m.role === 'owner' && m.meta?.mode && m.meta.mode !== 'auto' ? ` · ${esc(MODE[m.meta.mode]?.[0] ?? '')}` : ''}
         ${m.role === 'manager' && m.meta?.usd ? ` · ${rub(m.meta.usd)}` : ''}</div>
-      <div class="mg-text">${rich(m.text)}</div></div>`).join('')
+      <div class="mg-text">${rich(m.text)}</div>
+      ${(m.files ?? []).length ? `<div class="mg-files">${m.files.map(fileChip).join('')}</div>` : ''}</div>`).join('')
     : '<p class="muted">Напишите Менеджеру первую задачу: что улучшить на сайте, что проверить, что подготовить. Он сделает правки в отдельной ветке и пришлёт карточку — на живой сайт они попадут только после вашего «Одобрить».</p>'}</section>`;
 
   const composer = () => `<form class="pcard mg-send" id="mg-form">
-      <textarea id="mg-text" rows="4" maxlength="20000" placeholder="Задача для Менеджера…"></textarea>
-      <div class="mg-modes">${Object.entries(MODE).map(([k, [t, d]]) => `<button type="button" class="chip${mode === k ? ' on' : ''}" data-mode="${k}" title="${esc(d)}">${t}</button>`).join('')}</div>
-      <small class="muted" id="mg-mode-note">${esc(MODE[mode][1])}</small>
+      <textarea id="mg-text" rows="4" maxlength="20000" placeholder="Задача для Менеджера… (можно приложить скриншот, PDF или текстовый файл)"></textarea>
+      <div class="mg-pend" id="mg-pend" hidden></div>
+      <div class="mg-modes"><label class="btn soft mg-attach" title="Приложить файлы (или перетащите их в это поле, или вставьте скриншот из буфера)">
+          📎 Приложить<input type="file" id="mg-file" multiple hidden accept="image/*,.pdf,.txt,.md,.csv,.json,.sql,.html,.xml,.css,.js"></label>
+        ${Object.entries(MODE).map(([k, [t, d]]) => `<button type="button" class="chip${mode === k ? ' on' : ''}" data-mode="${k}" title="${esc(d)}">${t}</button>`).join('')}</div>
+      <small class="muted" id="mg-mode-note">${esc(MODE[mode][1])} · файлы до ${Math.round((S?.limits?.max ?? 6291456) / 1048576)} МБ, не больше ${S?.limits?.msg ?? 5} к одной задаче</small>
       <button class="btn primary" id="mg-go">Отправить</button></form>`;
 
   function render() {
     const draft = $('#mg-text')?.value ?? '', atBottom = (() => { const c = $('#mg-chat'); return !c || c.scrollHeight - c.scrollTop - c.clientHeight < 60; })();
     $('#mg').innerHTML = head() + cards() + chat() + composer();
     $('#mg-text').value = draft;
+    paintPend();
     const c = $('#mg-chat'); if (atBottom) c.scrollTop = c.scrollHeight;
+    // файлы: кнопкой, перетаскиванием в поле задачи и вставкой скриншота из буфера (Ctrl+V / ⌘V)
+    const ta = $('#mg-text');
+    $('#mg-file').addEventListener('change', ev => { const l = [...ev.target.files]; ev.target.value = ''; if (l.length) addFiles(l); });
+    ta.addEventListener('paste', ev => {
+      const l = [...(ev.clipboardData?.items ?? [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+      if (l.length) { ev.preventDefault(); addFiles(l.map((f, i) => new File([f], f.name || `вставка-${i + 1}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: f.type }))); }
+    });
+    const form = $('#mg-form');
+    form.addEventListener('dragover', ev => { if (ev.dataTransfer?.types?.includes('Files')) { ev.preventDefault(); form.classList.add('drop'); } });
+    form.addEventListener('dragleave', () => form.classList.remove('drop'));
+    form.addEventListener('drop', ev => {
+      form.classList.remove('drop');
+      const l = [...(ev.dataTransfer?.files ?? [])];
+      if (l.length) { ev.preventDefault(); addFiles(l); }
+    });
+    ta.addEventListener('input', paintPend);
     $('#mg-stop')?.addEventListener('click', async () => {
       if (!confirm('Остановить Менеджера? Незаконченные правки не сохранятся.')) return;
       try { merge(await call('stop', { after: last() })); render(); } catch (e) { toast(e.message); }
@@ -109,13 +178,13 @@
     }));
     $('#mg-form').addEventListener('submit', async ev => {
       ev.preventDefault();
-      const text = $('#mg-text').value.trim();
-      if (!text || sending) return;
+      const text = $('#mg-text').value.trim(), files = pend.map(f => f.id);
+      if ((!text && !files.length) || sending || upBusy) return;
       if (mode === 'ultra' && !confirm('Ультракод — самый дорогой режим (много помощников параллельно). Запустить?')) return;
       sending = true; $('#mg-go').disabled = true;
-      try { merge(await call('send', { text, mode, after: last() })); $('#mg-text').value = ''; mode = 'auto'; render(); schedule(); }
+      try { merge(await call('send', { text, mode, files, after: last() })); $('#mg-text').value = ''; pend = []; mode = 'auto'; render(); schedule(); }
       catch (e) { toast(e.message); }
-      finally { sending = false; const g = $('#mg-go'); if (g) g.disabled = false; }
+      finally { sending = false; const g = $('#mg-go'); if (g) g.disabled = false; paintPend(); }
     });
   }
   const last = () => msgs.length ? msgs[msgs.length - 1].id : 0;

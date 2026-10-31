@@ -27,8 +27,27 @@
 .mg-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
 .mg-send textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 90px; font: inherit; padding: 10px 12px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); }
-.mg-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-modes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .mg-send #mg-go { justify-self: end; }
+/* файлы: кнопка, приложенные к задаче, файлы в переписке */
+.mg-attach { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; margin: 0; }
+.mg-send.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.mg-pend { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-pendone { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 6px 4px 10px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--soft); font-size: 13px; }
+.mg-pendname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.mg-pendx { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+.mg-pendx:hover { color: var(--bad, #c33); }
+.mg-fimg { display: block; max-width: 240px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.mg-fimg img { display: block; width: 100%; height: auto; }
+.mg-fchip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); color: inherit; text-decoration: none; font-size: 13px; }
+.mg-fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.mg-fchip small { color: var(--muted); }
+.mg-owner .mg-fchip { background: color-mix(in srgb, var(--accent) 82%, white); color: var(--accent-text); border-color: transparent; }
+.mg-owner .mg-fchip small { color: inherit; opacity: .8; }
+.mg-owner .mg-files { justify-content: flex-end; }
+@media (max-width: 560px) { .mg-fimg { max-width: 180px; } .mg-pendname { max-width: 140px; } }
 @media (max-width: 560px) {
   .mg-head { grid-template-columns: 1fr; }
   .mg-head #mg-stop { grid-column: 1; grid-row: auto; justify-self: start; }
