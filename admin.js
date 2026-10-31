@@ -14,7 +14,7 @@ window.ADMIN = (() => {
   const ST = { pending: ['заявка', 'warn'], active: ['активен', 'ok'], off: ['отключён', 'grey'] };
   // ссылка на окно Менеджера — только владельцу (логин из токена; доступ всё равно проверяет функция manager)
   const owner = () => { try { const b = JSON.parse(localStorage.getItem('token')).split('.')[0]; return JSON.parse(atob(b.replace(/-/g, '+').replace(/_/g, '/'))).l === 'admin'; } catch { return false; } };
-  const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
+  const FEAT = { map: 'Карта', favorites: 'Избранное', deals: 'Контакт', selections: 'Подборки PDF', crm: 'Клиенты и задачи', messengers: 'Кнопки мессенджеров', registration: 'Регистрация на сайте',
     modern_filter: 'Фильтр «Дизайнерский» (по фото)', notes: 'Заметки к объектам', compare: 'Сравнение (резерв)' };
   const LIM = { phone_hour: 'Номеров в час (защита от выкачивания базы)', sel_hour: 'Подборок PDF в час', access_days: 'Дней доступа при одобрении' };
   const RATE = [['login_ip', 'Вход: попыток в минуту с одного адреса'], ['web.ip', 'Сайт: запросов в минуту с одного адреса'], ['web.user', 'Сайт: запросов в минуту от участника'],
@@ -91,7 +91,10 @@ window.ADMIN = (() => {
         <label class="field">Ссылки на источники (Авито, Циан…) в карточке<select data-s="src_links">${opt(r.src_links, [['off', 'никому'], ['admin', 'только администраторам'], ['all', 'всем участникам']])}</select></label>
         <label class="field">Проверять ночью новых объявлений<input type="number" min="0" max="300" data-s="uniq.per_night" value="${r.uniq?.per_night ?? 40}"></label>
         <label class="chk opt">${sIn('uniq.enabled', 'check', r.uniq?.enabled)}<span>Проверка уникальности: есть ли живое объявление на площадках</span></label></div></details>
-      <details class="a-sec"><summary>Инструменты сайта</summary><div class="u-grid">${Object.entries(FEAT).map(([k, t]) => `<label class="chk opt">${sIn(`features.${k}`, 'check', r.features[k])}<span>${t}</span></label>`).join('')}</div></details>
+      <details class="a-sec"><summary>Инструменты сайта</summary><div class="u-grid">${Object.entries(FEAT).map(([k, t]) => `<label class="chk opt">${sIn(`features.${k}`, 'check', r.features[k])}<span>${t}</span></label>`).join('')}</div>
+        <div class="u-grid"><label class="field">Клиентов у агента, не больше${sIn('crm.max_clients', 'number', r.crm?.max_clients ?? 1000)}</label>
+          <label class="field">Объектов у одного клиента${sIn('crm.max_objects', 'number', r.crm?.max_objects ?? 100)}</label>
+          <label class="field">Открытых задач у агента${sIn('crm.max_tasks', 'number', r.crm?.max_tasks ?? 500)}</label></div></details>
       <details class="a-sec" id="a-bot-sec"><summary>Бот и уведомления</summary>
         <div class="u-grid"><label class="chk opt">${sIn('bot.enabled', 'check', r.bot?.enabled !== false)}<span>Уведомления в Telegram-бот</span></label>
           <label class="chk opt">${sIn('bot.push', 'check', r.bot?.push !== false)}<span>Push-уведомления в браузер</span></label>

@@ -157,10 +157,22 @@ window.NOTIFY = (() => {
       shown.add(n.id);
       const c = document.createElement('div');
       c.className = 'note-card'; c.dataset.id = n.id;
-      c.innerHTML = `<p>${esc(n.text)}</p><div class="note-foot">${n.url ? `<a class="btn soft" href="${esc(n.url)}" target="_blank" rel="noopener" data-seen>Открыть</a>` : ''}<button class="btn ghost" data-seen>Понятно</button></div>`;
+      if (n.kind === 'task' && n.ref && window.CRM) {   // напоминание о задаче (шаг 3.4): выполнено, +1 час, завтра, открыть
+        c.dataset.ref = n.ref;
+        c.innerHTML = `<p>${esc(n.text)}</p><div class="note-foot"><button class="btn soft" data-tact="done">✅ Выполнено</button><button class="btn ghost" data-tact="h">+1 час</button>`
+          + `<button class="btn ghost" data-tact="d">Завтра</button><button class="btn ghost" data-topen>Открыть</button></div>`;
+      } else c.innerHTML = `<p>${esc(n.text)}</p><div class="note-foot">${n.url ? `<a class="btn soft" href="${esc(n.url)}" target="_blank" rel="noopener" data-seen>Открыть</a>` : ''}<button class="btn ghost" data-seen>Понятно</button></div>`;
       box.prepend(c);
     }
     box.onclick = e => {
+      const ta = e.target.closest('[data-tact]'), to = e.target.closest('[data-topen]');
+      if (ta || to) {   // задача: действие на сервере (там же прочитаны её напоминания) или открыть её в «Клиентах»
+        const c = (ta || to).closest('.note-card');
+        if (to) { ui.call('notes_seen', { ids: [+c.dataset.id] }).catch(() => {}); c.remove(); window.CRM?.open(`#task=${c.dataset.ref}`); return; }
+        ta.disabled = true;
+        ui.call('crm_task_act', { id: +c.dataset.ref, act: ta.dataset.tact }).then(r => { ui.toast(r.message); c.remove(); }).catch(er => { ta.disabled = false; ui.toast(er.message, 5000); });
+        return;
+      }
       const b = e.target.closest('[data-seen]');
       if (!b) return;
       const c = b.closest('.note-card');

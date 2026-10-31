@@ -147,6 +147,7 @@ async function start() {
   PLANS.use({ call, sheet, toast }, meta);
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
   NOTIFY.start({ call, sheet, toast }, meta);   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
+  CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta);   // клиенты и задачи (site/crm.js, шаг 3.4)
   ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
@@ -184,6 +185,7 @@ async function start() {
   document.querySelectorAll('[data-go="favs"]').forEach(b => b.hidden = !meta.features.favorites);
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
+  document.querySelectorAll('[data-go="crm"]').forEach(b => b.hidden = !meta.features.crm || me.guest);
   // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
   $('#q').value = text; $('#sort').value = sort;
@@ -191,6 +193,7 @@ async function start() {
   FUI.help(); renderFilters(); selbar(); applyLay();
   search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
+  if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
 }
 
@@ -498,7 +501,8 @@ function card(x, mini = false) {
       ${mini ? '' : srcHtml(x)}
       ${!mini && x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
-        ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
+        ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
+        ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}</div>
     </div>
   </article>`;
 }
@@ -549,6 +553,7 @@ async function onCard(e, cardEl) {
   if (t.closest('summary')) { markSeen(cardEl, num); return; }
   if (t.closest('[data-copy]')) { copy(t.closest('[data-copy]').dataset.copy, 'Номер скопирован'); return; }
   if (t.closest('[data-note]')) { noteSheet(num, x); return; }
+  if (t.closest('[data-client]')) { sheetGo = 'crm'; CRM.pick(num); return; }   // «Клиенту…» — объект в карточку клиента (шаг 3.4)
   // карточка на карте открывает объявление нажатием в любом месте, кроме кнопок и ссылок
   if (cardEl.classList.contains('mc') && !t.closest('button, a, input, label, .phone')) { openItem(num); return; }
   const b = t.closest('[data-phone]');
@@ -648,7 +653,8 @@ function itemView(x, k) {
       ${srcHtml(x)}
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
-        ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}</div>
+        ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
+        ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}</div>
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
     </div>
   </article>`;
@@ -712,6 +718,15 @@ document.addEventListener('keydown', e => {
 function selbar() {
   $('#selbar').hidden = !sel.size || !meta?.features.selections;
   $('#selcount').textContent = `Выбрано: ${sel.size}`;
+}
+// подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
+function selStart(nums, title, fmt) {
+  sel = new Set(nums.slice(0, MAXSEL)); store.set('sel', [...sel]); selbar();
+  document.querySelectorAll('[data-sel]').forEach(c => c.checked = sel.has(+c.closest('[data-num]')?.dataset.num));
+  $('#sel-make').onclick();
+  if ($('#s-title')) $('#s-title').value = title ?? '';
+  const r = fmt && document.querySelector(`[name="s-fmt"][value="${fmt}"]`);
+  if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
 }
 $('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); document.querySelectorAll('[data-sel]').forEach(c => c.checked = false); };
 $('#sel-make').onclick = () => {
@@ -909,9 +924,10 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
     f = { [LISTS[g][0]]: true }; $('#q').value = ''; changed();
     toast(LISTS[g][1], 4000);
   }
-  if (['sels', 'rk', 'mail', 'admin', 'pay', 'prof'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
+  if (['sels', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
   if (g === 'sels') showSelections();
+  if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
   if (g === 'rk') { if (me.can_rk) showReklama(); else PLANS.locked('rk'); }
   if (g === 'mail') { if (me.can_mail) PLANS.soon('mail'); else PLANS.locked('mail'); }   // сами рассылки — шаг 4.2

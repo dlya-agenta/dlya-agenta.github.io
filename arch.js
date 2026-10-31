@@ -76,6 +76,7 @@ async function start() {
     return gate(`<h2>Архив недоступен</h2><p>${esc(e.message)}</p><a class="btn ghost" href="./">← Все объявления</a>`);
   }
   tree = r.tree; feat = r.features ?? {};
+  window.CRM?.use({ call, sheet, closeSheet, toast }, { features: feat });   // «Клиенту…» на карточке архива (crm.js, шаг 3.4)
   selbar();
   $('#who').textContent = r.me.name || r.me.login;
   PLANS.counter(r.me.used);
@@ -254,7 +255,8 @@ const acts = (x, mini = false) => `<div class="arch-acts">
   ${feat.favorites !== false ? `<button type="button" class="chip${x.fav ? ' on' : ''}" data-act="fav">${x.fav ? '★' : '☆'} Избранное</button>` : ''}
   ${!mini && feat.deals !== false ? `<button type="button" class="chip${x.deal ? ' on' : ''}" data-act="deal">🤝 Контакт</button>` : ''}
   ${!mini && feat.selections !== false ? `<button type="button" class="chip${x.num && selSet().has(x.num) ? ' on' : ''}" data-act="sel">${x.num && selSet().has(x.num) ? '✓ В подборке' : '＋ В подборку'}</button>` : ''}
-  ${!mini && feat.notes !== false ? `<button type="button" class="chip" data-act="note">📝 Заметка</button>` : ''}</div>
+  ${!mini && feat.notes !== false ? `<button type="button" class="chip" data-act="note">📝 Заметка</button>` : ''}
+  ${!mini && feat.crm && window.CRM ? '<button type="button" class="chip" data-act="crm">👥 Клиенту</button>' : ''}</div>
   ${!mini && x.note ? `<div class="note">📝 ${esc(x.note)}</div>` : ''}`;
 async function ensureNum(x) {
   if (x.num) return x.num;
@@ -266,6 +268,7 @@ async function act(x, a, box) {
   box.querySelectorAll('[data-act]').forEach(b => b.disabled = true);
   try {
     const num = await ensureNum(x);
+    if (a === 'crm') { window.CRM.pick(num); return; }
     if (a === 'fav') { x.fav = !x.fav; await call('fav', { num, on: x.fav }); toast(x.fav ? 'В избранном' : 'Убрано из избранного'); }
     if (a === 'deal') { x.deal = !x.deal; await call('deal', { num, on: x.deal }); toast(x.deal ? 'В разделе «Контакт»' : 'Убрано из раздела «Контакт»'); }
     if (a === 'note') {

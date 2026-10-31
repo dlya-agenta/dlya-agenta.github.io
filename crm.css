@@ -1,0 +1,75 @@
+/* Клиенты и задачи (ТЗ v2, шаг 3.4): экран в окне сайта (#sheet, .crm) — сначала телефон 375–390 px, токены style.css, светлая и тёмная темы */
+.crm { display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px; }
+.crm h3 { margin: 0; font-size: 18px; }
+.crm-sec { display: flex; flex-direction: column; gap: 8px; }
+.crm-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
+.crm-h b { font-size: 15.5px; }
+.crm-empty { margin: 0; }
+.crm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-chips .chip { font-size: 13.5px; padding: 6px 11px; }
+.crm-search input { width: 100%; box-sizing: border-box; font-size: 16px; }
+.crm-later summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 0; }
+.crm-later[open] summary { margin-bottom: 6px; }
+
+/* задача: кружок «выполнено», текст (нажатие — изменить), +1 час / завтра */
+.crm-task { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; align-items: start; padding: 9px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.crm-task.over { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); background: color-mix(in srgb, var(--bad) 5%, var(--card)); }
+.crm-task.done .crm-tbody b { text-decoration: line-through; color: var(--muted); }
+.crm-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--accent); background: transparent; color: var(--ok); cursor: pointer; font-weight: 700; padding: 0; margin-top: 1px; }
+.crm-task.done .crm-check { border-color: var(--ok); }
+.crm-tbody { display: flex; flex-direction: column; gap: 2px; cursor: pointer; min-width: 0; }
+.crm-tbody b { font-weight: 600; overflow-wrap: anywhere; }
+.crm-tbody small { color: var(--muted); font-size: 12.5px; }
+.crm-task.over .crm-tbody small { color: var(--bad); }
+.crm-tact { grid-column: 2; display: flex; gap: 6px; flex-wrap: wrap; }
+.crm-tact .chip { font-size: 13px; padding: 5px 11px; }
+
+/* клиенты */
+.crm-client { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--card); color: var(--text); cursor: pointer; font: inherit; width: 100%; }
+.crm-client.on { border-color: var(--ok); }
+.crm-client small { color: var(--muted); font-size: 13px; }
+.crm-client .crm-next { color: var(--text); }
+.crm-ctop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crm-ctop b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-st { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--soft); color: var(--link); }
+.crm-st-work { background: color-mix(in srgb, var(--warn) 14%, var(--card)); color: var(--warn); }
+.crm-st-show { background: color-mix(in srgb, #7c3aed 13%, var(--card)); color: #7c3aed; }
+.crm-st-deal { background: var(--ok-soft); color: var(--ok); }
+.crm-st-lost { background: color-mix(in srgb, var(--muted) 14%, var(--card)); color: var(--muted); }
+@media (prefers-color-scheme: dark) { .crm-st-show { color: #b794f6; } }
+.crm-pick { display: flex; flex-direction: column; gap: 8px; }
+
+/* карточка клиента */
+.crm-back { align-self: flex-start; padding: 6px 4px; }
+.crm-card { padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--bg) 60%, var(--card)); }
+.crm-phone { display: flex; flex-direction: column; gap: 6px; }
+.crm-phone b { font-size: 17px; }
+.crm-phone span { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-phone .btn { padding: 9px 14px; }
+.crm-meta { margin: 0; font-size: 13px; }
+.crm-note { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; }
+.crm-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.crm-sel .btn { white-space: normal; }
+.crm-objs { display: flex; flex-direction: column; gap: 6px; }
+.crm-obj { display: grid; grid-template-columns: 64px minmax(0, 1fr) 32px; gap: 10px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 12px; }
+.crm-obj img, .crm-noph { width: 64px; height: 48px; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: var(--soft); cursor: pointer; }
+.crm-obj > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; cursor: pointer; }
+.crm-obj small { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-danger { margin: 6px 0 0; text-align: center; }
+
+/* формы; кнопки — внизу, под большой палец */
+.crm-form { gap: 10px; }
+.crm-form input, .crm-form select, .crm-form textarea { font-size: 16px; width: 100%; box-sizing: border-box; }
+.crm-due { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px; }
+.crm-via { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crm-via .chk { display: inline-flex; gap: 6px; align-items: center; }
+.crm-bar { position: sticky; bottom: calc(-14px - env(safe-area-inset-bottom)); z-index: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px -16px -14px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); }
+.crm-bar .btn { padding: 12px 10px; }
+@media (min-width: 720px) { .crm-bar { position: static; margin: 4px 0 0; padding: 0; border: 0; display: flex; justify-content: flex-end; } .crm-bar .btn { min-width: 160px; } }
+
+/* меню: счётчик задач на сегодня */
+.crm-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11.5px; line-height: 18px; text-align: center; font-weight: 700; }
+.crm-badge[hidden] { display: none; }
+/* окно уведомлений: кнопки задачи в несколько строк */
+.note-card .note-foot { flex-wrap: wrap; }
