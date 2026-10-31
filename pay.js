@@ -2,7 +2,7 @@
 // → счёт: сумма крупно, адрес, QR, таймер, «Ждём платёж → Получен → Подписка активна»; история платежей.
 // Цены, зачёт, места и проверку оплаты считает только сервер (функция pay); здесь — показ. Вход — токен сайта (localStorage token, как у главной)
 // или pay-токен со страницы входа (sessionStorage pay_token: доступ истёк или заявка не одобрена).
-// Пока не включена «боевая» оплата (pay.live), обычным участникам — прежняя оплата доступа через функцию web (pay_info | pay_create | pay_check).
+// Пока не включена «боевая» оплата (pay.live), обычным участникам — «оплата выключена» (прежняя оплата через web убрана в шаге 3.1).
 // Адреса: pay.html?plan=sub|pro|max&months=1|3|12, ?pack=1, ?id=<счёт> (возврат из CryptoBot), ?offer=<предложение> (скидка на PRO, шаг 2.3:
 // сервер применяет её сам к PRO на 1 месяц, пока предложение действует), #admin — настройки оплаты (pay.admin.js).
 window.PAYUI = (() => {
@@ -71,7 +71,7 @@ window.PAYUI = (() => {
     sel = q.get('pack') ? { kind: 'pack' } : { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : defPlan(), months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1 };
     offerId = +q.get('offer') || null;
     if (offerId) sel = { kind: 'plan', plan: 'pro', months: 1 };
-    if (!I.can) return legacy(q);
+    if (!I.can) return closed(q);
     render();
     if (+q.get('id')) openInvoice(+q.get('id'));
   }
@@ -180,7 +180,7 @@ window.PAYUI = (() => {
     } catch (e) { toast(e.message, 6000); btn.disabled = false; }
   }
   async function openInvoice(id) {
-    try { const r = await call('check', { id }); showInvoice(r.invoice, false, r.me); }
+    try { const r = await call('check', { id }); showInvoice(r.invoice, r.me); }
     catch (e) { toast(e.message, 5000); }
   }
   async function seatWait(b) {
@@ -193,28 +193,27 @@ window.PAYUI = (() => {
   let tick = null, poll = null;
   const STEPS = ['Ждём платёж', 'Получен', 'Подписка активна'];
   const waiting = x => x.status === 'wait' || x.status === 'pending';
-  function showInvoice(inv, legacy = false, me = null) {
+  function showInvoice(inv, me = null) {
     clearInterval(tick); clearInterval(poll);
     document.onvisibilitychange = null;
     for (const s of ['#p-what', '#p-way', '#p-open']) if ($(s)) $(s).hidden = true;
     const box = $('#p-inv');
     box.hidden = false;
-    paint(box, inv, legacy, me);
+    paint(box, inv, me);
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (!waiting(inv)) return;
     const check = async () => {
       if (document.hidden) return;
       try {
-        const r = legacy ? await call('pay_check', { id: inv.id }, window.API) : await call('check', { id: inv.id });
-        const x = legacy ? fromOld(r.invoice) : r.invoice;
-        if (x.status !== inv.status) { inv = x; paint(box, x, legacy, r.me ?? { expires_at: r.expires_at }); }
+        const r = await call('check', { id: inv.id }), x = r.invoice;
+        if (x.status !== inv.status) { inv = x; paint(box, x, r.me ?? { expires_at: r.expires_at }); }
         if (!waiting(x)) { clearInterval(poll); document.onvisibilitychange = null; }
       } catch { /* сеть — проверим в следующий раз */ }
     };
     poll = setInterval(check, 30000);   // пока открыт экран оплаты — каждые 30 с (и сразу, когда вернулись из кошелька или бота)
     document.onvisibilitychange = () => { if (!document.hidden) check(); };
   }
-  function paint(box, x, legacy, me) {
+  function paint(box, x, me) {
     const st = x.status, paid = st === 'paid', rev = st === 'review', over = !paid && !rev && !waiting(x);
     const cls = i => paid ? 'done' : rev ? ['done', 'on', ''][i] : over ? '' : ['on', '', ''][i];
     const head = `<div class="inv-head"><h2>${esc(x.what)}</h2><span class="muted">Счёт №${x.id}${x.test ? ' · тест' : ''}${x.amount_usd != null ? ` · ${money(x.amount_usd)}` : ''}</span></div>
@@ -273,27 +272,14 @@ window.PAYUI = (() => {
       : '<p class="muted">Платежей пока нет.</p>';
   }
 
-  // ---------- прежняя оплата доступа (функция web), пока не включена «боевая» ----------
-  const OLD = { m1: 'Доступ на 1 месяц', m3: 'Доступ на 3 месяца', y1: 'Доступ на 1 год' };
-  const fromOld = p => ({ id: p.id, what: OLD[p.tariff] ?? `Доступ на ${p.days} дн.`, amount: p.amount, asset: 'USDT', method: 'direct', network: 'TRC20', net_name: 'TRON (TRC-20)',
-    address: p.address, status: p.status, expires_at: p.expires_at, tx_url: p.txid ? `https://tronscan.org/#/transaction/${p.txid}` : null });
-  async function legacy(q) {
+  // оплата выключена (pay.live и участник не в pay.testers): прежней оплаты через web больше нет (шаг 3.2), продлевает администратор
+  function closed(q) {
     const want = (q.get('plan') && q.get('plan') !== I.me.plan) || q.get('pack');
     main().innerHTML = `${want ? `<p class="pnote">${esc(CLOSED)}</p>` : ''}
-      ${!I.me.active && I.me.status === 'active' ? `<p class="pnote warn">Ваша подписка закончилась${I.me.expires_at ? ` ${day(I.me.expires_at)}` : ''}. Продлите доступ:</p>` : ''}
-      <section class="pcard" id="p-what"><h2>Продлить доступ</h2><div id="p-body"><p class="muted">Загрузка…</p></div></section>
-      <section class="pcard" id="p-inv" hidden></section>
+      ${!I.me.active && I.me.status === 'active' ? `<p class="pnote warn">Ваша подписка закончилась${I.me.expires_at ? ` ${day(I.me.expires_at)}` : ''}.</p>` : ''}
+      <section class="pcard"><h2>Продлить доступ</h2><p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p></section>
       <section class="pcard"><h2>История платежей</h2><div id="p-hist"></div></section>`;
     hist();
-    if (!I.legacy || true) { $('#p-body').innerHTML = '<p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p>'; return; }   // шаг 3.2: pay_* в web убраны, ниже — на удаление окну Б
-    try {
-      const r = await call('pay_info', {}, window.API);
-      $('#p-body').innerHTML = !r.enabled ? '<p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p>'
-        : `${r.expires_at ? `<p class="muted">Доступ сейчас: до ${day(r.expires_at)}</p>` : ''}
-        <div class="plans">${r.tariffs.map(t => `<button type="button" class="plan-card" data-old="${esc(t.id)}"><span class="pc-top"><b class="pc-name">${esc(t.name)}</b>
-          <span class="pc-price"><b>${t.usdt} USDT</b></span></span><span class="muted">${t.days} дн. доступа</span></button>`).join('')}</div>
-        <p class="hint">Перевод USDT в сети TRON (TRC-20) с любого кошелька или биржи. После перевода доступ продлится сам — обычно за 1–3 минуты.</p>`;
-    } catch (e) { $('#p-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
 
   document.addEventListener('click', async e => {
@@ -308,11 +294,7 @@ window.PAYUI = (() => {
     else if (t.dataset.wait) seatWait(t);
     else if (t.dataset.copy) copy(t.dataset.copy, t.dataset.msg);
     else if ('new' in t.dataset) { clearInterval(tick); clearInterval(poll); document.onvisibilitychange = null; history.replaceState(null, '', 'pay.html' + location.hash); location.reload(); }
-    else if (t.dataset.old) {
-      t.disabled = true;
-      try { const r = await call('pay_create', { tariff: t.dataset.old }, window.API); showInvoice(fromOld(r.invoice), true); }
-      catch (err) { toast(err.message, 5000); t.disabled = false; }
-    } else if ('tglink' in t.dataset && tg?.openTelegramLink && /^https:\/\/t\.me\//.test(t.href)) { e.preventDefault(); tg.openTelegramLink(t.href); }
+    else if ('tglink' in t.dataset && tg?.openTelegramLink && /^https:\/\/t\.me\//.test(t.href)) { e.preventDefault(); tg.openTelegramLink(t.href); }
   });
 
   start();

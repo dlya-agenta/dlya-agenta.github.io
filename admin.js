@@ -101,6 +101,7 @@ window.ADMIN = (() => {
         <div id="a-log-rows" class="log-rows"><p class="muted">Загрузка…</p></div>
         <button type="button" class="btn more" id="a-log-more" hidden>Показать ещё</button></details>
       <a class="btn soft a-pay" href="pay.html#admin">⚙ Оплата: CryptoBot, кошельки, журнал платежей →</a>
+      <a class="btn soft a-pay" href="partner.html#admin">🤝 Партнёрская программа: выплаты, проверка накруток →</a>
       <div class="a-save"><span id="a-n" class="muted">Изменений нет</span><button type="button" class="btn ghost" id="a-undo" disabled>Отменить</button><button type="button" class="btn primary" id="a-go" disabled>Сохранить</button></div>`;
   }
 

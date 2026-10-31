@@ -1,6 +1,6 @@
 // Профиль участника (ТЗ v2, шаг 2.1) — окно из шапки (нажатие на имя): тариф и срок, номера, имя, телефон, мессенджеры, агентство, «О себе»,
 // соцсети (тариф MAX — для продающих роликов позже), активные устройства с кнопкой «Выйти».
-// Кошельки для выплат (шаг 3.1) — место под них. «Привязать Telegram» и уведомления в браузере (шаг 3.2) — site/notify.js.
+// Кошелёк для выплат и партнёрская программа (шаг 3.1) — блок site/partner.js. «Привязать Telegram» и уведомления в браузере (шаг 3.2) — site/notify.js.
 window.PROFILE = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -44,8 +44,6 @@ window.PROFILE = (() => {
       <div id="devs">${devs(r.devices)}</div>
       ${r.max_devices ? `<p class="hint">${r.max_devices === 1 ? 'Вход на другом устройстве сразу выходит из этого.' : `Вход на ${r.max_devices + 1}-м устройстве выходит из самого старого.`}</p>` : ''}
       <div id="partner-box"></div>
-      <div class="group">Кошельки для выплат</div>
-      <p class="muted">Адреса кошельков для выплат по партнёрской программе — скоро.</p>
       <div class="group agent-only">Telegram</div>
       <div id="tg-box" class="agent-only"></div>
       <div class="group agent-only">Уведомления в этом браузере</div>
