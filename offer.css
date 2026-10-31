@@ -1,5 +1,5 @@
 /* Скидка на PRO (шаг 2.3, site/offer.js): окно поверх «Что даёт PRO» и плашка с таймером. Цвета — токены style.css (обе темы, оба оформления) */
-.sheet.offer { z-index: 2100; }
+.sheet.offer { z-index: 2100; background: rgba(0, 0, 0, .62); }
 .offer-box { max-width: 440px; gap: 12px; }
 .offer-box h2 { font-size: 21px; line-height: 1.25; margin: 0; letter-spacing: -.01em; }
 .offer-badge { background: var(--bad); color: #fff; font-weight: 700; border-radius: 8px; padding: 3px 9px; font-size: 14px; }

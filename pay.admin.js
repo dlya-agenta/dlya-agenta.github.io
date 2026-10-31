@@ -10,7 +10,7 @@ window.PAYADM = (() => {
   const WHY = { limit: 'кончились номера', arch: 'Архив', rk: 'Реклама', mail: 'Рассылки', pro: 'окно «Что даёт PRO»', visit: 'без повода' };
   // статистика скидки: за 30 дней и за всё время
   function offerStats(st) {
-    const { esc } = U(), money = v => `${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} $`, a = st?.d30 ?? {}, b = st?.all ?? {};
+    const { esc } = U(), money = v => `${Number(v || 0).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(Number(v || 0)) ? 0 : 2, maximumFractionDigits: 2 })} $`, a = st?.d30 ?? {}, b = st?.all ?? {};
     const rows = [['Показано', x => x.shown ?? 0], ['Из них в бот', x => x.bot ?? 0], ['Открыли оплату', x => x.opened ?? 0], ['Оплатили', x => x.paid ?? 0],
       ['Выручка по скидке', x => money(x.revenue)], ['Скидка (недополучено)', x => money(x.discount)]];
     const why = Object.entries(b.reasons ?? {}).map(([k, n]) => `${esc(WHY[k] ?? k)} — ${n}`).join(', ');
@@ -64,7 +64,7 @@ window.PAYADM = (() => {
             <label class="field">Не чаще раза в, дней<input name="every_days" type="number" min="1" max="365" value="${R.offer.every_days}"></label>
             <label class="field">Предложение действует, часов<input name="ttl_hours" type="number" min="1" max="720" value="${R.offer.ttl_hours}"></label>
             <label class="field">Без PRO и MAX не меньше, дней<input name="after_days" type="number" min="0" max="365" value="${R.offer.after_days}"></label></div>
-          <p class="hint">Сейчас: ${esc(R.plans.find(x => x.id === 'pro')?.name ?? 'PRO')} за ${(() => { const u = R.plans.find(x => x.id === 'pro')?.usd ?? 99; return `${(Math.round(u * (100 - R.offer.pct)) / 100).toLocaleString('ru-RU')} $ вместо ${u} $`; })()} на первый месяц.
+          <p class="hint">Сейчас: ${esc(R.plans.find(x => x.id === 'pro')?.name ?? 'PRO')} за ${(() => { const u = R.plans.find(x => x.id === 'pro')?.usd ?? 99; const v = Math.round(u * (100 - R.offer.pct)) / 100; return `${v.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2 })} $ вместо ${u} $`; })()} на первый месяц.
             Показ — когда кончились номера на сегодня, при нажатии на Архив, Рекламу, Рассылки или «Что даёт PRO», без повода — в случайный момент недели. Новое предложение дублируется в бот, если Telegram привязан.</p>
           <button class="btn primary">Сохранить</button></form>
         <div class="pa-sec">${offerStats(R.offer_stats)}</div></section>
@@ -74,7 +74,7 @@ window.PAYADM = (() => {
           <div class="agrid"><label class="field">Раз в, дней<input name="every_days" type="number" min="1" max="60" value="${R.remind.every_days}"></label>
             <label class="field">Не больше, раз<input name="times" type="number" min="0" max="20" value="${R.remind.times}"></label></div>
           <p class="hint">Текст: «${esc(R.remind_text)}» и кнопка «Продлить подписку». Каждый день в 11:00 МСК. За 30 дней отправлено: ${R.offer_stats?.remind?.sent ?? 0} (участников: ${R.offer_stats?.remind?.people ?? 0}).</p>
-          <div class="pa-row"><button class="btn primary">Сохранить</button><button type="button" class="btn soft" data-a="offer-preview">Прислать оба сообщения себе в Telegram</button></div></form></section>
+          <div class="pa-row"><button class="btn primary">Сохранить</button><button type="button" class="btn soft wrap" data-a="offer-preview">Прислать примеры себе в Telegram</button></div></form></section>
       <section class="pcard"><h2>@CryptoBot</h2>
         <form id="pa-cb" class="pa-sec">
           <label class="chk opt"><input type="checkbox" name="enabled" ${cb.enabled ? 'checked' : ''}><span>Принимать через CryptoBot (USDT и Gram, бывший TON)</span></label>

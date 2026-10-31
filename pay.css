@@ -91,3 +91,4 @@ code.addr { word-break: break-all; font-size: 15px; background: var(--soft); pad
 .atable td code { font-size: 12px; word-break: break-all; }
 .chk.opt { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
 .chk.opt input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.btn.wrap { white-space: normal; text-align: center; }   /* длинная подпись кнопки на телефоне — в две строки (шаг 2.3) */
