@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://telegram.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://arojogajdamsyrrpcmso.supabase.co https://zpkqduhbymvadtwgcyhp.supabase.co https://*.tile.openstreetmap.org https://cdnjs.cloudflare.com https://*.ru; connect-src 'self' https://arojogajdamsyrrpcmso.supabase.co/functions/v1/; frame-src tg:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Подборка объектов</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231453d8'/%3E%3Cpath d='M14 34 32 18l18 16v14H38V38H26v10H14z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=5.7">
+<script src="design.js?v=5.5"></script>
+<link rel="stylesheet" href="s.css?v=5.9">
+</head>
+<body class="sp">
+<!-- Подборка для клиента по ссылке (ТЗ v2, шаг 3.2): без входа, данные — sel_public функции web по токену из адреса (#…). Отметки ✓ / ✗ и комментарий — sel_feedback. -->
+<main class="s-wrap" id="s-app">
+  <div class="s-load" id="s-load"><div class="spinner"></div><p>Загрузка подборки…</p></div>
+</main>
+<div class="s-view" id="s-view" hidden><button type="button" class="s-x" aria-label="Закрыть">✕</button><img alt=""><button type="button" class="s-arr l" data-step="-1" aria-label="Предыдущее фото">‹</button><button type="button" class="s-arr r" data-step="1" aria-label="Следующее фото">›</button></div>
+<div id="toast" class="toast" hidden></div>
+<script src="config.js"></script>
+<script src="s.js?v=5.9" defer></script>
+</body>
+</html>

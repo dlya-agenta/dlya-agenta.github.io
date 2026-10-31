@@ -146,6 +146,7 @@ async function start() {
   if (me.guest) GUEST.use(me);   // гостевой доступ: только посмотреть (site/guest.js)
   PLANS.use({ call, sheet, toast }, meta);
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
+  NOTIFY.start({ call, sheet, toast }, meta);   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
   ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
@@ -715,18 +716,18 @@ function selbar() {
 $('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); document.querySelectorAll('[data-sel]').forEach(c => c.checked = false); };
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
-  sheet('Подборка в PDF', `
+  sheet('Подборка', `
     <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
-    <div class="hint">Сразу два PDF: <b>клиенту</b> — без контактов собственника, цены с вашей комиссией; <b>агенту</b> — цены собственника, на первой странице список с телефонами собственников, пометка «Уникальна».
-      Перед сборкой сайт откроет телефоны и проверит рекламу по каждому объекту (в пределах ваших лимитов) — это 10–15 секунд на объект.</div>
+    ${SHARE.formatHtml()}
     <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
-    <div class="hint">Цены в PDF клиенту будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
-    <label class="field">Ваше имя в PDF<input id="s-name" value="${esc(prof.name)}"></label>
-    <label class="field">Ваш телефон в PDF<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
-    <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома в PDF клиенту</span></label>
-    <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}). В PDF агенту — ссылка на источник объявления, в PDF клиенту источников нет. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</div>
+    <div class="hint">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
+    <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
+    <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
+    <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
+    <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}).<span class="pdf-only"> В PDF агенту — ссылка на источник объявления, в PDF клиенту источников нет. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</span></div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
+  SHARE.mount();
   $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
   let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
@@ -736,6 +737,17 @@ $('#sel-make').onclick = () => {
     try {
       // телефоны и проверка рекламы — по одному объекту за запрос: сервис телефонов отвечает 7–15 с, один общий запрос упирался в предел времени сервера
       const nums = [...sel].slice(0, MAXSEL); let limit = '';
+      const fmt = SHARE.format(), args = { nums, title: $('#s-title').value, markup: +$('#s-mk').value, agent: $('#s-name').value, agent_phone: $('#s-phone').value,
+        hide_addr: $('#s-hide').checked, format: fmt };
+      if (fmt === 'link') {   // только ссылка: телефоны не нужны, номера не тратятся
+        prog('Создаю ссылку…');
+        const r = await call('sel_create', args);
+        $('#sheet-body').innerHTML = `<p>Подборка готова — ссылка для клиента.</p>${SHARE.resultHtml(r)}`;
+        SHARE.bind($('#sheet-body'), toast);
+        if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
+        NOTIFY.offerInstall('sel');   // первая подборка ссылкой — предложить «На экран Домой» (один раз)
+        return;
+      }
       // новых номеров больше, чем осталось, — не обрезаем молча: сколько не хватает; убрать объекты, докупить или собрать без части телефонов
       if (!partial) {
         const c = await call('sel_check', { nums });
@@ -760,14 +772,15 @@ $('#sel-make').onclick = () => {
         if (limit) break;
       }
       prog(`${limit ? limit + ' ' : ''}Собираю два PDF…`); b.textContent = 'Собираю PDF…';
-      const r = await call('sel_create', { nums, title: $('#s-title').value, markup: +$('#s-mk').value,
-        agent: $('#s-name').value, agent_phone: $('#s-phone').value, hide_addr: $('#s-hide').checked, partial });
+      const r = await call('sel_create', { ...args, partial });
       PLANS.counter(r.used);
-      $('#sheet-body').innerHTML = `<p>Подборка готова — два PDF.</p>
+      $('#sheet-body').innerHTML = `<p>Подборка готова — два PDF${r.link ? ' и ссылка' : ''}.</p>
         <div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a>
         <a class="btn soft agent-only" href="${esc(r.url_agent)}" target="_blank" rel="noopener" data-url="${esc(r.url_agent)}">PDF агенту (с телефонами)</a></div>
         ${r.phones < r.total ? `<p class="hint">Телефоны в PDF агенту: ${r.phones} из ${r.total} — остальные не открылись (${limit ? 'лимит номеров' : 'у объявления нет мобильного или сервис телефонов не ответил'}).</p>` : ''}
-        <p class="hint">Ссылки действуют час; сама подборка хранится 7 дней во вкладке «Мои подборки».</p>`;
+        <p class="hint">Ссылки на PDF действуют час; сами PDF хранятся 7 дней во вкладке «Мои подборки».</p>${SHARE.resultHtml(r)}`;
+      SHARE.bind($('#sheet-body'), toast);
+      if (r.link) NOTIFY.offerInstall('sel');
       if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
     } catch (e) { if (e.gate) return showLogin(e.gate); $('#s-err').textContent = e.message; b.disabled = false; b.textContent = 'Сформировать'; }
   };
@@ -777,12 +790,14 @@ async function showSelections() {
   try {
     const r = await call('sel_list');
     $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="opt" style="cursor:default"><span><b>${esc(s.title)}</b><br>
-      <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU')} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}<br>
-      удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}</small></span>
+      <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU')} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}
+      ${s.url ? `<br>PDF удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}` : ''}</small>${SHARE.row(s)}</span>
+      ${SHARE.btns(s)}
       ${s.url ? `<a class="btn soft" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">${s.url_agent ? 'Клиенту' : 'PDF'}</a>` : ''}
       ${s.url_agent ? `<a class="btn soft" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}">Агенту</a>` : ''}
       <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button></div>`).join('')
-      : '<p class="muted">Подборок за последние 7 дней нет. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать PDF».</p>';
+      : '<p class="muted">Подборок пока нет: PDF хранятся 7 дней, ссылки — 30. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать подборку».</p>';
+    SHARE.bind($('#sheet-body'), toast);
     $('#sheet-body').onclick = e => {
       const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); }
       const g = e.target.closest('[data-again]'); if (g) { g.dataset.again.split(',').forEach(n => sel.add(+n)); store.set('sel', [...sel]); selbar(); toast('Объекты добавлены в подборку'); }

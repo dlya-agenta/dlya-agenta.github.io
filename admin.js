@@ -3,6 +3,7 @@
 // (одобрить, +30 дней, пакет номеров, пароль, выкинуть входы, админ, отключить) срабатывают сразу; несохранённые правки перед этим сохраняются.
 // Групп больше нет: доступ к Архиву и Рекламе — по тарифу, у участника можно включить или выключить вручную.
 // Шаг 2.4: первый блок панели — второй шаг входа (site/mfa.js), в лимитах — частота запросов, внизу — журнал действий админа (грузится при первом открытии).
+// Шаг 3.2: блок «Бот и уведомления» — бот, push, окно на сайте, срок ссылки подборки, частота сводок; токен бота — сразу своей кнопкой (site/notify.js).
 window.ADMIN = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -88,6 +89,13 @@ window.ADMIN = (() => {
         <label class="field">Проверять ночью новых объявлений<input type="number" min="0" max="300" data-s="uniq.per_night" value="${r.uniq?.per_night ?? 40}"></label>
         <label class="chk opt">${sIn('uniq.enabled', 'check', r.uniq?.enabled)}<span>Проверка уникальности: есть ли живое объявление на площадках</span></label></div></details>
       <details class="a-sec"><summary>Инструменты сайта</summary><div class="u-grid">${Object.entries(FEAT).map(([k, t]) => `<label class="chk opt">${sIn(`features.${k}`, 'check', r.features[k])}<span>${t}</span></label>`).join('')}</div></details>
+      <details class="a-sec" id="a-bot-sec"><summary>Бот и уведомления</summary>
+        <div class="u-grid"><label class="chk opt">${sIn('bot.enabled', 'check', r.bot?.enabled !== false)}<span>Уведомления в Telegram-бот</span></label>
+          <label class="chk opt">${sIn('bot.push', 'check', r.bot?.push !== false)}<span>Push-уведомления в браузер</span></label>
+          <label class="chk opt">${sIn('bot.site', 'check', r.bot?.site !== false)}<span>Окно уведомлений на сайте</span></label>
+          <label class="field">Срок ссылки на подборку, дней${sIn('sel.link_days', 'number', r.sel?.link_days ?? 30)}</label>
+          <label class="field">Сводка агенту по подборке — не чаще раза в, минут${sIn('sel.notify_min', 'number', r.sel?.notify_min ?? 20)}</label></div>
+        <div id="a-bot"><p class="muted">Загрузка…</p></div></details>
       <details class="a-sec" id="a-log"><summary>Журнал действий админа</summary>
         <input id="a-log-q" type="search" placeholder="Поиск: логин админа или участника" autocomplete="off" aria-label="Поиск по журналу">
         <div id="a-log-rows" class="log-rows"><p class="muted">Загрузка…</p></div>
@@ -196,6 +204,8 @@ window.ADMIN = (() => {
     const body = $('#sheet-body');
     body.innerHTML = html(); filter();
     window.MFA?.panel($('#a-mfa'), ui);
+    const bs = $('#a-bot-sec');   // состояние бота (getWebhookInfo) — при первом открытии блока
+    bs.ontoggle = () => { if (bs.open && !bs.dataset.on) { bs.dataset.on = 1; window.NOTIFY?.adminPanel($('#a-bot'), ui); } };
     const log = $('#a-log');   // его поле и кнопка без data-k / data-s: mark() их не видит, «Сохранить» не загорается
     log.ontoggle = () => { if (log.open && !log.dataset.on) { log.dataset.on = 1; logLoad(); } };
     $('#a-log-q').oninput = () => { clearTimeout(logT); logT = setTimeout(() => logLoad(), 350); };

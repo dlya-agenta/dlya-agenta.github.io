@@ -1,0 +1,15 @@
+/* Шаг 3.2: окно уведомлений на сайте, выбор «PDF / Ссылка / Оба», ссылка подборки, подсказки «На экран Домой». Токены style.css, обе темы. */
+.notes { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 3500; display: grid; gap: 8px; width: min(360px, calc(100vw - 24px)); }
+.note-card { background: var(--card); color: var(--text); border-radius: var(--radius); box-shadow: 0 6px 24px rgba(16, 24, 40, .18); border: 1px solid var(--line); padding: 12px 14px; }
+.note-card p { margin: 0 0 8px; white-space: pre-line; font-size: 14px; overflow-wrap: anywhere; }
+.note-foot { display: flex; justify-content: flex-end; gap: 6px; }
+.note-foot .btn { padding: 7px 12px; }
+.fmt .chip { position: relative; }
+.fmt .chip input { position: absolute; opacity: 0; pointer-events: none; }
+.fmt .chip:has(input:focus-visible) { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.share-box { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.share-box input { width: 100%; font-size: 16px; }
+.share-box .sheet-foot { flex-wrap: wrap; justify-content: flex-start; }
+.pwa-more summary { cursor: pointer; color: var(--link); margin: 6px 0; }
+@media (prefers-color-scheme: dark) { .note-card { box-shadow: 0 6px 24px rgba(0, 0, 0, .5); } }
+@media (max-width: 760px) { .notes { left: 12px; right: 12px; width: auto; } }

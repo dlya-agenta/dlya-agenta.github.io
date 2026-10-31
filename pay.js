@@ -285,7 +285,7 @@ window.PAYUI = (() => {
       <section class="pcard" id="p-inv" hidden></section>
       <section class="pcard"><h2>История платежей</h2><div id="p-hist"></div></section>`;
     hist();
-    if (!I.legacy) { $('#p-body').innerHTML = '<p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p>'; return; }
+    if (!I.legacy || true) { $('#p-body').innerHTML = '<p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p>'; return; }   // шаг 3.2: pay_* в web убраны, ниже — на удаление окну Б
     try {
       const r = await call('pay_info', {}, window.API);
       $('#p-body').innerHTML = !r.enabled ? '<p>Оплата на сайте сейчас выключена — продлить доступ поможет администратор.</p>'

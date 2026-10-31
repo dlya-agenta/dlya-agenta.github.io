@@ -1,6 +1,6 @@
 // Профиль участника (ТЗ v2, шаг 2.1) — окно из шапки (нажатие на имя): тариф и срок, номера, имя, телефон, мессенджеры, агентство, «О себе»,
 // соцсети (тариф MAX — для продающих роликов позже), активные устройства с кнопкой «Выйти».
-// Кошельки для выплат (шаг 3.1) и «Привязать Telegram» (шаг 3.2) — места под них.
+// Кошельки для выплат (шаг 3.1) — место под них. «Привязать Telegram» и уведомления в браузере (шаг 3.2) — site/notify.js.
 window.PROFILE = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -46,8 +46,11 @@ window.PROFILE = (() => {
       <div id="partner-box"></div>
       <div class="group">Кошельки для выплат</div>
       <p class="muted">Адреса кошельков для выплат по партнёрской программе — скоро.</p>
-      <div class="group">Telegram</div>
-      <p class="muted">${r.tg ? 'Telegram привязан.' : 'Привязка Telegram для уведомлений о задачах и оплате — скоро.'}</p>`;
+      <div class="group agent-only">Telegram</div>
+      <div id="tg-box" class="agent-only"></div>
+      <div class="group agent-only">Уведомления в этом браузере</div>
+      <div id="push-box" class="agent-only"></div>`;
+    window.NOTIFY?.tgBox($('#tg-box'), r.tg); window.NOTIFY?.pushBox($('#push-box'));
     window.PARTNER?.mount($('#partner-box'), ui.toast);   // код партнёра (site/partner.js)
     $('#prof').onsubmit = async e => {
       e.preventDefault();
