@@ -808,3 +808,10 @@ body.client .agent-only.client-ok:not([hidden]) { display: revert !important; }
   .top > .who { padding: 2px 6px; max-width: 46vw; }
   .who .who-t { font-size: 14px; }
 }
+/* v5.17.2: значки в заголовках разделов и окон — в цвет акцента, по размеру текста; боковое меню админки — как пункты меню */
+:is(main h1, main h2, main h3, main h4, .sheet-head b) > .mi { color: var(--accent); vertical-align: -.12em; margin-right: .4em; }
+:is(main h1, main h2, main h3, main h4, .sheet-head b) > .mi svg { width: 1.05em; height: 1.05em; stroke-width: 1.8; }
+html[data-icons=tiles] :is(main h1, main h2, main h3, main h4, .sheet-head b) > .mi { background: color-mix(in srgb, var(--accent) 14%, transparent); padding: .22em; border-radius: .3em; vertical-align: -.3em; }
+html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > .mi { color: inherit; }
+.adm-side nav a > .mi { margin-right: 2px; }
+.adm-side nav a > .mi svg { width: 18px; height: 18px; }

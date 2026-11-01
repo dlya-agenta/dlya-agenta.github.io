@@ -4,7 +4,7 @@
 // (админка → «🎨 Стиль сайта», app_settings.design {default, logo, icons}; без входа — hub design_public, кэш в localStorage design_def / logo_def / icons_def).
 // Кнопка «Стиль» ([data-style]) переключает стиль по кругу; личный выбор — localStorage design / logo / icons. ?design= ?logo= ?icons= — примерить.
 (() => {
-  const V = '5.17.1', IDS = ['classic', 'residence', 'premium'], NAMES = { classic: 'Классика', residence: 'Резиденция', premium: 'Премиум' };
+  const V = '5.17.2', IDS = ['classic', 'residence', 'premium'], NAMES = { classic: 'Классика', residence: 'Резиденция', premium: 'Премиум' };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
   const LOGOS = {
     keyhole: { name: 'Дом-замок', text: 'Крыша и дом, вместо двери — замочная скважина: «ключи от объекта у агента».',
@@ -123,6 +123,17 @@
     crown: 'M3.5 8l4.3 4 4.2-7 4.2 7 4.3-4-1.8 11h-13.4zM5.3 19h13.4',
     notebook: 'M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6zM6 3.5v17M3.5 7.5H6M3.5 12H6M3.5 16.5H6M10 8h5M10 11.5h5',
     user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0',
+    // v5.17.2 — для заголовков разделов
+    steps: 'M5 4.5h.01M5 12h.01M5 19.5h.01M9 4.5h11M9 12h11M9 19.5h11M5 6.5v3.5M5 14v3.5',
+    shield: 'M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6zM8.8 12l2.2 2.2 4.3-4.4',
+    search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM15.5 15.5l5 5',
+    camera: 'M4 7.5h3l1.8-2.5h6.4L17 7.5h3a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+    clipboard: 'M9 4H6.5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H15M9 3h6v3H9zM9 11h6M9 15h4',
+    doc: 'M14 3.5H6.5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V8zM14 3.5V8h4.5M8.5 12.5h7M8.5 16h5',
+    check: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.2l2.7 2.7L16 9.5',
+    chart: 'M3.5 20.5h17M6.5 20.5v-6M11 20.5V9M15.5 20.5v-8M20 20.5V5',
+    cash: 'M2.5 6.5h19v11h-19zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5.5 9.5v.01M18.5 14.5v.01',
+    note: 'M4 20h4l11-11-4-4L4 16zM13.5 6.5l4 4',
   };
   // название пункта → значок (сначала по словам — у «Кабинета» и «С клиентом» раньше был один эмодзи 👤), затем по эмодзи
   const BY_TEXT = { 'Объявления': 'building', 'Все объявления': 'home', 'Все': 'home', 'Новостройки': 'crane', 'Эксклюзивы коллег': 'gem', 'Архив 2 года': 'archive', 'Архив': 'archive',
@@ -131,10 +142,13 @@
     'Ипотечный брокер': 'bank', 'База знаний': 'book', 'Чат подписчиков': 'chat', 'Налоги при продаже': 'receipt', 'Как пользоваться помощником': 'help', 'Кабинет': 'briefcase',
     'Баланс': 'wallet', 'Партнёрская программа': 'partners', 'Партнёрам': 'partners', 'Мессенджеры и соцсети': 'link', 'Оплата и тарифы': 'card', 'Помощь': 'buoy',
     'С клиентом': 'present', 'Админ': 'sliders', 'Настройки': 'sliders', 'Стиль': 'palette', 'Журнал': 'notebook', 'Выйти': 'logout', 'Продлить доступ': 'crown' };
-  const BY_EMO = { '🏠': 'home', '✉️': 'send', '✉': 'send', '📒': 'notebook', '⚙': 'sliders', '⚙️': 'sliders', '🎨': 'palette', '💬': 'chat', '📣': 'megaphone', '🤖': 'sparkles', '📚': 'book', '💳': 'card' };
+  const BY_EMO = { '💬': 'chat', '🎬': 'film', '🧾': 'receipt', '🧭': 'steps', '🧑‍⚖️': 'scale', '🧑‍⚖': 'scale', '⚖️': 'scale', '⚖': 'scale', '🏦': 'bank', '🤝': 'partners',
+    '🛡': 'shield', '🛡️': 'shield', '🔗': 'link', '🔎': 'search', '🔍': 'search', '📷': 'camera', '📚': 'book', '📑': 'deal', '📌': 'pin', '📋': 'clipboard', '📈': 'trend', '📄': 'doc',
+    '💰': 'wallet', '💎': 'gem', '👥': 'users', '🏗': 'crane', '🏗️': 'crane', '✅': 'check', '📊': 'chart', '💵': 'cash', '📝': 'note', '⭐': 'star', '★': 'star', '🗂': 'archive', '🗂️': 'archive',
+    '📘': 'help', '🏠': 'home', '✉️': 'send', '✉': 'send', '📒': 'notebook', '⚙': 'sliders', '⚙️': 'sliders', '🎨': 'palette', '💬': 'chat', '📣': 'megaphone', '🤖': 'sparkles', '📚': 'book', '💳': 'card' };
   // эмодзи для набора «Эмодзи»: у «Кабинета» и «С клиентом» — разные
   const EMO = { 'Кабинет': '💼', 'С клиентом': '🖥️', 'Выйти': '🚪', 'Продлить доступ': '👑' };
-  const LEAD = /^(\s*)((?:\p{Extended_Pictographic}|[★☰])\uFE0F?)\s*/u;
+  const LEAD = /^(\s*)((?:\p{Extended_Pictographic}|[★☰])\uFE0F?(?:\u200D\p{Extended_Pictographic}\uFE0F?)*)\s*/u;
   const icon = (name, e) => `<i class="mi" data-e="${e}" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ic-${name}"/></svg></i>`;
   function sprite() {
     if (document.getElementById('ic-sprite')) return;
@@ -142,7 +156,7 @@
   }
   const clean = t => t.replace(/[^\p{L}\p{N}\s-]+/gu, ' ').replace(/\s+/g, ' ').trim();
   // пункт меню: ведущий эмодзи → значок; «Выйти» и «Продлить доступ» — значок без эмодзи
-  function iconizeEl(el) {
+  function iconizeEl(el, strict = false) {
     const lbl = el.querySelectorAll(':scope > .lbl-long, :scope > .lbl-short');
     for (const host of lbl.length ? lbl : [el]) {
       if (host.querySelector(':scope > .mi')) continue;
@@ -150,13 +164,20 @@
       if (!first || first.nodeType !== 3) continue;
       const m = LEAD.exec(first.data), text = clean(m ? first.data.slice(m[0].length) : first.data);
       const name = BY_TEXT[text] ?? (m && BY_EMO[m[2]]);
-      if (!name || (!m && !EMO[text])) continue;
+      if (!name || (!m && (strict || !EMO[text]))) continue;
       if (m) first.data = first.data.slice(m[0].length);
       host.insertBefore(document.createRange().createContextualFragment(icon(name, EMO[text] ?? m?.[2] ?? '')), first);
     }
   }
+  // заголовки разделов внутри страниц, окон и боковое меню админки (v5.17.2): ведущий эмодзи → значок в цвет акцента; карточки мессенджеров не трогаем (там значок — сам сервис)
+  const HEADS = 'main h1, main h2, main h3, main h4, .sheet-head b, .adm-side nav a, .dl-head > a.btn';
+  let headsT = 0;
+  function heads() {
+    cancelAnimationFrame(headsT);
+    headsT = requestAnimationFrame(() => document.querySelectorAll(HEADS).forEach(el => { if (!el.closest('.conn-card')) iconizeEl(el, true); }));
+  }
   window.DESIGN = { get: () => d, set, def: () => def, mine: () => mine, names: NAMES, ids: IDS, logos: LOGOS, icons: ICONS,
-    logo, iconsSet: icons, setLogo, setIcons, markSvg, brandHtml, paint: paintLogos, iconizeEl, sprite,
+    logo, iconsSet: icons, setLogo, setIcons, markSvg, brandHtml, paint: paintLogos, iconizeEl, sprite, heads,
     mineLogo: () => okLogo(ls.get('logo')), mineIcons: () => okIcons(ls.get('icons')), logoDef: () => logoDef, iconsDef: () => iconsDef,
     reset() { mine = null; ls.set('design', null); ls.set('logo', null); ls.set('icons', null); apply(); paintLogos(); load(def); },
     // админка: новый выбор «для всех» — сразу в кэш (у себя тоже, если нет личного)
@@ -166,6 +187,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     sprite(); label(); paintLogos(); setTimeout(ensureButton, 900); refreshDefault();
     // вход и окна рисуются позже (app.js gate, sheet) — знак и бренд дорисовываются сами
-    new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) paintLogos(); }).observe(document.body, { childList: true, subtree: true });
+    heads();
+    new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) { paintLogos(); heads(); } }).observe(document.body, { childList: true, subtree: true });
   });
 })();
