@@ -230,12 +230,20 @@
       <label class="opt"><input type="checkbox" id="ma-on" ${r.enabled ? 'checked' : ''}><span>Раздел открыт всем участникам PRO и MAX</span></label>
       <label class="field">Тестеры до включения для всех (логины через запятую)<input id="ma-t" value="${esc(m.testers.join(', '))}"></label>
       ${num('ma-p0', m.pause[0], 'Пауза от, с', 20, 600)}${num('ma-p1', m.pause[1], 'Пауза до, с', 20, 900)}${num('ma-ph', m.photos, 'Фото в сообщении', 1, 10)}
+      <p>Ключ Telegram API: ${r.tg_set ? '<b class="ml-ok">сохранён ••••</b>' : '<b class="err">не задан</b> — без него вход в Telegram не работает'}</p>
+      <details${r.tg_set ? '' : ' open'}><summary>${r.tg_set ? 'Заменить ключ' : 'Вставить ключ'}</summary>
+        <p class="hint">my.telegram.org → войти по номеру → API development tools → создать приложение (название «Для Агента», платформа Other) → скопировать api_id и api_hash сюда. В чат их не присылайте.</p>
+        <label class="field">api_id<input id="ma-id" inputmode="numeric" autocomplete="off"></label><label class="field">api_hash<input id="ma-hash" autocomplete="off" spellcheck="false"></label>
+        <button class="btn soft" id="ma-tg">Сохранить ключ</button></details>
       <p class="hint">Правила ТЗ не меняются: не чаще раза в ${m.gap_h} часа в группу, ${m.from_h}:00–${m.to_h}:00 МСК, 50 / 150 объявлений.</p>
       <div class="ml-row"><button class="btn primary" id="ma-save">Сохранить</button></div></section>
       <section class="ml-card"><h3>Последние рассылки всех участников</h3><div class="ascroll"><table class="atable"><thead><tr><th>№</th><th>Логин</th><th>Когда</th><th>Вид</th><th>Итог</th></tr></thead><tbody>
       ${r.runs.map(x => `<tr><td>${x.id}</td><td>${esc(x.login)}</td><td>${msk(x.created_at)}</td><td>${x.kind}</td><td>${RST[x.status] ?? x.status} · ${x.sent}/${x.planned}${x.error ? ` · ${esc(x.error)}` : ''}</td></tr>`).join('')}</tbody></table></div>
       <h3>Журнал сообщений</h3><div class="ascroll"><table class="atable"><thead><tr><th>Когда</th><th>Логин</th><th>Группа</th><th>№</th><th>Итог</th></tr></thead><tbody>
       ${r.log.slice(0, 100).map(x => `<tr><td>${msk(x.at)}</td><td>${esc(x.login)}</td><td>${esc(x.group)}</td><td>${x.num ?? ''}</td><td>${x.ok ? '✓' : `✗ ${esc(x.error ?? '')}`}</td></tr>`).join('')}</tbody></table></div></section></div>`;
+    $('#ma-tg').onclick = async () => {
+      try { await call('mail_adm_tg', { api_id: $('#ma-id').value, api_hash: $('#ma-hash').value }); toast('Ключ сохранён'); admin(); } catch (e) { toast(e.message, 6000); }
+    };
     $('#ma-save').onclick = async () => {
       try { await call('mail_adm_set', { enabled: $('#ma-on').checked, mail: { testers: $('#ma-t').value.split(/[\s,]+/).filter(Boolean), pause: [+$('#ma-p0').value, +$('#ma-p1').value], photos: +$('#ma-ph').value } });
         toast('Сохранено'); admin(); } catch (e) { toast(e.message, 5000); }
