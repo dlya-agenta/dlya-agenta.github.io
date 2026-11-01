@@ -2,12 +2,15 @@
 // Три места: блок в профиле (mount — код, ссылка, коротко цифры, кошелёк), страница partner.html (ссылка с QR, статистика, кошелёк с кодом в Telegram,
 // история, инструкция «Как получать выплаты», условия) и хеш canvas для отпечатка браузера (cv — app.js добавляет его в fp при входе).
 // Всё считает сервер (функция pay: ref_my, ref_wallet_code, ref_wallet_set); админка — partner.admin.js (partner.html#admin).
+window.HUB?.rate();   // курс ЦБ для сумм в рублях
 window.PARTNER = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAY = () => String(window.API).replace(/\/web$/, '/pay');
   const tokenOf = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
-  const money = v => `${Number(v || 0).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(Number(v || 0)) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  const usd = v => `${Number(v || 0).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(Number(v || 0)) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  // v5.15: в тексте — рубли по курсу ЦБ, доллары рядом (HUB.rub — hub.js; курс не загрузился — только $)
+  const money = v => window.HUB?.rub(Number(v || 0)) ? `${HUB.rub(Number(v || 0))} (${usd(v)})` : usd(v);
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
   const ST = { hold: ['в ожидании', 'warn'], check: ['на проверке', 'warn'], ready: ['к выплате', 'ok'], payout: ['в заявке', ''], paid: ['выплачено', 'ok'], cancel: ['отменено', 'bad'] };

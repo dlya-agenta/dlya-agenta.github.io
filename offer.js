@@ -5,7 +5,9 @@
 window.OFFER = (() => {
   const PAY = String(window.API ?? '').replace(/\/web$/, '/pay');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const money = v => `${Number(v).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(+v) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  const usd = v => `${Number(v).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(+v) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  // v5.15: в тексте — рубли по курсу ЦБ, доллары рядом (HUB.rub — hub.js; курс не загрузился — только $)
+  const money = v => window.HUB?.rub(Number(v || 0)) ? `${HUB.rub(Number(v || 0))} (${usd(v)})` : usd(v);
   const token = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
   const LEAD = { limit: 'Номера на сегодня закончились — в PRO их больше.', arch: 'Архив за 2 года открыт в PRO.', rk: 'Реклама на площадках — в PRO.',
     mail: 'Рассылки в мессенджеры — в PRO.' };
