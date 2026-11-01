@@ -891,7 +891,7 @@ async function loadMap() {
     map.on('moveend', () => mapList()).on('popupopen', e => { openPop = e.popup; }).on('popupclose', () => { openPop = null; });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   }
-  [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
+  [50, 400, 1200].forEach(ms => setTimeout(() => map.invalidateSize(), ms));   // раскладка «список слева, карта справа» меняет размер после показа
   mctl?.abort();
   const ctl = mctl = new AbortController();
   $('#status').textContent = 'Загружаю точки…';

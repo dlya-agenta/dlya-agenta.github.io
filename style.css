@@ -693,6 +693,7 @@ button.who:hover, button.who.on { background: var(--soft); }
 .mg-p .link.on { box-shadow: inset 3px 0 0 var(--accent); }
 .mg-b.on { background: var(--soft); color: var(--link); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
 @media (max-width: 760px) {
+  .top .menu { flex-wrap: nowrap; }   /* группы — одной колонкой, без переноса во вторую */
   .mg { display: flex; flex-direction: column; }
   .mg-b { pointer-events: none; font-size: 12.5px !important; text-transform: uppercase; letter-spacing: .04em; color: var(--muted) !important; min-height: 0 !important; padding: 10px 12px 2px !important; background: none !important; box-shadow: none !important; }
   .mg-a { display: none; }
