@@ -148,6 +148,7 @@ async function start() {
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
   NOTIFY.start({ call, sheet, toast }, meta);   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
   CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta);   // клиенты и задачи (site/crm.js, шаг 3.4)
+  RK.use({ sheet, closeSheet, toast, auth: () => auth });   // «Реклама»: черновики на площадках (site/reklama/rk.js, шаг 4.1)
   ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
   if (p && typeof p === 'object') {
@@ -194,6 +195,7 @@ async function start() {
   search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
+  if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest) { sheetGo = 'rk'; RK.open(location.hash); }   // «Реклама»: …/#rk, #rk=daily
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
 }
 
@@ -728,6 +730,7 @@ function selStart(nums, title, fmt) {
   const r = fmt && document.querySelector(`[name="s-fmt"][value="${fmt}"]`);
   if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
 }
+$('#sel-rk').onclick = () => me.can_rk ? RK.send([...sel]) : PLANS.locked('rk');   // «📣 Отправить в рекламу» рядом с «Сформировать подборку» (шаг 4.1)
 $('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); document.querySelectorAll('[data-sel]').forEach(c => c.checked = false); };
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
@@ -810,11 +813,12 @@ async function showSelections() {
       ${SHARE.btns(s)}
       ${s.url ? `<a class="btn soft" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">${s.url_agent ? 'Клиенту' : 'PDF'}</a>` : ''}
       ${s.url_agent ? `<a class="btn soft" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}">Агенту</a>` : ''}
-      <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button></div>`).join('')
+      <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button><button class="btn ghost agent-only" data-rk="${s.nums.join(',')}">📣 В рекламу</button></div>`).join('')
       : '<p class="muted">Подборок пока нет: PDF хранятся 7 дней, ссылки — 30. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать подборку».</p>';
     SHARE.bind($('#sheet-body'), toast);
     $('#sheet-body').onclick = e => {
       const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); }
+      const k = e.target.closest('[data-rk]'); if (k) return me.can_rk ? RK.send(k.dataset.rk.split(',').map(Number)) : PLANS.locked('rk');
       const g = e.target.closest('[data-again]'); if (g) { g.dataset.again.split(',').forEach(n => sel.add(+n)); store.set('sel', [...sel]); selbar(); toast('Объекты добавлены в подборку'); }
     };
   } catch (e) { if (e.gate) return showLogin(e.gate); $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
@@ -929,7 +933,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'sels') showSelections();
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
-  if (g === 'rk') { if (me.can_rk) showReklama(); else PLANS.locked('rk'); }
+  if (g === 'rk') { if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/reklama/rk.js (шаг 4.1)
   if (g === 'mail') { if (me.can_mail) PLANS.soon('mail'); else PLANS.locked('mail'); }   // сами рассылки — шаг 4.2
   if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
@@ -972,32 +976,6 @@ function clientSheet() {
   };
   $('#c-on').onclick = () => set(true);
   $('#c-off')?.addEventListener('click', () => set(false));
-}
-
-// ---------- «Реклама»: перенос объектов в черновики рекламы (вкладку включает администратор участнику) ----------
-const RKST = { new: 'в очереди', work: 'переношу', done: 'черновик создан', dup: 'уже есть (дубль)', error: 'ошибка' };
-async function showReklama() {
-  sheet('Реклама', '<p class="muted">Загрузка…</p>', true);
-  let r;
-  try { r = await call('rk_list'); } catch (e) { if (e.gate) return showLogin(e.gate); $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-  const nums = [...sel];
-  $('#sheet-body').innerHTML = `
-    <p>Объекты переносятся в <b>черновики</b> рекламного кабинета: фото, адрес, цена, описание (без фраз «звоните через Авито» и т. п.). Сами объявления не публикуются — проверяете и публикуете вы.</p>
-    <div class="hint">Отметьте объекты галочкой «В подборку» в списке и добавьте их сюда. Повторно один объект в очередь не встаёт.</div>
-    <div class="sheet-foot"><span class="muted">Отмечено: ${nums.length}</span><button class="btn primary" id="rk-add" ${nums.length ? '' : 'disabled'}>Добавить отмеченные в очередь</button></div>
-    <div class="group">Очередь и черновики (${r.items.length})</div>
-    ${r.items.length ? `<div class="ascroll"><table class="atable"><thead><tr><th>№</th><th>Объект</th><th>Статус</th><th>Добавлен</th><th></th></tr></thead><tbody>
-      ${r.items.map(j => `<tr><td>${j.num}</td><td>${esc(j.what || '')}</td><td>${esc(RKST[j.status] ?? j.status)}${j.error ? `<br><small class="err">${esc(j.error)}</small>` : ''}</td>
-        <td>${new Date(j.created_at).toLocaleString('ru-RU')}</td><td>${j.status === 'new' || j.status === 'error' ? `<button class="btn ghost" data-rkdel="${j.num}">Убрать</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
-      : '<p class="muted">Очередь пуста.</p>'}
-    <p class="hint">${r.worker ? '' : 'Вход в рекламный кабинет и автоматический перенос подключаются следующим шагом — пока объекты ждут в очереди.'}</p>`;
-  $('#rk-add').onclick = async () => {
-    try { const x = await call('rk_add', { nums }); toast(`В очередь добавлено: ${x.added}`); showReklama(); } catch (e) { toast(e.message); }
-  };
-  $('#sheet-body').onclick = async e => {
-    const d = e.target.closest('[data-rkdel]'); if (!d) return;
-    try { await call('rk_del', { num: +d.dataset.rkdel }); showReklama(); } catch (err) { toast(err.message); }
-  };
 }
 
 // ---------- админ-панель — site/admin.js: участники и настройки на одной странице, одна кнопка «Сохранить» ----------
