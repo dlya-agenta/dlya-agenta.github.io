@@ -40,12 +40,12 @@ window.SHARE = (() => {
     catch { const i = $('#s-link'); if (i) { i.select(); document.execCommand?.('copy'); toast?.('Ссылка скопирована'); } }
   }
   const resultHtml = r => r.link ? `<div class="share-box"><label class="field">Ссылка для клиента<input id="s-link" readonly value="${esc(r.link)}"></label>
-      <div class="sheet-foot"><button class="btn primary" data-copy="${esc(r.link)}">Копировать</button>${navigator.share ? `<button class="btn soft" data-share="${esc(r.link)}">Отправить</button>` : ''}
+      <div class="sheet-foot"><button class="btn primary" data-copy="${esc(r.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(r.link)}">Поделиться</button>` : ''}
         <a class="btn ghost" href="${esc(r.link)}" target="_blank" rel="noopener" data-url="${esc(r.link)}">Открыть</a></div>
       <p class="hint">${r.query ? `${esc(r.query)} · ` : ''}действует до ${day(r.until)}. Когда клиент откроет подборку или отметит объекты, вам придёт уведомление: в Telegram (привяжите его в профиле), в браузер и на сайте.</p></div>` : '';
   function bind(el, toast) {   // окно (#sheet-body) одно на всю страницу — обработчик вешается один раз
-    if (el.dataset.share) return;
-    el.dataset.share = 1;
+    if (el.dataset.shareOn) return;   // не data-share: иначе любой клик в окне ловился как «Поделиться»
+    el.dataset.shareOn = 1;
     el.addEventListener('click', e => {
       const c = e.target.closest('[data-copy]'), s = e.target.closest('[data-share]');
       if (c) copy(c.dataset.copy, toast);
@@ -55,7 +55,7 @@ window.SHARE = (() => {
 
   // «Мои подборки»: строка ссылки
   const row = s => s.link ? `<br><small class="muted">🔗 ${s.live ? `ссылка до ${day(s.link_until)}` : 'срок ссылки закончился'} · просмотров клиента: ${s.views ?? 0}${s.yes || s.no ? ` · ✓ ${s.yes} · ✗ ${s.no}` : ''}${s.comments ? ` · комментариев: ${s.comments}` : ''}</small>` : '';
-  const btns = s => s.link && s.live ? `<button class="btn soft" data-copy="${esc(s.link)}">Ссылка</button>` : '';
+  const btns = s => s.link && s.live ? `<button class="btn soft" data-copy="${esc(s.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>` : ''}` : '';
 
   return { formatHtml, format, mount, resultHtml, bind, row, btns, copy };
 })();

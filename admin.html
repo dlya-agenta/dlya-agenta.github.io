@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://telegram.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://arojogajdamsyrrpcmso.supabase.co https://zpkqduhbymvadtwgcyhp.supabase.co https://cdnjs.cloudflare.com https://*.ru; connect-src 'self' https://arojogajdamsyrrpcmso.supabase.co/functions/v1/; frame-src tg:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Админка — Для Агента</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231453d8'/%3E%3Cpath d='M14 34 32 18l18 16v14H38V38H26v10H14z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=5.15">
+<script src="design.js?v=5.5"></script>
+<link rel="stylesheet" href="notify.css?v=5.12">
+<link rel="stylesheet" href="hub.css?v=5.15">
+<link rel="stylesheet" href="admin2.css?v=5.15">
+</head>
+<body class="adm2">
+<div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
+<div id="app" class="adm-wrap" hidden>
+  <aside class="adm-side" id="adm-side">
+    <a class="adm-brand" href="./"><span class="logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14"/><path d="M14 34 32 18l18 16v14H38V38H26v10H14z"/></svg></span><b>Для Агента</b></a>
+    <nav aria-label="Разделы админки">
+      <a href="#dash" data-s="dash">📊 <span>Сводка</span></a>
+      <a href="#sales" data-s="sales">💵 <span>Продажи и оплаты</span></a>
+      <a href="#users" data-s="users">👥 <span>Участники и настройки</span></a>
+      <a href="#listings" data-s="listings">🏠 <span>Объявления и выгрузка</span></a>
+      <a href="#support" data-s="support">💬 <span>Поддержка</span></a>
+      <a href="#ai" data-s="ai">🤖 <span>Ключи, API и ИИ</span></a>
+      <a href="#ref" data-s="ref">🤝 <span>Партнёрка</span></a>
+      <a href="#mod" data-s="mod">🛡 <span>Модерация</span></a>
+      <a href="#content" data-s="content">🏗 <span>Новостройки и тексты</span></a>
+      <a href="#system" data-s="system">⚙ <span>Система</span></a>
+    </nav>
+    <a class="adm-back" href="./">‹ На сайт</a>
+  </aside>
+  <main class="adm-main"><header class="adm-head"><button class="btn ghost adm-burger" id="adm-burger" aria-label="Разделы">☰</button><h1 id="adm-title">Сводка</h1><span class="muted" id="adm-at"></span></header>
+    <div id="adm-body"></div></main>
+</div>
+<div id="sheet" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<script src="config.js"></script>
+<script src="hub.js?v=5.15" defer></script>
+<script src="mfa.js?v=5.7" defer></script>
+<script src="notify.js?v=5.12" defer></script>
+<script src="admin.js?v=5.15" defer></script>
+<script src="admin2.js?v=5.15" defer></script>
+</body>
+</html>

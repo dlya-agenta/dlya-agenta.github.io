@@ -14,7 +14,6 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 const FIN = [['repair', 'С ремонтом'], ['clean', 'Чистовая'], ['rough', 'Черновая']];
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 10;   // объектов в одной подборке PDF
-const EXT = [['avito', 'Авито'], ['cian', 'ЦИАН'], ['domclick', 'ДомКлик']];   // собственники напрямую с площадок (колонка source)
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
 // до моря по прямой (сервер считает по береговой линии): один выбор из списка
 const SEA = [[300, 'до 300 м'], [500, 'до 500 м'], [1000, 'до 1 км'], [2000, 'до 2 км'], [3000, 'до 3 км']];
@@ -187,8 +186,12 @@ async function start() {
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
   document.querySelectorAll('[data-go="crm"]').forEach(b => b.hidden = !meta.features.crm || me.guest);
+  mgSync();
   // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
+  // ссылки из новых разделов (v5.15): ./?q=<запрос> — сразу этот поиск; #o=<номер> — сразу объявление
+  const qp = new URLSearchParams(location.search).get('q');
+  if (qp) { text = qp.slice(0, 300); history.replaceState(null, '', location.pathname + location.hash); }
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
   FUI.help(); renderFilters(); selbar(); applyLay();
@@ -196,6 +199,8 @@ async function start() {
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
   if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest) { sheetGo = 'rk'; RK.open(location.hash); }   // «Реклама»: …/#rk, #rk=daily
+  if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
+  HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
 }
 
@@ -237,12 +242,13 @@ function renderFilters() {
   $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}"${k === 'fz' && land ? ` disabled title="${land}"` : ''}>${t}</button>`).join('');
   $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; fchg(); };
   // объявления собственников, взятые напрямую с площадок: галочка снята — таких не показывать (база собственников — всегда)
-  $('#f-ext').innerHTML = EXT.map(([k, t]) => `<button type="button" class="chip${arr('noext').includes(k) ? '' : ' on'}" data-v="${k}">${arr('noext').includes(k) ? '' : '✓ '}${t}</button>`).join('');
-  $('#f-ext').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; toggleIn('noext', b.dataset.v); fchg(); };
+  // «Дополнительный поиск с рекламных источников»: одна галочка, по умолчанию снята (названия площадок не показываем)
+  $('#f-ext').checked = !!f.ext;
+  $('#f-ext').onchange = () => { f.ext = $('#f-ext').checked || undefined; fchg(); };
   // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, f[k] ?? '');
-  $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl;
+  $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl; $('#nold').checked = !!f.nold;
   for (const k of ['pmin', 'pmax']) put(k, f[k] ? dots(Math.round(f[k] * 1e6)) : '');
   for (const k of ['fmin', 'fmax', 'nl']) $('#' + k).disabled = c.land;
   $('#nf').disabled = !c.nf;
@@ -265,7 +271,7 @@ const rubOf = s => { const v = +String(s).replace(/\D/g, ''); return v > 0 && v 
 function readInputs() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) { const v = +$('#' + k).value; if (v > 0) f[k] = v; else delete f[k]; }
   for (const k of ['pmin', 'pmax']) { const v = rubOf($('#' + k).value); if (v > 0) f[k] = v / 1e6; else delete f[k]; }
-  f.nf = $('#nf').checked || undefined; f.nl = $('#nl').checked || undefined;
+  f.nf = $('#nf').checked || undefined; f.nl = $('#nl').checked || undefined; f.nold = $('#nold').checked || undefined;   // «не старый фонд» — без домов до 1990
   f.sea = +$('#sea').value || undefined;
 }
 for (const k of ['pmin', 'pmax']) {
@@ -274,7 +280,20 @@ for (const k of ['pmin', 'pmax']) {
 }
 // поля сразу попадают в фильтр (иначе нажатие на кнопку фильтра стирало набранное), поиск — через 0,5 с после последней цифры
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
-for (const k of ['nf', 'nl', 'sea']) $('#' + k).addEventListener('change', () => { readInputs(); fchg(); });
+for (const k of ['nf', 'nl', 'nold', 'sea']) $('#' + k).addEventListener('change', () => { readInputs(); fchg(); });
+// 🎤 в строке поиска (v5.15): голос → «Мой помощник» (распознаёт браузер); где браузер не умеет — кнопки нет
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  $('#q-mic').hidden = false;
+  $('#q-mic').onclick = () => {
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition, rec = new R(), b = $('#q-mic');
+    rec.lang = 'ru-RU'; rec.interimResults = true; b.textContent = '⏺';
+    rec.onresult = e => { const t = [...e.results].map(x => x[0].transcript).join(' '); $('#q').value = t;
+      if (e.results[e.results.length - 1].isFinal) { rec.stop(); store.set('helper_q', t); location.href = 'hub.html#helper'; } };
+    rec.onerror = e => toast(e.error === 'not-allowed' ? 'Разрешите микрофон в настройках браузера' : 'Не расслышал — попробуйте ещё раз');
+    rec.onend = () => { b.textContent = '🎤'; };
+    rec.start();
+  };
+}
 $('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
 function openF(on) {
@@ -285,6 +304,7 @@ $('#toggle-f').onclick = () => { const on = $('#filters').classList.contains('cl
 // фильтр колонкой слева или блоком сверху (на компьютере; на телефоне — всегда окно на весь экран)
 function sideUi() {
   document.body.classList.toggle('fside', fside);
+  $('#f-close').textContent = mobile() ? '✕' : '⟨';
   $('#f-side').textContent = fside ? '⇧ Фильтр сверху' : '⇦ Фильтр слева';
   setTimeout(() => map?.invalidateSize(), 50);
 }
@@ -294,7 +314,7 @@ $('#f-side').onclick = () => { fside = !fside; sideUi(); savePrefs(); };
 function later(ms = 500) { clearTimeout(later.t); later.t = setTimeout(changed, ms); $('#apply').textContent = 'Показать …'; }
 function fchg() { renderFilters(); later(); }
 const flush = () => { if (later.t) changed(); };
-$('#f-close').onclick = () => { readInputs(); flush(); openF(false); };
+$('#f-close').onclick = () => { readInputs(); flush(); openF(false); if (!mobile()) { fclosed = true; savePrefs(); } };   // «⟨» на компьютере — скрыть влево и запомнить
 $('#apply').onclick = () => { readInputs(); flush(); openF(false); };
 $('#reset').onclick = () => { f = {}; text = ''; $('#q').value = ''; leaveFav(); renderFilters(); changed(); };
 // «Ничего не нашлось»: «Сбросить его» — фильтр, который больше всего мешает; «Сбросить все» — все фильтры (текст запроса остаётся)
@@ -504,7 +524,8 @@ function card(x, mini = false) {
       ${!mini && x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
         ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
-        ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}</div>
+        ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
+        ${!mini ? `<a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>` : ''}</div>
     </div>
   </article>`;
 }
@@ -515,11 +536,27 @@ function phoneBox(p, owner) {
   return `<div class="phone"><div><a class="num" href="tel:${esc(p)}">${esc(p)}</a>${owner ? ` — ${esc(owner)}` : ''} <small>может быть подменный</small></div>
     ${meta.features.messengers ? `<div class="msgs"><a class="m-call" href="tel:${esc(p)}">Позвонить</a>
       <a class="m-wa" href="https://wa.me/${d}?text=${t}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="m-max" href="${mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}" title="MAX: номер скопируется — найдите контакт в MAX">MAX</a>
       <button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>` : ''}</div>`;
 }
 
 // действия в карточке
 $('#list').addEventListener('click', e => onCard(e, e.target.closest('.card')));
+// фото как у Авито (v5.15): на компьютере ведёшь мышкой по фото — кадры меняются, внизу полоски; ушёл — первое фото
+if (matchMedia('(hover: hover)').matches) {
+  const scrub = e => {
+    const g = e.target.closest('.gal'), st = g?.querySelector('.strip'); if (!st) return;
+    const n = st.children.length; if (n < 2) return;
+    const r = g.getBoundingClientRect(), k = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n)));
+    if (g.dataset.k == k) return;
+    g.dataset.k = k; st.scrollTo({ left: k * st.clientWidth, behavior: 'instant' });
+    g.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === k));
+  };
+  for (const box of ['#list', '#ml-items']) {
+    $(box).addEventListener('mousemove', scrub);
+    $(box).addEventListener('mouseout', e => { const g = e.target.closest('.gal'); if (g && !g.contains(e.relatedTarget)) { g.dataset.k = 0; g.querySelector('.strip')?.scrollTo({ left: 0, behavior: 'instant' }); g.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === 0)); } });
+  }
+}
 async function onCard(e, cardEl) {
   if (!cardEl) return;
   const num = +cardEl.dataset.num, x = items.get(num);
@@ -656,7 +693,8 @@ function itemView(x, k) {
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
-        ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}</div>
+        ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
+        <a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a></div>
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
     </div>
   </article>`;
@@ -828,6 +866,9 @@ async function showSelections() {
 // окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);
 // дату, «★ Избранное» и телефон карточка получает следом — действием items пачкой до 60, без отметки «просмотрено»
 let map = null, cluster = null, mctl = null, openPop = null;   // openPop — открытое окно на карте
+const hoverOk = matchMedia('(hover: hover)').matches;   // компьютер с мышью: окна по наведению
+let hoverT = null;
+const mlnShort = v => v >= 1e6 ? `${(v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: v >= 1e8 ? 0 : 1 })} млн` : `${Math.round(v / 1e3)} тыс`;
 const ptCard = p => card(items.get(p.num) ?? p, true);
 const popHtml = ps => `<div class="mlist${ps.length > 1 ? ' many' : ''}">${ps.length > 1 ? `<b class="ml-n">${ps.length} объявл. здесь</b>` : ''}${ps.map(ptCard).join('')}</div>`;
 async function loadItems(nums) {
@@ -859,8 +900,21 @@ async function loadMap() {
     cluster?.remove();
     // несколько объявлений в одном доме (точки ближе 40 м) — открываются списком карточек, а не разлетаются по карте;
     // без анимации «разлёта» при увеличении: кружки просто пересобираются, карта не дёргается; точки добавляются частями
+    // v5.15 (как у Авито): у метки — цена «от 12,5 млн», у группы — число и цена «от»; один адрес — одна метка со списком;
+    // метки появляются плавно (CSS mfade), без «разлёта»; навёл мышку — всплывают все предложения этой точки
     cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: z => z >= 15 ? 35 : 50, spiderfyOnMaxZoom: false, zoomToBoundsOnClick: false,
-      animate: false, chunkedLoading: true, chunkInterval: 120, removeOutsideVisibleBounds: true });
+      animate: false, chunkedLoading: true, chunkInterval: 120, removeOutsideVisibleBounds: true,
+      iconCreateFunction: c => { const ps = c.getAllChildMarkers().map(m => m.p), min = Math.min(...ps.map(p => p.price || Infinity));
+        return L.divIcon({ className: 'mk-c', html: `<span><b>${ps.length}</b>${Number.isFinite(min) ? ` · от ${mlnShort(priceOf(min))}` : ''}</span>`, iconSize: null }); } });
+    // наведение на группу из одного дома — сразу список; на большую группу — подсказка «нажмите, чтобы приблизить»
+    if (hoverOk) cluster.on('clustermouseover', e => {
+      const b = e.layer.getBounds();
+      if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40) return;
+      clearTimeout(hoverT);
+      const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b2) => a.i - b2.i);
+      L.popup({ minWidth: 300, maxWidth: 300 }).setLatLng(e.layer.getLatLng()).setContent(() => popHtml(ps)).openOn(map);
+      loadItems(ps.map(p => p.num));
+    });
     cluster.on('clusterclick', e => {
       const b = e.layer.getBounds();
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
@@ -872,10 +926,11 @@ async function loadMap() {
     mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old], i) =>
       ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true }));
     const marks = mapPts.map(p => {
-      const m = L.marker([p.lat, p.lng]);
+      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mk-p', html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }) });
       m.p = p;
       m.bindPopup(() => popHtml([p]), { minWidth: 250, maxWidth: 250 });
       m.on('popupopen', () => loadItems([p.num]));
+      if (hoverOk) m.on('mouseover', () => { clearTimeout(hoverT); if (!m.isPopupOpen()) m.openPopup(); });
       return m;
     });
     map.addLayer(cluster);
@@ -910,8 +965,14 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-view]').forEach(x => { x.classList.toggle('on', x === b); x === b ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
   $('#list').hidden = view === 'map'; $('#map').hidden = view !== 'map'; $('#more').hidden = view === 'map' || offset >= total; $('#layouts').hidden = view === 'map';
   $('#maplist').hidden = view !== 'map';
+  document.body.classList.toggle('mapmode', view === 'map');   // v5.15: слева объявления области в 2 столбца, справа карта, фильтр свёрнут
+  if (view === 'map' && !mobile()) openF(false);
   view === 'map' ? loadMap() : search();
 });
+// маленькая карта над фильтром (v5.15): «Показать объекты на карте»
+$('#minimap')?.addEventListener('click', () => $('#go-map').click());
+$('#ml-reset')?.addEventListener('click', () => { f = {}; $('#q').value = ''; text = ''; renderFilters(); changed(); });
+$('#ml-filter')?.addEventListener('click', () => { const on = $('#filters').classList.contains('closed'); openF(on); });
 
 // ---------- меню ----------
 // «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
@@ -919,7 +980,7 @@ const LISTS = { favs: ['fav', 'Показано избранное — к пои
   deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
-  menuOpen(false);   // на телефоне меню — панель под «☰ Меню»: выбрали раздел — закрыть
+  menuOpen(false); mgClose();   // на телефоне меню — панель под «☰ Меню»: выбрали раздел — закрыть
   if (g === 'all' && favMode) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); }   // «Все объявления» — назад к поиску
   if (LISTS[g]) {
     const was = favMode;
@@ -944,6 +1005,23 @@ $('#logout').onclick = () => { menuOpen(false); logout(); };
 // телефон: шапка в одну строку — логотип, профиль со счётчиком номеров и «☰ Меню» (все разделы — в панели под шапкой)
 function menuOpen(on) { $('.top').classList.toggle('open', on); $('#burger').setAttribute('aria-expanded', on); }
 $('#burger').onclick = () => menuOpen(!$('.top').classList.contains('open'));
+// группы меню («Объявления», «Моё», «Продвижение»…): открываются только нажатием, не наведением; на телефоне — заголовки списка
+function mgClose(except) { document.querySelectorAll('.mg.open').forEach(g => { if (g !== except) { g.classList.remove('open'); g.querySelector('.mg-b').setAttribute('aria-expanded', false); } }); }
+document.querySelectorAll('.mg-b').forEach(b => b.onclick = e => {
+  e.stopPropagation();
+  const g = b.closest('.mg'), on = !g.classList.contains('open');
+  mgClose(g); g.classList.toggle('open', on); b.setAttribute('aria-expanded', on);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.mg')) mgClose(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') mgClose(); });
+// группа видна, если в ней есть видимый пункт; подсвечена, если открыт её пункт
+function mgSync() {
+  document.querySelectorAll('.mg').forEach(g => {
+    const items = [...g.querySelectorAll('.mg-p > [data-go], .mg-p > a')];
+    g.hidden = !items.some(i => !i.hidden && !(document.body.classList.contains('client') && i.classList.contains('agent-only')));
+    g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
+  });
+}
 // активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
 function tabs() {
   const on = sheetGo && !$('#sheet').hidden ? sheetGo : favMode || 'all';
@@ -952,11 +1030,13 @@ function tabs() {
     b.classList.toggle('on', b.dataset.go === on);
     b.dataset.go === on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   });
+  mgSync();
 }
 
 // ---------- режим «С клиентом» ----------
 function clientUi() {
   document.body.classList.toggle('client', client.on);
+  mgSync();
   const b = $('#go-client');
   b.classList.toggle('on', client.on);
   b.textContent = client.on ? '👤 С клиентом ✓' : '👤 С клиентом';
@@ -979,7 +1059,7 @@ function clientSheet() {
 }
 
 // ---------- админ-панель — site/admin.js: участники и настройки на одной странице, одна кнопка «Сохранить» ----------
-function admin() { ADMIN.open(); }
+function admin() { location.href = 'admin.html'; }   // v5.15: админка — своя страница, первым экраном «Сводка»
 
 // ---------- оплата — страница pay.html (шаг 2.2) ----------
 // вход прошёл, но доступ истёк или заявка не одобрена — оплата сразу

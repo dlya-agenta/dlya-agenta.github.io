@@ -5,7 +5,7 @@
 window.CRM = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const ST = { new: 'Новый', work: 'В работе', show: 'Показ', deal: 'Сделка', lost: 'Отказ' };
+  const ST = { new: 'Новый', work: 'В работе', show: 'Показ', deposit: 'Задаток', deal: 'Сделка', lost: 'Отказ' };
   const SRC = { call: 'Звонок', avito: 'Авито', site: 'Сайт', ref: 'Рекомендация', other: 'Другое' };
   const VIA = [['tg', 'Telegram-бот'], ['push', 'Push'], ['site', 'Окно на сайте']];
   let ui = null, meta = null, L = null, C = null, F = { status: '', q: '' }, view = 'home';
@@ -104,14 +104,15 @@ window.CRM = (() => {
         <div class="crm-ctop"><h3>${esc(c.name || c.phone || 'Без имени')}</h3><button type="button" class="btn ghost" data-edit>Изменить</button></div>
         <div class="crm-chips">${Object.entries(ST).map(([k, v]) => `<button type="button" class="chip${c.status === k ? ' on' : ''}" data-set-st="${k}">${v}</button>`).join('')}</div>
         ${c.phone ? `<div class="crm-phone"><b>${esc(c.phone)}</b><span><a class="btn soft" href="tel:+${esc(d)}">📞 Позвонить</a>
-          <a class="btn ghost" href="https://wa.me/${esc(d)}" target="_blank" rel="noopener">WhatsApp</a><button type="button" class="btn ghost" data-copy-phone>Копировать</button></span></div>` : ''}
+          <a class="btn ghost" href="https://wa.me/${esc(d)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost" href="https://t.me/+${esc(d)}" target="_blank" rel="noopener">Telegram</a>
+          <a class="btn ghost" href="${innerWidth <= 760 ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}" title="MAX: номер скопируется — найдите контакт">MAX</a><button type="button" class="btn ghost" data-copy-phone>Копировать</button></span></div>` : ''}
         <p class="muted crm-meta">${[c.source ? `Источник: ${esc(SRC[c.source])}` : '', `изменён ${esc(when(c.updated_at))}`].filter(Boolean).join(' · ')}</p>
         ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
       </section>
       <section class="crm-sec"><div class="crm-h"><b>Задачи</b><button type="button" class="btn ghost" data-new-task>＋ Задача</button></div>
         ${open.length ? open.map(t => taskRow(t, false)).join('') : '<p class="muted crm-empty">Открытых задач нет.</p>'}
         ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(t => taskRow(t, false)).join('')}</details>` : ''}</section>
-      <section class="crm-sec"><div class="crm-h"><b>Объекты · ${n}</b><button type="button" class="btn ghost" data-favs>⭐ Из избранного</button></div>
+      <section class="crm-sec"><div class="crm-h"><b>Объекты · ${n}</b><span><button type="button" class="btn ghost" data-from-sel>📄 Из подборки</button><button type="button" class="btn ghost" data-favs>⭐ Из избранного</button></span></div>
         ${n ? `<div class="crm-sel"><button type="button" class="btn primary" data-sel="pdf">📄 Подборка PDF</button><button type="button" class="btn soft" data-sel="link">🔗 Подборка ссылкой</button></div>
           ${n > 10 ? '<p class="hint">В подборку войдут 10 последних объектов.</p>' : ''}` : '<p class="muted crm-empty">Объектов нет. На карточке объекта нажмите «👥 Клиенту» — он появится здесь.</p>'}
         <div class="crm-objs">${C.items.map(x => `<div class="crm-obj" data-num="${x.num}">
@@ -120,6 +121,36 @@ window.CRM = (() => {
           <button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
       <p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p></div>`;
     bind(onClient);
+  }
+  // «📄 Из подборки» (v5.15): объекты подборки — клиенту; живую ссылку подборки — клиенту в WhatsApp, Telegram, MAX или скопировать
+  async function fromSel(c) {
+    body().innerHTML = '<p class="muted">Загрузка подборок…</p>';
+    let r; try { r = await ui.call('sel_list', {}); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    const d = digits(c.phone), items = (r.items ?? []).filter(s => s.nums?.length);
+    const msg = s => `Подборка объектов${s.title ? ` «${s.title}»` : ''}: ${s.link}`;
+    body().innerHTML = `<div class="crm">
+      <button type="button" class="btn ghost crm-back" data-back>‹ ${esc(c.name || c.phone || 'Клиент')}</button>
+      <section class="crm-sec"><div class="crm-h"><b>Подборки</b><span class="muted">${items.length}</span></div>
+        ${items.length ? items.map(s => `<div class="crm-selrow" data-sid="${s.id}"><b>${esc(s.title || 'Подборка')}</b>
+          <small class="muted">${esc(when(s.created_at))} · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}</small>
+          <span class="crm-sel"><button type="button" class="btn primary" data-sel-add>＋ Объекты клиенту</button>
+          ${s.link && s.live ? `${d ? `<a class="btn soft" href="https://wa.me/${esc(d)}?text=${encodeURIComponent(msg(s))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+            <a class="btn soft" href="https://t.me/share/url?url=${encodeURIComponent(s.link)}&text=${encodeURIComponent(s.title || 'Подборка объектов')}" target="_blank" rel="noopener">Telegram</a>
+            <button type="button" class="btn ghost" data-sel-copy="${esc(msg(s))}">MAX · скопировать</button>` : '<small class="muted">ссылки нет — соберите подборку «Ссылкой» или «Оба»</small>'}</span></div>`).join('')
+          : '<p class="muted crm-empty">Подборок пока нет. Отметьте объекты в выдаче и нажмите «Сформировать подборку».</p>'}</section></div>`;
+    bind(async e => {
+      const t = e.target;
+      if (t.closest('[data-back]')) return client(c.id);
+      const cp = t.closest('[data-sel-copy]');
+      if (cp) { try { await navigator.clipboard.writeText(cp.dataset.selCopy); ui.toast('Скопировано — вставьте в чат клиента в MAX'); } catch { ui.toast(cp.dataset.selCopy, 8000); } return; }
+      const add = t.closest('[data-sel-add]');
+      if (add) {
+        const s = items.find(x => x.id === +add.closest('[data-sid]').dataset.sid);
+        add.disabled = true;
+        try { const x = await ui.call('crm_obj_nums', { client_id: c.id, nums: s.nums }); ui.toast(x.added ? `Добавлено клиенту: ${x.added}${x.skipped ? ` (не поместилось: ${x.skipped})` : ''}` : 'Все объекты подборки уже есть у клиента'); return client(c.id); }
+        catch (er) { ui.toast(er.message, 5000); add.disabled = false; }
+      }
+    });
   }
   const what = x => [x.type_name || (x.rooms ? `${x.rooms}-комн.` : ''), x.area ? `${x.area} м²` : '', x.floor ? `${x.floor}${x.floors ? '/' + x.floors : ''} эт.` : '',
     x.zk || x.complex || x.sub || x.district || ''].filter(Boolean).join(' · ');
@@ -135,6 +166,7 @@ window.CRM = (() => {
       try { await ui.call('crm_client_save', { ...c, status: st }); C.client.status = st; drawClient(); ui.toast(`Статус: ${ST[st]}`); } catch (er) { ui.toast(er.message, 5000); }
       return;
     }
+    if (t.closest('[data-from-sel]')) return fromSel(c);
     if (t.closest('[data-favs]')) {
       try { const r = await ui.call('crm_obj_favs', { client_id: c.id }); ui.toast(r.added ? `Добавлено из избранного: ${r.added}` : 'Новых объектов в избранном нет'); if (r.added) client(c.id); } catch (er) { ui.toast(er.message, 5000); }
       return;

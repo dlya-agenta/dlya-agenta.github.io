@@ -40,7 +40,7 @@ window.PLANS = (() => {
 
   // окно «Что даёт PRO»: три тарифа рядом (значения — из app_settings.plans, свободные места — с сервера)
   const ROWS = [
-    ['Цена в месяц', p => `<b>${p.usd} $</b>`],
+    ['Цена в месяц', p => `<b>${window.HUB?.rub(p.usd) || `${p.usd} $`}</b>${window.HUB?.rub(p.usd) ? `<br><small class="muted">${p.usd} $ (USDT)</small>` : ''}`],
     ['Номеров в день', p => p.phones_day],
     ['Номеров в месяц', p => p.phones_month],
     ['Устройств одновременно', p => p.devices],
@@ -50,7 +50,10 @@ window.PLANS = (() => {
     ['Готовые черновики реальных квартир', p => p.opts.rk_daily ? `${p.opts.rk_daily} в день` : '—'],
     ['Рассылки в Telegram, WhatsApp и MAX', p => p.opts.mail_items ? `до ${p.opts.mail_items} объявлений` : '—'],
     ['Поиск по домовым чатам Сочи', p => p.opts.house_chats ? 'скоро' : '—'],
-    ['Продающие ролики из фото', p => p.opts.video ? 'скоро' : '—'],
+    ['Видеомонтаж-СММ: ролики из фото', p => p.opts.video ? `✓ до ${p.opts.video_day ?? 10} в сутки` : '—'],
+    ['🤖 Мой помощник: поиск словами и голосом', p => p.id === 'sub' ? `${p.opts.helper ?? 3} пробных` : `${p.opts.helper ?? 0} в месяц`],
+    ['📑 «Сделка»: документы, проверки, чаты, ИИ-юрист', p => p.opts.deal ? `со 2-го месяца · ИИ ${p.opts.deal_ai ?? 2} раза в сутки` : '—'],
+    ['💎 Эксклюзивы, 💬 чат, 🏗 новостройки и фиксации, 📈 цены рынка', () => '✓'],
     ['Скидка за 3 / 12 месяцев', p => p.disc_m3 || p.disc_m12 ? `${p.disc_m3}% / ${p.disc_m12}%` : '—'],
     ['Мест', p => p.seats == null ? 'без ограничений' : p.free == null ? p.seats : p.free ? `свободно ${p.free} из ${p.seats}` : `мест нет (из ${p.seats})`],
   ];

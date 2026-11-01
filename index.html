@@ -10,11 +10,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.7">
+<link rel="stylesheet" href="style.css?v=5.15">
 <script src="design.js?v=5.5"></script>
 <link rel="stylesheet" href="offer.css?v=5.8.1">
 <link rel="stylesheet" href="notify.css?v=5.9.1">
-<link rel="stylesheet" href="crm.css?v=5.12.1">
+<link rel="stylesheet" href="crm.css?v=5.15">
 <link rel="stylesheet" href="reklama/rk.css?v=5.13">
 <link rel="stylesheet" href="support.css?v=5.11">
 <link rel="manifest" href="manifest.json">
@@ -34,15 +34,43 @@
       <span><b>Для Агента</b><small>5 минут — вместо тысячи часов!</small></span>
     </div>
     <nav class="menu" id="menu">
-      <button class="link on" data-go="all" aria-current="page"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></button>
-      <button class="link" data-go="favs">★ Избранное</button>
-      <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
-      <button class="link agent-only" data-go="sels"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span></button>
-      <button class="link agent-only" data-go="crm" id="go-crm" hidden>👥 Клиенты<b class="crm-badge" id="crm-badge" hidden></b></button>
-      <button class="link agent-only" data-go="rk" id="go-rk">📣 Реклама</button>
-      <button class="link agent-only" data-go="mail" id="go-mail">✉️ Рассылки</button>
-      <button class="link agent-only" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
-      <a class="link agent-only" href="partner.html" id="go-ref"><span class="lbl-long">🤝 Партнёрская программа</span><span class="lbl-short">🤝 Партнёрам</span> <span class="ref-30" style="background:#facc15;color:#422006;border-radius:6px;padding:1px 5px;font-size:11.5px;font-weight:700">30%</span></a>
+      <div class="mg" data-g="obj"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🏠 Объявления <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <button class="link on" data-go="all" aria-current="page"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></button>
+          <a class="link agent-only" href="hub.html#newb">🏗 Новостройки</a>
+          <a class="link agent-only" href="hub.html#excl">💎 Эксклюзивы коллег</a>
+          <button class="link agent-only" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
+          <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
+        </div></div>
+      <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <button class="link" data-go="favs">★ Избранное</button>
+          <button class="link agent-only" data-go="sels"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span></button>
+          <button class="link agent-only" data-go="crm" id="go-crm" hidden>👥 Клиенты<b class="crm-badge" id="crm-badge" hidden></b></button>
+          <a class="link agent-only" href="hub.html#deal">📑 Сделки</a>
+          <a class="link agent-only" href="hub.html#fix">📌 Фиксации</a>
+        </div></div>
+      <div class="mg" data-g="promo"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">📣 Продвижение <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
+          <button class="link agent-only" data-go="rk" id="go-rk">📣 Реклама</button>
+          <button class="link agent-only" data-go="mail" id="go-mail">✉️ Рассылки</button>
+          <a class="link agent-only" href="hub.html#video">🎬 Видеомонтаж-СММ</a>
+        </div></div>
+      <div class="mg" data-g="help"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🤖 Помощник <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <a class="link agent-only" href="hub.html#helper">🤖 Мой помощник</a>
+          <a class="link agent-only" href="hub.html#chat">💬 Чат подписчиков</a>
+          <a class="link agent-only" href="hub.html#taxes">🧾 Налоги при продаже</a>
+          <a class="link agent-only" href="hub.html#deal">📚 База знаний по сделкам</a>
+          <a class="link" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a>
+        </div></div>
+      <div class="mg" data-g="cab"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">👤 Кабинет <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <a class="link agent-only" href="hub.html#balance">💰 Баланс</a>
+          <a class="link agent-only" href="partner.html" id="go-ref"><span class="lbl-long">🤝 Партнёрская программа</span><span class="lbl-short">🤝 Партнёрам</span> <span class="ref-30" style="background:#facc15;color:#422006;border-radius:6px;padding:1px 5px;font-size:11.5px;font-weight:700">30%</span></a>
+          <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
+        </div></div>
       <button class="link client-btn" data-go="client" id="go-client">👤 С клиентом</button>
       <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
       <button class="link" data-go="pay" id="go-pay" hidden>Продлить доступ</button>
@@ -55,14 +83,15 @@
 
   <main>
     <form id="qform" class="search">
-      <div class="qbox"><input id="q" type="search" placeholder="Улица, дом, ЖК или «2к до 15 млн Мамайка»" autocomplete="off" enterkeyhint="search" aria-label="Поиск: улица, дом, ЖК, район или запрос словами"></div>
+      <div class="qbox"><input id="q" type="search" placeholder="Улица, дом, ЖК или «2к до 15 млн Мамайка»" autocomplete="off" enterkeyhint="search" aria-label="Поиск: улица, дом, ЖК, район или запрос словами"><button type="button" class="q-mic agent-only" id="q-mic" title="Спросить помощника голосом" aria-label="Спросить помощника голосом" hidden>🎤</button></div>
       <button type="submit" class="btn primary">Найти</button>
       <button type="button" class="btn ghost" id="toggle-f">Фильтры <span id="fcount"></span></button>
     </form>
     <div class="chips q-place" id="q-place"></div>
 
     <section id="filters" class="filters closed" aria-label="Фильтры">
-      <div class="fhead"><b>Фильтры</b><button type="button" class="x" id="f-close" aria-label="Закрыть фильтры">✕</button></div>
+      <button type="button" class="minimap" id="minimap" aria-label="Показать объекты на карте"><span>🗺 Показать объекты на карте</span></button>
+      <div class="fhead"><b>Фильтры</b><button type="button" class="x" id="f-close" aria-label="Скрыть фильтры" title="Скрыть фильтр">⟨</button></div>
       <div class="fside-row"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇦ Фильтр слева</button></div>
       <div class="fcols">
         <div class="fcol">
@@ -79,10 +108,10 @@
         <div class="fcol">
           <div class="fcell"><div class="fl" data-h="floor">Этаж</div>
             <div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
-            <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label></div></div>
+            <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label><label data-h="nold"><input type="checkbox" id="nold"> не старый фонд</label></div></div>
           <div class="fcell"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
           <div class="fcell"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
-          <div class="fcell agent-only"><div class="fl" data-h="ext">Собственники напрямую с площадок</div><div class="chips" id="f-ext"></div></div>
+          <div class="fcell agent-only"><div class="fl" data-h="ext">Источники</div><div class="checks"><label><input type="checkbox" id="f-ext"> Дополнительный поиск с рекламных источников</label></div></div>
           <div class="fcell"><div class="fl" data-h="sort">Сортировка</div>
             <select id="sort" aria-label="Сортировка">
               <option value="new">Сначала новые</option>
@@ -111,6 +140,7 @@
     <button id="more" class="btn more" hidden>Показать ещё</button>
     <div id="map" class="map" hidden></div>
     <section id="maplist" class="maplist" hidden>
+      <div class="ml-filter"><button type="button" class="link" id="ml-filter">⚙ Фильтр</button><button type="button" class="link" id="ml-reset">Сбросить все</button></div>
       <div class="ml-head"><b id="ml-count"></b>
         <select id="ml-sort" aria-label="Сортировка списка">
           <option value="new">Сначала новые</option><option value="price">Сначала дешевле</option>
@@ -149,20 +179,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.2" defer></script>
+<script src="filters.js?v=5.15" defer></script>
 <script src="suggest.js?v=5.2.1" defer></script>
 <script src="offer.js?v=5.8" defer></script>
-<script src="plans.js?v=5.8" defer></script>
+<script src="plans.js?v=5.15" defer></script>
 <script src="mfa.js?v=5.7" defer></script>
-<script src="admin.js?v=5.12" defer></script>
+<script src="admin.js?v=5.15" defer></script>
 <script src="guest.js?v=5.6.1" defer></script>
 <script src="partner.js?v=5.10" defer></script>
 <script src="profile.js?v=5.10" defer></script>
 <script src="notify.js?v=5.12" defer></script>
-<script src="share.js?v=5.9" defer></script>
-<script src="crm.js?v=5.12" defer></script>
+<script src="share.js?v=5.15" defer></script>
+<script src="crm.js?v=5.15" defer></script>
 <script src="reklama/rk.js?v=5.13" defer></script>
-<script src="app.js?v=5.14" defer></script>
+<script src="hub.js?v=5.15" defer></script>
+<script src="app.js?v=5.15" defer></script>
 <script src="support.js?v=5.11" defer></script>
 </body>
 </html>

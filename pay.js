@@ -15,7 +15,9 @@ window.PAYUI = (() => {
   let payTok = null;
   try { payTok = sessionStorage.getItem('pay_token'); } catch { /* приватный режим */ }
   const who = () => token ? { auth: { token } } : payTok ? { pay: payTok } : {};
-  const money = v => `${Number(v).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(+v) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  const usdStr = v => `${Number(v).toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(+v) ? 0 : 2, maximumFractionDigits: 2 })} $`;
+  // v5.15: в тексте — рубли по курсу ЦБ, доллары рядом (USDT ≈ $)
+  const money = v => window.HUB?.rub(v) ? `${HUB.rub(v)} (${usdStr(v)})` : usdStr(v);   // простой текст: попадает и в esc()
   const num = v => Number(v).toFixed(2).replace(/\.00$/, '');   // сумма к переводу — как в кошельках: «99.07»
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : '';
   const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -59,6 +61,7 @@ window.PAYUI = (() => {
   async function start() {
     tg?.ready(); tg?.expand();
     if (!token && !payTok) return needLogin();
+    await window.HUB?.rate();
     try { I = await call('info'); }
     catch (e) { return e.status === 401 || e.status === 403 ? needLogin(e.message) : gate(`<h2>Ошибка</h2><p>${esc(e.message)}</p><a class="btn ghost" href="./">На главную</a>`); }
     $('#gate').hidden = true; $('#app').hidden = false;
@@ -68,7 +71,8 @@ window.PAYUI = (() => {
     $('#go-adm').hidden = I.me.role !== 'admin';
     if (location.hash === '#admin' && I.me.role === 'admin' && window.PAYADM) return PAYADM.open();
     const q = new URLSearchParams(location.search);
-    sel = q.get('pack') ? { kind: 'pack' } : { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : defPlan(), months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1 };
+    sel = q.get('pack') ? { kind: 'pack' } : q.get('topup') ? { kind: 'topup', amount: 50 } : +q.get('urgent') ? { kind: 'urgent', msg_id: +q.get('urgent') }
+      : { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : defPlan(), months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1 };
     offerId = +q.get('offer') || null;
     if (offerId) sel = { kind: 'plan', plan: 'pro', months: 1 };
     if (!I.can) return closed(q);
@@ -90,7 +94,8 @@ window.PAYUI = (() => {
       ${I.open.length ? `<section class="pcard" id="p-open"><h2>Незавершённый счёт</h2>${I.open.map(x => `<div class="prow"><span>${esc(x.what)} · <b>${num(x.amount)} ${esc(coin(x.asset))}</b>
         <small class="muted">до ${when(x.expires_at)}</small></span><button class="btn soft" data-inv="${x.id}">Открыть</button></div>`).join('')}</section>` : ''}
       <section class="pcard" id="p-what"><h2>1. Что оплачиваем</h2>
-        <div class="segs"><button type="button" class="chip ${sel.kind === 'plan' ? 'on' : ''}" data-kind="plan">Тариф</button><button type="button" class="chip ${sel.kind === 'pack' ? 'on' : ''}" data-kind="pack">Пакет номеров</button></div>
+        <div class="segs"><button type="button" class="chip ${sel.kind === 'plan' ? 'on' : ''}" data-kind="plan">Тариф</button><button type="button" class="chip ${sel.kind === 'pack' ? 'on' : ''}" data-kind="pack">Пакет номеров</button><button type="button" class="chip ${sel.kind === 'topup' ? 'on' : ''}" data-kind="topup">Пополнить баланс</button>${sel.kind === 'urgent' ? '<button type="button" class="chip on">Срочное объявление</button>' : ''}</div>
+        <p class="hint">На балансе: <b>${money(I.balance ?? 0)}</b> — им можно оплатить тариф или пакет номеров.</p>
         <div id="p-body"></div><div id="p-quote" class="quote" aria-live="polite"></div></section>
       <section class="pcard" id="p-way"><h2>2. Способ оплаты</h2><div id="p-ways"></div>
         <button type="button" class="btn primary pgo" id="p-go" disabled>Перейти к оплате</button>
@@ -103,8 +108,18 @@ window.PAYUI = (() => {
     `${p.devices} ${p.devices === 1 ? 'устройство' : p.devices < 5 ? 'устройства' : 'устройств'} одновременно`,
     p.opts?.arch && 'Архив за 2 года и объявления старше 6 месяцев', p.opts?.rk_month && `Черновики для рекламы: ${p.opts.rk_month} в месяц`,
     p.opts?.mail_items && `Рассылки в мессенджеры: до ${p.opts.mail_items} объявлений`, p.opts?.house_chats && 'Поиск по домовым чатам Сочи (скоро)'].filter(Boolean);
+  // что считать: тариф, пакет, пополнение (сумма), срочное объявление чата (номер сообщения)
+  const args = () => sel.kind === 'pack' ? { kind: 'pack' } : sel.kind === 'topup' ? { kind: 'topup', amount: sel.amount } : sel.kind === 'urgent' ? { kind: 'urgent', msg_id: sel.msg_id }
+    : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId };
   function body() {
     const el = $('#p-body');
+    if (sel.kind === 'topup') {
+      el.innerHTML = `<label class="field">Сумма пополнения, $ (USDT)<input type="number" id="p-amt" min="10" max="5000" step="1" value="${sel.amount}" inputmode="decimal"></label>
+        <p class="hint">≈ ${window.HUB?.rub(sel.amount) || ''}. От 10 до 5000 $. Баланс тратится на тарифы и пакеты номеров; партнёрское вознаграждение тоже можно перевести на баланс.</p>`;
+      $('#p-amt').oninput = () => { clearTimeout(body.t); body.t = setTimeout(() => { sel.amount = +$('#p-amt').value || 0; requote(); }, 400); };
+      return;
+    }
+    if (sel.kind === 'urgent') { el.innerHTML = '<p>Срочное объявление в чате подписчиков: после оплаты оно опубликуется и будет закреплено наверху.</p>'; return; }
     if (sel.kind === 'pack') {
       el.innerHTML = `<p>Пакет <b>${I.pack.qty} номеров за ${money(I.pack.usd)}</b> добавляется к лимиту на день и на месяц до конца вашего месяца${I.quota?.month_end ? ` (до ${day(I.quota.month_end)})` : ''}. Повтор уже открытого номера — бесплатно.</p>`;
       return;
@@ -126,7 +141,7 @@ window.PAYUI = (() => {
     const el = $('#p-quote'), n = ++qn;
     Q = null; goBtn(); el.innerHTML = '<span class="muted">Считаем…</span>';
     try {
-      const r = await call('quote', sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId });
+      const r = await call('quote', args());
       if (n !== qn) return;
       Q = r; el.innerHTML = quoteHtml(r);
     } catch (e) {
@@ -136,7 +151,7 @@ window.PAYUI = (() => {
     goBtn(); rateLine();
   }
   function quoteHtml(q) {
-    const rows = q.kind === 'pack' ? [[`Пакет ${q.qty} номеров`, money(q.price)]]
+    const rows = q.kind === 'topup' ? [['Пополнение баланса', money(q.price)]] : q.kind === 'urgent' ? [['Срочное объявление в чате', money(q.price)]] : q.kind === 'pack' ? [[`Пакет ${q.qty} номеров`, money(q.price)]]
       : [[`${plan(q.plan).name} × ${q.months} мес.`, money(q.price)], q.disc && [q.offer ? `Скидка ${q.disc_pct}% на первый месяц` : `Скидка ${q.disc_pct}% за ${q.months} мес.`, `−${money(q.disc)}`],
         q.credit && [`Зачёт: ${q.credit_days} дн. тарифа ${plan(q.from).name}`, `−${money(q.credit)}`]].filter(Boolean);
     const note = q.kind === 'upgrade' ? `Переход на ${plan(q.plan).name}: неиспользованные дни засчитаны, новый период — с даты оплаты.`
@@ -148,13 +163,15 @@ window.PAYUI = (() => {
   function ways() {
     const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
       `<button type="button" class="chip ${way?.method === mt && way?.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div>`;
-    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]), all = [...cb, ...nets];
+    const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]);
+    const bal = sel.kind !== 'topup' && Number(I.balance) > 0 ? [['balance', 'USD', `С баланса (${window.HUB?.rub(I.balance) || `${I.balance} $`})`]] : [];
+    const all = [...cb, ...nets, ...bal];
     if (!all.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
     if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // по умолчанию — USDT через CryptoBot, без него — первая сеть
     const main = cb.length ? `<div class="way main"><div class="lbl">Основной способ: @${m.cryptobot.bot}${m.cryptobot.test ? ' (тест)' : ''} в Telegram <span class="tag ok">Рекомендуем</span></div>${chips(cb)}</div>` : '';
     const other = !nets.length ? '' : cb.length ? `<details class="way" ${way.method === 'direct' ? 'open' : ''}><summary>Другой способ: перевод USDT с кошелька или биржи</summary>${chips(nets)}</details>`
       : `<div class="way"><div class="lbl">Перевод USDT с кошелька или биржи</div>${chips(nets)}</div>`;
-    el.innerHTML = `${main}${other}<p class="hint" id="p-rate"></p>`;
+    el.innerHTML = `${main}${other}${bal.length ? `<div class="way"><div class="lbl">С вашего баланса — сразу, без перевода</div>${chips(bal)}</div>` : ''}<p class="hint" id="p-rate"></p>`;
     rateLine(); goBtn();
   }
   function rateLine() {
@@ -163,19 +180,22 @@ window.PAYUI = (() => {
     el.textContent = way?.method === 'cryptobot' && way.x === 'TON' ? (r ? `1 Gram (TON) = ${r.usd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ · курс зафиксирован ${fixed(r.fixed_at)} МСК`
         + (Q ? ` · к оплате ${num(Math.ceil(Math.round(Q.total / r.usd * 1e6) / 1e4) / 100)} Gram` : '') : 'Курс Gram обновляется — сумма будет в счёте.')
       : way?.method === 'direct' ? 'В счёте будет своя сумма с центами (например, 99.07) — по ней мы находим ваш перевод.'
-      : way?.method === 'cryptobot' ? 'Сумма и валюта будут в счёте @CryptoBot — останется нажать «Оплатить».' : '';
+      : way?.method === 'cryptobot' ? 'Сумма и валюта будут в счёте @CryptoBot — останется нажать «Оплатить».'
+      : way?.method === 'balance' ? (Q && Q.total > Number(I.balance) ? 'На балансе не хватает — пополните или выберите другой способ.' : 'Спишем с баланса и сразу подключим.') : '';
   }
   function goBtn() {
     const b = $('#p-go');
     if (!b) return;
-    b.disabled = !Q || !way;
+    b.disabled = !Q || !way || (way.method === 'balance' && Q.total > Number(I.balance));
     b.textContent = Q ? `Перейти к оплате — ${money(Q.total)}` : 'Перейти к оплате';
   }
   async function createInv(btn) {
+    // правила площадки — перед первой покупкой и пополнением (v5.15): прочитать до конца и принять
+    if (!I.rules_ok && window.HUB && token) { if (!(await HUB.rules())) return; I.rules_ok = true; }
     btn.disabled = true;
     try {
-      const r = await call('create', { ...(sel.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId }),
-        method: way.method, ...(way.method === 'cryptobot' ? { asset: way.x } : { network: way.x }) });
+      const r = await call('create', { ...args(), method: way.method, ...(way.method === 'cryptobot' ? { asset: way.x } : way.method === 'balance' ? { key: `${Date.now()}` } : { network: way.x }) });
+      if (r.paid) { toast('Оплачено с баланса — подключено', 5000); setTimeout(() => location.href = sel.kind === 'urgent' ? 'hub.html#chat' : 'pay.html', 1500); return; }
       showInvoice(r.invoice);
     } catch (e) { toast(e.message, 6000); btn.disabled = false; }
   }
@@ -262,7 +282,7 @@ window.PAYUI = (() => {
   // ---------- история ----------
   const ST = { wait: ['ждём оплату', ''], pending: ['ждём оплату', ''], paid: ['оплачен', 'ok'], timeout: ['истёк', 'grey'], expired: ['истёк', 'grey'],
     review: ['проверяется', 'warn'], rejected: ['отклонён', 'bad'] };
-  const how = x => x.method === 'cryptobot' ? `CryptoBot${x.test ? ' (тест)' : ''}` : x.method === 'manual' ? 'вручную' : `перевод · ${x.net_name ?? 'TRC-20'}`;
+  const how = x => x.method === 'cryptobot' ? `CryptoBot${x.test ? ' (тест)' : ''}` : x.method === 'manual' ? 'вручную' : x.method === 'balance' ? 'с баланса' : `перевод · ${x.net_name ?? 'TRC-20'}`;
   function hist() {
     const el = $('#p-hist'), list = I.history ?? [];
     el.innerHTML = list.length ? `<div class="phist">${list.map(x => `<div class="ph"><span class="ph-what"><b>${esc(x.what)}</b><small class="muted">${when(x.created_at)} · ${esc(how(x))}</small></span>
@@ -285,7 +305,7 @@ window.PAYUI = (() => {
   document.addEventListener('click', async e => {
     const t = e.target.closest('button, a');
     if (!t || !$('#pay').contains(t)) return;
-    if (t.dataset.kind) { sel = t.dataset.kind === 'pack' ? { kind: 'pack' } : { kind: 'plan', plan: defPlan(), months: 1 }; render(); }
+    if (t.dataset.kind) { sel = t.dataset.kind === 'pack' ? { kind: 'pack' } : t.dataset.kind === 'topup' ? { kind: 'topup', amount: 50 } : { kind: 'plan', plan: defPlan(), months: 1 }; render(); }
     else if (t.dataset.plan) { sel.plan = t.dataset.plan; body(); requote(); }
     else if (t.dataset.months) { sel.months = +t.dataset.months; body(); requote(); }
     else if (t.dataset.way) { way = { method: t.dataset.way, x: t.dataset.x }; ways(); }

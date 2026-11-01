@@ -1,0 +1,50 @@
+/* Админка v5.15: тёмная панель разделов слева, плитки с цифрами, графики, тепловая карта (образцы Алексея — «Velar» и дашборд с инфографикой) */
+body.adm2 { background: color-mix(in srgb, var(--soft) 60%, var(--bg, #f4f6fa)); }
+.adm-wrap { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.adm-side { background: #1b2232; color: #c9d2e3; display: flex; flex-direction: column; gap: 4px; padding: 14px 10px; position: sticky; top: 0; height: 100vh; box-sizing: border-box; overflow-y: auto; }
+.adm-brand { display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; padding: 4px 8px 12px; }
+.adm-brand .logo svg { width: 30px; height: 30px; }
+.adm-brand .logo rect { fill: #3b82f6; }
+.adm-brand .logo path { fill: #fff; }
+.adm-side nav { display: grid; gap: 2px; }
+.adm-side nav a, .adm-back { color: #c9d2e3; text-decoration: none; padding: 10px 12px; border-radius: 10px; font-size: 14.5px; display: flex; gap: 10px; align-items: center; }
+.adm-side nav a:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+.adm-side nav a.on { background: #3b82f6; color: #fff; font-weight: 600; }
+.adm-back { margin-top: auto; opacity: .8; }
+.adm-main { padding: 16px 20px 40px; min-width: 0; display: grid; gap: 14px; align-content: start; }
+.adm-head { display: flex; align-items: center; gap: 10px; }
+.adm-head h1 { font-size: 22px; margin: 0; }
+.adm-burger { display: none; }
+.adm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.adm-tile { background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 4px; border-top: 3px solid var(--accent); }
+.adm-tile small { color: var(--muted); font-size: 12.5px; }
+.adm-tile b { font-size: 24px; }
+.adm-tile b small { font-size: 12px; font-weight: 400; }
+.adm-tile span { font-size: 12.5px; color: var(--muted); }
+.adm-ar.up { color: #16a34a; font-weight: 600; }
+.adm-ar.down { color: #dc2626; font-weight: 600; }
+.adm-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; }
+.adm-svg { width: 100%; height: auto; }
+.adm-heat { display: grid; grid-template-columns: 26px repeat(24, 1fr); gap: 2px; font-size: 11px; color: var(--muted); align-items: center; }
+.adm-heat i { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--accent); }
+.adm-bar { display: grid; grid-template-columns: 130px 1fr 60px; gap: 8px; align-items: center; font-size: 13.5px; padding: 2px 0; }
+.adm-bar i { display: block; height: 10px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 70%, transparent); min-width: 2px; }
+.adm-bar b { text-align: right; }
+.adm-key { display: grid; grid-template-columns: 220px auto 1fr auto auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.adm-key small { grid-column: 1 / -1; margin-top: -6px; }
+.adm-key input { font-size: 15px; min-width: 0; }
+.adm-routes { display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(4, minmax(110px, 1fr)) 50px minmax(120px, 1fr); gap: 6px 8px; align-items: center; font-size: 14px; overflow-x: auto; }
+.adm-panel { background: var(--card); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); display: grid; gap: 10px; }
+.tag { border-radius: 6px; padding: 1px 8px; font-size: 12px; background: var(--soft); white-space: nowrap; }
+.tag.ok { background: #dcfce7; color: #166534; }
+.tag.warn { background: #fef3c7; color: #92400e; }
+@media (max-width: 900px) {
+  .adm-wrap { grid-template-columns: 1fr; }
+  .adm-side { position: fixed; z-index: 4000; left: 0; top: 0; width: 260px; transform: translateX(-100%); transition: transform .2s; }
+  .adm-side.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .4); }
+  .adm-burger { display: inline-block; }
+  .adm-main { padding: 12px; }
+  .adm-grid2 { grid-template-columns: 1fr; }
+  .adm-key { grid-template-columns: 1fr auto; }
+  .adm-key input { grid-column: 1 / -1; }
+}

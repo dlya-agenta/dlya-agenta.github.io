@@ -34,6 +34,7 @@
 .crm-st { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--soft); color: var(--link); }
 .crm-st-work { background: color-mix(in srgb, var(--warn) 14%, var(--card)); color: var(--warn); }
 .crm-st-show { background: color-mix(in srgb, #7c3aed 13%, var(--card)); color: #7c3aed; }
+.crm-st-deposit { background: color-mix(in srgb, #0891b2 13%, var(--card)); color: #0891b2; }
 .crm-st-deal { background: var(--ok-soft); color: var(--ok); }
 .crm-st-lost { background: color-mix(in srgb, var(--muted) 14%, var(--card)); color: var(--muted); }
 @media (prefers-color-scheme: dark) { .crm-st-show { color: #b794f6; } }
@@ -74,3 +75,5 @@
 /* окно уведомлений: кнопки задачи в несколько строк */
 .note-card .note-foot { flex-wrap: wrap; }
 .crm a.btn { text-decoration: none; }
+.crm-selrow { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); }
+.crm-selrow .crm-sel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
