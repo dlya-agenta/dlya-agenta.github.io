@@ -1,4 +1,4 @@
-// hub.html (v5.15): разделы по адресу #helper, #deal, #newb, #fix, #excl, #chat, #video, #market, #taxes, #balance, #msg
+// hub.html (v5.15): разделы по адресу #helper, #deal, #lawyer, #broker, #kb (v5.16), #newb, #fix, #excl, #chat, #video, #market, #taxes, #balance, #msg
 // (и #раздел=параметр — открыть сразу нужное: #deal=12, #helper=5, #video=7). Каждый раздел — window.SEC.<имя> = {title, open(arg, ctx)}.
 (() => {
   const $ = s => document.querySelector(s);
@@ -24,7 +24,7 @@
   function route() {
     const [sec, arg] = (location.hash.slice(1) || 'helper').split('=');
     const s = window.SEC?.[sec] ?? window.SEC.helper;
-    document.querySelectorAll('#hub-nav [data-sec]').forEach(a => { const on = a.dataset.sec === sec; a.classList.toggle('on', on); on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'); });
+    window.NAV?.sync();   // подсветка раздела в общем меню группами (nav.js)
     document.title = `${s.title} — Для Агента`;
     $('#hub').innerHTML = '<p class="muted">Загрузка…</p>';
     Promise.resolve(s.open(arg ? decodeURIComponent(arg) : '', { caps, el: $('#hub') })).catch(e => {

@@ -1,0 +1,122 @@
+/* Стиль «Премиум» (v5.16) — тёмный и дорогой: графит, золото и шампань, заголовки и цены — Playfair Display, текст — Manrope,
+   блеск пробегает по золотым кнопкам, у карточек — тонкая золотая рамка, которая разгорается при наведении. Всегда тёмный (и днём).
+   Анимируются только transform и opacity; при «уменьшить движение» — всё стоит. Подключается поверх style.css (design.js). */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+:root {
+  color-scheme: dark;
+  --bg: #0d0e11;
+  --card: #17181d;
+  --card2: #1e1f26;
+  --text: #f3eee4;
+  --muted: #aaa294;
+  --accent: #d6b25e;
+  --accent-text: #1a1406;
+  --link: #e8c979;
+  --line: rgba(214, 178, 94, .16);
+  --soft: #2a2519;
+  --ok: #6fd39c;
+  --ok-soft: #15291e;
+  --warn: #f0b545;
+  --bad: #ff7a72;
+  --radius: 14px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 10px 30px rgba(0, 0, 0, .45);
+  --gold: linear-gradient(135deg, #f4dc9b 0%, #d6b25e 40%, #a8843a 75%, #e9cf88 100%);
+  --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+html, body { font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+html { background: var(--bg); }
+body { background: radial-gradient(1200px 600px at 85% -10%, rgba(214, 178, 94, .10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(214, 178, 94, .07), transparent 60%), var(--bg) fixed; }
+body.adm2 { background: var(--bg) !important; }
+::selection { background: rgba(214, 178, 94, .35); }
+
+/* шапка — чёрный графит с золотой линией */
+.top { background: rgba(10, 11, 14, .92) !important; -webkit-backdrop-filter: blur(14px) saturate(1.2) !important; backdrop-filter: blur(14px) saturate(1.2) !important;
+  border-bottom: 1px solid var(--line) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+.top::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #d6b25e 30%, #f4dc9b 50%, #d6b25e 70%, transparent); opacity: .7; }
+.logo svg { border-radius: 12px; background: var(--gold); }
+.logo rect { fill: transparent; }
+.logo path { fill: #1a1406; }
+.brand b { font-family: var(--serif); font-weight: 600; font-size: 21px; letter-spacing: .01em; color: var(--text); }
+.brand small { color: var(--accent) !important; letter-spacing: .06em; text-transform: uppercase; font-size: 11px !important; }
+.top .menu .link, .top > button.who, .top .who #who { color: color-mix(in srgb, var(--text) 86%, transparent); }
+.top .who small { color: var(--muted); }
+.menu .link { letter-spacing: .01em; transition: color .2s, background .2s; }
+.top .menu .link:hover { background: rgba(214, 178, 94, .08); color: var(--link); }
+.top .menu .link.on, .mg-b.on { background: transparent; color: var(--link); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 600; }
+.burger { background: transparent !important; color: var(--link) !important; border-color: var(--line) !important; }
+@media (min-width: 761px) {
+  .top .mg-p { background: #121318; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 50px rgba(0, 0, 0, .6); animation: pfade .2s ease-out; }
+  .top .menu .mg-p .link:hover { background: rgba(214, 178, 94, .1); }
+  .top .menu .mg-p .link.on { box-shadow: inset 2px 0 0 var(--accent); }
+}
+@keyframes pfade { from { opacity: 0; transform: translateY(-4px); } }
+
+/* золотые кнопки с бликом */
+.btn { border-radius: 10px; font-weight: 600; letter-spacing: .01em; position: relative; overflow: hidden; transition: transform .2s ease, box-shadow .2s, background .2s; }
+.btn.primary { background: var(--gold); color: #1a1406; box-shadow: 0 6px 20px rgba(214, 178, 94, .25), inset 0 1px 0 rgba(255, 255, 255, .45); }
+.btn.primary::after { content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 35%; pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .6), transparent); transform: translateX(-200%) skewX(-20deg); animation: shine 5s ease-in-out infinite; }
+@keyframes shine { 0%, 70% { transform: translateX(-200%) skewX(-20deg); } 100% { transform: translateX(420%) skewX(-20deg); } }
+@media (hover: hover) { .btn:not(:disabled):hover { transform: translateY(-1px); } .btn.primary:not(:disabled):hover { box-shadow: 0 10px 28px rgba(214, 178, 94, .38), inset 0 1px 0 rgba(255, 255, 255, .5); } }
+.btn.soft { background: var(--soft); color: var(--link); border: 1px solid var(--line); }
+.btn.ghost { color: var(--link); }
+.chip { border-radius: 9px; border-color: var(--line); background: var(--card2); color: var(--text); }
+.chip.on, .seg.on { background: var(--gold); color: #1a1406; border-color: transparent; }
+input, select, textarea { background: #101115; color: var(--text); border-color: rgba(214, 178, 94, .2); border-radius: 10px; }
+input::placeholder, textarea::placeholder { color: #8d877c; }
+input:focus, select:focus, textarea:focus { outline-color: rgba(214, 178, 94, .55); }
+.search input { box-shadow: 0 0 0 1px var(--line), var(--shadow); border-color: transparent; }
+
+/* карточки и панели — графит, тонкая золотая рамка, при наведении разгорается */
+.card, .hub-sec, .filters, .ucard, .adm-panel, .adm-tile, .hub-lock, .hub-note, .hub-card, .sheet-box, .views {
+  background: linear-gradient(180deg, var(--card2), var(--card)) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow); border-radius: var(--radius); }
+.card, .hub-card, .adm-tile { position: relative; transition: transform .3s cubic-bezier(.2, .8, .2, 1), box-shadow .3s; }
+.card::after, .hub-card::after, .adm-tile::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; z-index: 2;
+  border: 1px solid rgba(244, 220, 155, .75); box-shadow: 0 0 22px rgba(214, 178, 94, .25), inset 0 0 14px rgba(214, 178, 94, .08); opacity: 0; transition: opacity .35s ease; }
+@media (hover: hover) {
+  .card:hover, .hub-card:hover, .adm-tile:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(0, 0, 0, .6); }
+  .card:hover::after, .hub-card:hover::after, .adm-tile:hover::after { opacity: 1; }
+}
+.card, .hub-sec, .adm-tile, .hub-row { animation: pin .6s cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes pin { from { opacity: 0; translate: 0 10px; } }
+.adm-tile { border-top: 1px solid var(--line) !important; }
+.adm-tile::before, .hub-sec::before { content: ''; position: absolute; left: 18px; right: 18px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, #f4dc9b, transparent); opacity: .8; }
+.hub-sec { position: relative; }
+.price b, .adm-tile b { font-family: var(--serif); font-weight: 600; letter-spacing: .01em; }
+.price b { font-size: 24px; color: #f4dc9b; }
+.adm-tile b { font-size: 28px; background: var(--gold); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.adm-tile b small { -webkit-text-fill-color: var(--muted); }
+.hub-main h2, .hub-main h3, .adm-head h1, .sheet-head b, .gate h2 { font-family: var(--serif); font-weight: 600; letter-spacing: .01em; }
+.fl { color: var(--accent); letter-spacing: .1em; }
+.tag { background: var(--soft); color: var(--link); border-radius: 6px; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.pro-line { background: #121318; color: var(--text); border: 1px solid var(--line); }
+.pro-line .btn.soft { background: var(--gold); color: #1a1406; }
+.hub-msg.ai { background: var(--card2); }
+.hub-msg.user { background: var(--soft); }
+.hub-star { color: #ff9b8f; }
+
+/* админка: боковая панель — чёрная с золотом */
+.adm-side { background: #08090b !important; border-right: 1px solid var(--line); }
+.adm-side nav a, .adm-back { color: #cfc7b8 !important; }
+.adm-side .adm-brand b { font-family: var(--serif); color: var(--text); }
+.adm-side .adm-brand .logo rect { fill: transparent; }
+.adm-side nav a:hover { background: rgba(214, 178, 94, .08); color: var(--link) !important; }
+.adm-side nav a.on { background: var(--gold) !important; color: #1a1406 !important; }
+.adm-heat i, .adm-bar i { background: var(--accent) !important; }
+.mk-bar { fill: var(--accent); }
+.mk-line { stroke: var(--accent); }
+
+/* карта и фото не трогаем, только рамка */
+.leaflet-container { background: #1b1c22; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--card2); color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary::after, .card, .hub-sec, .adm-tile, .hub-row, .top .mg-p { animation: none !important; }
+  .btn, .card, .hub-card, .adm-tile, .card::after { transition: none !important; }
+}
+/* цифры — «прямые» (у Playfair по умолчанию старинные, 14 332 читается хуже) */
+.price b, .adm-tile b, .hub-main h2, .adm-head h1 { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: 'lnum' 1; }
+.tag.sea { background: #10232e; color: #7dd3fc; }
+.tag.grey { color: #bdb5a8; }

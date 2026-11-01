@@ -1,0 +1,90 @@
+/* Стиль «Классика» (v5.16) — как админка, которая больше всего нравится Алексею: тёмно-синяя шапка (как боковая панель админки),
+   светлый фон, белые карточки с синей полосой сверху, крупные цифры, аккуратные тени. Подключается поверх style.css (design.js).
+   Тёмная тема устройства — ночной синий. */
+:root {
+  --bg: var(--tg-theme-secondary-bg-color, #eef2f8);
+  --card: var(--tg-theme-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #111827);
+  --muted: var(--tg-theme-hint-color, #5b6474);
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --link: var(--tg-theme-link-color, #1d4ed8);
+  --line: color-mix(in srgb, #111827 10%, transparent);
+  --soft: #e3ebfb;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --bad: #dc2626;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(17, 24, 39, .05), 0 6px 18px rgba(17, 24, 39, .07);
+  --head: #1b2232;
+  --head-text: #e6ebf5;
+  --head-muted: #9aa7bd;
+  --stripe: 3px solid var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #0e131d);
+    --card: var(--tg-theme-bg-color, #171e2b);
+    --text: var(--tg-theme-text-color, #e8edf6);
+    --muted: var(--tg-theme-hint-color, #9aa6b8);
+    --accent: #3b82f6;
+    --link: var(--tg-theme-link-color, #7fb0ff);
+    --line: color-mix(in srgb, #e8edf6 11%, transparent);
+    --soft: #1d2a42;
+    --ok: #4ade80;
+    --ok-soft: #12321f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px rgba(0, 0, 0, .28);
+    --head: #0a0e16;
+  }
+}
+html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+
+/* шапка — как боковая панель админки */
+.top { background: var(--head) !important; color: var(--head-text); border-bottom: 0; box-shadow: 0 2px 14px rgba(10, 14, 22, .18);
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.top .brand b, .top a.brand { color: #fff; text-decoration: none; }
+.top .brand small { color: #8fb4ff; }
+.logo rect { fill: #3b82f6; }
+.top .menu .link, .top > button.who, .top .who #who { color: var(--head-text); }
+.top .who small { color: var(--head-muted); }
+.top .who small.warn, .top .who #quota.warn { color: #ffb4a8; }
+.top .menu .link:hover, .top > button.who:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.top .menu .link.on, .top .mg-b.on { background: #3b82f6; color: #fff; box-shadow: none; font-weight: 600; }
+.burger { background: rgba(255, 255, 255, .08) !important; color: #fff !important; border-color: rgba(255, 255, 255, .2) !important; }
+/* выпадающие группы меню на компьютере — белая панель, как карточка */
+@media (min-width: 761px) {
+  .top .mg-p { background: var(--card); border: 1px solid var(--line); border-top: var(--stripe); border-radius: 12px; box-shadow: 0 14px 34px rgba(10, 14, 22, .22); }
+  .top .menu .mg-p .link { color: var(--text); }
+  .top .menu .mg-p .link:hover { background: var(--soft); color: var(--link); }
+  .top .menu .mg-p .link.on { background: var(--soft); color: var(--link); box-shadow: inset 3px 0 0 var(--accent); }
+}
+@media (max-width: 760px) {
+  .top .menu { border-top-color: rgba(255, 255, 255, .12) !important; }
+  .top .mg-b { color: var(--head-muted) !important; }
+}
+
+/* кнопки и поля */
+.btn { border-radius: 10px; font-weight: 500; transition: background .15s, box-shadow .15s, transform .15s; }
+.btn.primary { background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+.btn.primary:not(:disabled):hover { background: #1d4ed8; }
+.btn.soft { background: var(--soft); color: var(--link); }
+.chip { border-radius: 9px; }
+.chip.on, .seg.on { background: var(--accent); color: #fff; }
+input, select, textarea { border-radius: 10px; }
+.search input { box-shadow: var(--shadow); border-color: transparent; }
+
+/* карточки — белые, синяя полоса сверху, как плитки админки */
+.card, .hub-sec, .filters, .ucard, .adm-panel, .adm-tile, .hub-lock, .hub-card, .hub-note, .prof-plan > div { border-top: var(--stripe) !important; }
+.card { border-left: 0; border-right: 0; border-bottom: 0; box-shadow: var(--shadow); transition: transform .15s ease, box-shadow .15s ease; }
+@media (hover: hover) { .card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(17, 24, 39, .06), 0 16px 34px rgba(17, 24, 39, .13); } }
+.hub-sec, .filters, .ucard { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); border-left: 0; border-right: 0; border-bottom: 0; }
+.price b { font-size: 23px; font-weight: 800; letter-spacing: -.02em; }
+.adm-tile b { font-size: 26px; letter-spacing: -.02em; }
+.fl { color: var(--link); letter-spacing: .06em; }
+.hub-main h2, .adm-head h1 { letter-spacing: -.02em; }
+.sheet-box { border-top: var(--stripe); }
+.pro-line { background: var(--head); color: var(--head-text); }
+.pro-line .btn.soft { background: #3b82f6; color: #fff; }
+.foot { color: var(--muted); }
+@media (prefers-color-scheme: dark) { .tag.sea { background: #0f2433; color: #7dd3fc; } }

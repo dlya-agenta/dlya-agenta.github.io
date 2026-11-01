@@ -1,6 +1,7 @@
-// «Мой помощник» (v5.15, п. 7): каждый диалог — своё окно, слева — история («ИИ помощник»), голос — кнопка 🎤 (распознаёт браузер).
-// Ответ: объекты (как на главной), «понял так», один альтернативный запрос, лимит запросов. После выдачи — не больше 2 раз в диалоге —
-// предложение: написать собственникам, реклама, рассылка, ролик. Сервер — hub/helper.ts.
+// «Мой помощник» (v5.16, п. 2): любая просьба словами или голосом — ИИ сам ищет, анализирует, готовит подборку, ставит задачи в CRM,
+// отправляет в рекламу, готовит рассылку и ролик, создаёт сделку. Ответ: текст ИИ (HUB.md), шаги «что сделал», объекты карточками,
+// кнопки-действия (подборка, разделы, сообщения собственникам). Отмеченные галочками объекты уходят в запрос (picked). Голос — HUB.voice
+// (слушает, пока человек говорит; пауза 4 с или ⏹ — отправка). Каждый диалог — своё окно, слева — история. Сервер — hub/helper.ts.
 (() => {
   const H = window.HUB, esc = H.esc;
   const PH = 'https://arojogajdamsyrrpcmso.supabase.co/storage/v1/object/public/photos/w', MEDIA = 'https://zpkqduhbymvadtwgcyhp.supabase.co/storage/v1/object/public/photos/w';
@@ -9,6 +10,8 @@
   const place = x => [x.zk || x.complex, x.sub || x.district].filter(Boolean).join(' · ');
   const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* */ } } };
   let st = null, cur = null, picked = new Set(), el = null;
+  const TIPS = ['Подбери 3 лучшие студии до 7 млн у моря и сравни с рынком', 'Проанализируй отмеченные объекты: что выгоднее и почему', 'Что у меня в очереди рекламы?',
+    'Поставь задачу: показ завтра в 15:00', 'Сделай подборку из отмеченных', 'Какие документы нужны при продаже по наследству?'];
 
   const card = x => `<label class="hub-card${picked.has(x.num) ? ' on' : ''}" data-num="${x.num}">
     <span class="hub-ph">${photo(x) ? `<img src="${esc(photo(x))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="hub-noph">🏠</span>'}</span>
@@ -38,14 +41,16 @@
       <section class="hub-body">
         <h2>🤖 Мой помощник</h2>
         <p class="hint">${quotaLine(st.quota)}</p>
-        <form class="hub-ask" id="h-ask"><input id="h-q" type="search" placeholder="Например: 1к до 16 млн в центре Сочи, не первый этаж" autocomplete="off" aria-label="Запрос помощнику" maxlength="300">
+        <form class="hub-ask" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
           ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
-          <button class="btn primary" id="h-go">Спросить</button></form>
-        <p class="hint" id="h-wait" hidden>⏳ Ищу — займёт ~5–15 секунд. Ответ придёт и в бот, если уйдёте со страницы.</p>
+          <button class="btn primary" id="h-go">Отправить</button></form>
+        <div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+        <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
         <div id="h-turns"></div></section></div>`;
     el.onclick = onClick; el.onchange = onChange;
     el.querySelector('#h-ask').onsubmit = e => { e.preventDefault(); ask(); };
-    el.querySelector('#h-mic')?.addEventListener('click', listen);
+    el.querySelector('#h-q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
+    el.querySelector('#h-mic')?.addEventListener('click', e => H.voice(el.querySelector('#h-q'), e.currentTarget, { onDone: t => ask(t) }));
   }
   async function loadDialog(id) {
     const box = el.querySelector('#h-turns');
@@ -53,52 +58,64 @@
     try {
       const r = await H.call('help_hist', { dialog_id: id });
       const byNum = new Map(r.items.map(x => [x.num, x]));
-      box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, items: t.ids.map(n => byNum.get(n)).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что ищете.</p>';
+      box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.get(n)).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
     } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
+  const actHtml = (a, i) => a.type === 'owners' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
+    : a.type === 'selection' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
+    : a.type === 'link' && /^(\.\/|hub\.html|mail\.html|arch\.html|pay\.html|partner\.html)/.test(a.href ?? '') ? `<a class="btn soft" href="${esc(a.href)}">${esc(a.label)}</a>` : '';
   const turnHtml = (r, offer) => `<article class="hub-turn"><p class="hub-q">🗣 ${esc(r.q)}</p>
-    <p class="hint">${r.via === 'ai' ? '🤖 Помощник переписал запрос: ' + esc(r.text ?? '') + ' · ' : ''}${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>
-    ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} <b>+${r.alt.more}</b> ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
-    <div class="hub-grid">${(r.items ?? []).slice(0, 30).map(card).join('')}</div>
-    ${offer ? `<div class="hub-offer"><b>Что дальше?</b> Отметьте объекты галочками и:
-      <button class="btn primary" data-owners>✉️ Написать собственникам</button>
+    ${r.steps?.length ? `<details class="hub-steps"${r.reply ? '' : ' open'}><summary>Что сделал помощник (${r.steps.length})</summary><ul>${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
+    ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
+    ${r.actions?.length ? `<p class="hub-acts" data-acts='${esc(JSON.stringify(r.actions))}'>${r.actions.map(actHtml).join('')}</p>` : ''}
+    ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} ${r.alt.more ? `<b>+${r.alt.more}</b>` : ''} ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
+    ${(r.items ?? []).length ? `<div class="hub-grid">${r.items.slice(0, 30).map(card).join('')}</div>` : ''}
+    ${offer ? `<div class="hub-offer"><b>Что дальше?</b> Отметьте объекты галочками и попросите помощника или нажмите:
+      <button class="btn soft" data-owners>✉️ Написать собственникам</button>
       <button class="btn soft" data-go-rk>📣 В рекламу</button><button class="btn soft" data-go-mail>📨 Рассылка</button>
       ${offer.video ? '<button class="btn soft" data-go-video>🎬 Ролик</button>' : ''}</div>` : ''}</article>`;
 
   async function ask(text) {
-    const q = (text ?? el.querySelector('#h-q').value).trim();
-    if (!q) return el.querySelector('#h-q').focus();
-    if (!cur) { const d = await H.call('help_new'); cur = d.dialog.id; st.dialogs.unshift({ id: cur, title: q.slice(0, 80), updated_at: new Date().toISOString() }); draw(); }
+    const inp = el.querySelector('#h-q'), q = (text ?? inp.value).trim();
+    if (!q) return inp.focus();
+    if (ask.busy) return H.toast('Помощник ещё работает над прошлой просьбой');
+    ask.busy = true;
     const wait = el.querySelector('#h-wait'), go = el.querySelector('#h-go');
-    wait.hidden = false; go.disabled = true;
+    let sec = 0; const tick = setInterval(() => { const s2 = el.querySelector('#h-sec'); if (s2) s2.textContent = ++sec; }, 1000);
     try {
-      const r = await H.call('help_ask', { dialog_id: cur, q });
+      if (!cur) { const d = await H.call('help_new'); cur = d.dialog.id; st.dialogs.unshift({ id: cur, title: q.slice(0, 80), updated_at: new Date().toISOString() }); draw(); history.replaceState(null, '', `#helper=${cur}`); }
+      el.querySelector('#h-wait').hidden = false; el.querySelector('#h-go').disabled = true;
+      const box0 = el.querySelector('#h-turns');
+      if (!box0.querySelector('.hub-turn')) box0.innerHTML = '';
+      box0.insertAdjacentHTML('beforeend', `<article class="hub-turn hub-pending"><p class="hub-q">🗣 ${esc(q)}</p><p class="hint">⏳ Работаю…</p></article>`);
+      box0.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.querySelector('#h-q').value = '';
+      const r = await H.call('help_ask', { dialog_id: cur, q, picked: [...picked] });
       st.quota = r.quota;
       const box = el.querySelector('#h-turns');
-      if (box.querySelector('.muted') && !box.querySelector('.hub-turn')) box.innerHTML = '';
+      box.querySelector('.hub-pending')?.remove();
       box.insertAdjacentHTML('beforeend', turnHtml({ ...r, q }, r.offer));
       box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
       el.querySelector('.hub-body .hint').innerHTML = quotaLine(st.quota);
-      el.querySelector('#h-q').value = '';
-    } catch (e) { H.toast(e.message, 6000); if (e.code === 'limit') el.querySelector('.hub-body .hint').innerHTML = `${esc(e.message)} <a href="pay.html?plan=pro">Оформить PRO</a>`; }
-    finally { wait.hidden = true; go.disabled = false; }
-  }
-  // голос: распознаёт браузер (Google или Apple), текст подставляется в поле и сразу отправляется
-  function listen() {
-    const R = window.SpeechRecognition || window.webkitSpeechRecognition, rec = new R(), mic = el.querySelector('#h-mic');
-    rec.lang = 'ru-RU'; rec.interimResults = true; rec.maxAlternatives = 1;
-    mic.classList.add('on'); mic.textContent = '⏺';
-    rec.onresult = e => { const t = [...e.results].map(x => x[0].transcript).join(' '); el.querySelector('#h-q').value = t; if (e.results[e.results.length - 1].isFinal) { rec.stop(); ask(t); } };
-    rec.onerror = e => H.toast(e.error === 'not-allowed' ? 'Разрешите микрофон в настройках браузера' : 'Не расслышал — попробуйте ещё раз');
-    rec.onend = () => { mic.classList.remove('on'); mic.textContent = '🎤'; };
-    rec.start();
+    } catch (e) {
+      el.querySelector('.hub-pending')?.remove();
+      if (!el.querySelector('#h-q').value) el.querySelector('#h-q').value = q;
+      H.toast(e.message, 6000); if (e.code === 'limit') el.querySelector('.hub-body .hint').innerHTML = `${esc(e.message)} <a href="pay.html?plan=pro">Оформить PRO</a>`;
+    } finally { clearInterval(tick); ask.busy = false; const w = el.querySelector('#h-wait'), g = el.querySelector('#h-go'); if (w) w.hidden = true; if (g) g.disabled = false; }
   }
   async function onClick(e) {
     const t = e.target;
-    if (t.closest('[data-new]')) { cur = null; draw(); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что ищете.</p>'; el.querySelector('#h-q').focus(); return; }
+    if (t.closest('[data-new]')) { cur = null; draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
     const d = t.closest('[data-dlg]'); if (d) { cur = +d.dataset.dlg; history.replaceState(null, '', `#helper=${cur}`); draw(); loadDialog(cur); return; }
     const a = t.closest('[data-alt]'); if (a) { const qs = JSON.parse(a.dataset.alt); ask(qs[0]); return; }
     if (t.closest('[data-owners]')) return owners();
+    const tip = t.closest('[data-tip]'); if (tip) { const i = el.querySelector('#h-q'); i.value = tip.dataset.tip; i.focus(); return; }
+    const ab = t.closest('[data-act]');
+    if (ab) {
+      const a = JSON.parse(ab.closest('[data-acts]').dataset.acts)[+ab.dataset.act];
+      if (a.type === 'selection') { store.set('sel', a.nums); if (a.cm) store.set('sel_cm', a.cm); location.href = './#selmake'; return; }
+      if (a.type === 'owners') { ownersOut(a.items, a.text); return; }
+    }
     const nums = [...picked];
     if (t.closest('[data-go-rk]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); store.set('sel', nums); location.href = './#rk'; return; }
     if (t.closest('[data-go-video]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); location.hash = `video=${nums.join(',')}`; return; }
@@ -134,6 +151,14 @@
         b.textContent = 'Готово';
       } catch (er) { H.toast(er.message, 6000); b.disabled = false; b.textContent = 'Открыть телефоны и подготовить'; }
     };
+  }
+  function ownersOut(items, text) {
+    const d = document.createElement('div'); d.className = 'sheet';
+    d.innerHTML = `<div class="sheet-box"><div class="sheet-head"><b>Написать собственникам</b><button class="btn ghost" data-x>✕</button></div>
+      <div class="sheet-body"><p class="hint">Текст: ${esc(text)}</p>${items.map(x => `<div class="hub-own"><b>№ ${x.num}</b> ${x.ok ? `${esc(x.name ?? '')} <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${H.msgLinks(x.phone, text)}` : `<span class="err">${esc(x.message ?? 'нет номера')}</span>`}</div>`).join('')}</div>
+      <div class="sheet-foot"><button class="btn ghost" data-x>Закрыть</button></div></div>`;
+    document.body.appendChild(d);
+    d.onclick = e => { if (e.target === d || e.target.closest('[data-x]')) d.remove(); };
   }
   window.SEC = window.SEC || {};
   window.SEC.helper = { title: 'Мой помощник', open };

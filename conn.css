@@ -1,0 +1,26 @@
+/* «Подключения» v5.16: окно живого входа */
+.conn-box { max-width: 1060px; width: min(1060px, 96vw); }
+.conn-scr { position: relative; border-radius: 12px; overflow: hidden; background: #0f172a; min-height: 220px; outline: none; border: 2px solid transparent; transition: border-color .2s; }
+.conn-scr:focus { border-color: var(--accent, #1453d8); }
+.conn-scr.ok { border-color: #16a34a; }
+.conn-scr { text-align: center; }
+.conn-scr img { display: block; margin: 0 auto; max-width: 100%; max-height: calc(100vh - 330px); width: auto; height: auto; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.conn-scr img:not([src]) { min-height: 300px; }
+.conn-wait { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; color: #cbd5e1; font-size: 14px; }
+.conn-wait[hidden] { display: none; }
+.conn-dot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 3px solid #f59e0b; pointer-events: none; animation: conndot .6s ease-out forwards; }
+@keyframes conndot { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+.conn-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; align-items: center; }
+.conn-tools input { flex: 1 1 240px; min-width: 0; font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line, #d6deea); background: var(--card, #fff); color: inherit; }
+.conn-msg { min-height: 1.4em; }
+.conn-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 12px 0; }
+.conn-card { background: var(--card, #fff); border: 1px solid var(--line, #e2e8f0); border-top: 3px solid var(--accent, #1453d8); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.conn-card h3 { margin: 0; font-size: 17px; }
+.conn-card .st { font-size: 13px; }
+.conn-card .st.ok { color: #16a34a; font-weight: 600; }
+.conn-card .st.err { color: #dc2626; }
+.conn-card .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.conn-srv { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.conn-srv i { width: 9px; height: 9px; border-radius: 50%; background: #dc2626; }
+.conn-srv.on i { background: #16a34a; box-shadow: 0 0 0 4px rgba(22, 163, 74, .15); }
+@media (prefers-reduced-motion: reduce) { .conn-dot { animation: none; opacity: 0; } }

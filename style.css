@@ -432,22 +432,8 @@ body.client .agent-only { display: none !important; }
   .iv-info .price b { font-size: 24px; }
 }
 
-/* фильтр колонкой слева (переключатель в самом фильтре; только на широком экране) */
-.fside-row { display: none; }
+/* фильтр колонкой слева — раздел «v5.16: фильтр» в конце файла */
 .fnote { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
-@media (min-width: 1000px) {
-  .fside-row { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
-  body.fside.fshown main:where(:not(#ipage)) { max-width: 1480px; display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 20px; align-items: start; }
-  body.fside.fshown main:where(:not(#ipage)) > * { grid-column: 2; }
-  body.fside.fshown main:where(:not(#ipage)) > .search { grid-column: 1 / -1; }
-  body.fside.fshown #filters { grid-column: 1; grid-row: 2 / span 30; position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding: 14px 14px 0; }
-  body.fside.fshown .fside-row { justify-content: flex-start; margin: 0 0 10px; }
-  body.fside.fshown .fcols { grid-template-columns: 1fr; gap: 14px; }
-  body.fside.fshown .fcol { gap: 14px; }
-  body.fside.fshown .ffoot { position: sticky; bottom: 0; z-index: 1; background: var(--card); margin: 14px -14px 0; padding: 10px 14px 12px; }
-  body.fside.fshown .list.l6 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-}
-@media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3, body.fside.fshown .arch-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* в миниатюрах «Новое» — внизу справа, чтобы не наезжать на «В подборку» и звёздочку */
 .list.l6 .newmark { top: auto; bottom: 6px; left: auto; right: 6px; transform: none; font-size: 10.5px; padding: 1px 6px; }
 
@@ -679,27 +665,6 @@ button.who:hover, button.who.on { background: var(--soft); }
 .log-row { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
 .log-det { color: var(--muted); font-size: 13px; }
 
-/* группы меню (v5.15): открываются нажатием, без всплывания при наведении */
-.mg { position: relative; display: inline-flex; }
-.mg-a { font-size: 11px; opacity: .7; }
-.mg-p { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 3000; min-width: 230px; flex-direction: column; align-items: stretch; gap: 2px;
-  padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(16, 24, 40, .16); }
-.mg.open .mg-p { display: flex; }
-.mg.open .mg-a { transform: rotate(180deg); display: inline-block; }
-.mg-p .link { text-align: left; padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
-.top .menu .mg-p .link { border-radius: 8px; }
-.mg-p .lbl-long { display: inline !important; }
-.mg-p .lbl-short { display: none !important; }
-.mg-p .link.on { box-shadow: inset 3px 0 0 var(--accent); }
-.mg-b.on { background: var(--soft); color: var(--link); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
-@media (max-width: 760px) {
-  .top .menu { flex-wrap: nowrap; }   /* группы — одной колонкой, без переноса во вторую */
-  .mg { display: flex; flex-direction: column; }
-  .mg-b { pointer-events: none; font-size: 12.5px !important; text-transform: uppercase; letter-spacing: .04em; color: var(--muted) !important; min-height: 0 !important; padding: 10px 12px 2px !important; background: none !important; box-shadow: none !important; }
-  .mg-a { display: none; }
-  .mg-p { display: flex; position: static; box-shadow: none; border: 0; padding: 0; background: none; min-width: 0; }
-}
-
 /* v5.15: голос в строке поиска и «Не старый фонд» */
 .qbox { position: relative; }
 .q-mic { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; font-size: 18px; cursor: pointer; padding: 6px; border-radius: 8px; }
@@ -716,20 +681,95 @@ button.who:hover, button.who.on { background: var(--soft); }
 @keyframes mfade { from { opacity: 0; transform: translate(-50%, -85%); } to { opacity: 1; transform: translate(-50%, -100%); } }
 .leaflet-popup { animation: mfade2 .2s ease-out; }
 @keyframes mfade2 { from { opacity: 0; } to { opacity: 1; } }
-.ml-filter { display: flex; justify-content: space-between; align-items: center; padding: 4px 0 8px; }
-.minimap { display: none; }
-@media (min-width: 1000px) {
-  body.fside.fshown .minimap { display: grid; place-items: end start; width: 100%; height: 120px; margin: 0 0 12px; border: 0; border-radius: 12px; cursor: pointer; padding: 10px;
-    background: #dde6ee url('https://a.tile.openstreetmap.org/11/1249/748.png') center / cover; box-shadow: inset 0 0 0 1px var(--line); }
-  .minimap span { background: #fff; color: #111; border-radius: 8px; padding: 6px 10px; font-weight: 600; font-size: 13.5px; box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
-  body.mapmode main:where(:not(#ipage)) { max-width: none !important; display: grid !important; grid-template-columns: minmax(520px, 46%) 1fr !important; column-gap: 14px; }
-  body.mapmode main > * { grid-column: 1 / -1; }
-  body.mapmode #maplist { grid-column: 1 !important; grid-row: 4; max-height: calc(100vh - 150px); overflow-y: auto; }
-  body.mapmode #map { grid-column: 2 !important; grid-row: 4; position: sticky; top: 76px; height: calc(100vh - 150px) !important; }
-  body.mapmode .ml-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  body.mapmode #filters { grid-column: 1 !important; grid-row: 3 !important; position: static !important; max-height: none !important; }
-}
 @media (hover: hover) {
   .gal .dots { bottom: 0; gap: 3px; padding: 0 6px 6px; }
   .gal .dots i { flex: 1; height: 3px; width: auto; border-radius: 2px; }   /* полоски вместо точек, как у Авито */
 }
+
+/* ===== v5.16: фильтр — компактная сетка без прокруток, скрывается влево; карта больше, объекты области — под картой ===== */
+/* сетка фильтра: два столбца, широкие ячейки (.w2) — на всю ширину; редкие фильтры — в «Ещё фильтры» */
+.fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; }
+.fgrid .w2 { grid-column: 1 / -1; }
+.fmore > summary { cursor: pointer; color: var(--link); font-weight: 600; font-size: 14px; list-style: none; padding: 2px 0; user-select: none; }
+.fmore > summary::-webkit-details-marker { display: none; }
+.fmore > summary::after { content: ' ▾'; font-size: 11px; }
+.fmore[open] > summary::after { content: ' ▴'; }
+.fmore[open] > summary { margin-bottom: 10px; }
+.fmore-n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--accent-text); font-size: 11px; line-height: 18px; text-align: center; }
+.fhead-r { display: inline-flex; align-items: center; gap: 4px; }
+#f-side { display: none; font-size: 13px; padding: 4px 8px; }
+.btn.sm { padding: 7px 12px; font-size: 14px; }
+.fbar { display: none; gap: 4px; }
+/* компьютер и планшет: заголовок фильтра с кнопкой «скрыть»; когда фильтр скрыт — «⚙ Фильтр» и «Сбросить все» рядом со «Список / Карта» */
+@media (min-width: 761px) {
+  .filters .fhead { display: flex; align-items: center; justify-content: space-between; margin: -4px 0 10px; font-size: 15px; }
+  .filters .fhead .x { border: 0; background: var(--soft); color: var(--link); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .filters .fhead .x:hover { filter: brightness(.95); }
+  body:not(.fshown) .fbar { display: inline-flex; }
+  /* сверху — 4 столбца; «Ещё фильтры» — строкой на всю ширину */
+  body:not(.fside) .filters .fgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 22px; }
+  body:not(.fside) .filters .fgrid .w2 { grid-column: span 2; }
+  body:not(.fside) .filters .fmore.w2 { grid-column: 1 / -1; }
+  body:not(.fside) .filters .fmore .fgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body:not(.fside) .filters .fmore .fgrid .w2 { grid-column: span 1; }
+}
+@media (min-width: 1000px) {
+  #f-side { display: inline-block; }
+  .fside-row { display: flex; justify-content: flex-end; margin: -6px 0 6px; }   /* архив (arch.html) — прежняя разметка */
+  body.fside.fshown main:where(:not(#ipage)) { max-width: 1480px; display: grid; grid-template-columns: 320px minmax(0, 1fr); column-gap: 18px; align-items: start; }
+  body.fside.fshown main:where(:not(#ipage)) > * { grid-column: 2; }
+  body.fside.fshown main:where(:not(#ipage)) > .search { grid-column: 1 / -1; }
+  body.fside.fshown #filters { grid-column: 1; grid-row: 2 / span 30; margin-top: 12px; padding: 12px 12px 0; }
+  body.fside.fshown #filters:not(:has(.fgrid)) { position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding: 14px 14px 0; }   /* архив */
+  body.fside.fshown #filters.fit { position: sticky; top: 76px; }   /* помещается в окно — едет вместе со страницей; не помещается — просто листается со страницей, без своей полосы */
+  body.fside.fshown .fside-row { justify-content: flex-start; margin: 0 0 10px; }
+  body.fside.fshown .fcols { grid-template-columns: 1fr; gap: 14px; }
+  body.fside.fshown .fcol { gap: 14px; }
+  body.fside.fshown .list.l6 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  /* компактно: мельче подписи, кнопки-чипы и поля — всё помещается без прокрутки */
+  body.fside #filters:has(.fgrid) .fgrid { gap: 10px 10px; }
+  body.fside #filters:has(.fgrid) .fcell { gap: 5px; }
+  body.fside #filters:has(.fgrid) .fl { font-size: 10.5px; }
+  body.fside #filters:has(.fgrid) .chips { gap: 5px; }
+  body.fside #filters:has(.fgrid) .chip { padding: 5px 10px; font-size: 13px; }
+  body.fside #filters:has(.fgrid) .pair { gap: 4px; }
+  body.fside #filters:has(.fgrid) .pair input, body.fside #filters:has(.fgrid) select { padding: 6px 8px; font-size: 13.5px; }
+  body.fside #filters:has(.fgrid) .checks { gap: 4px 12px; font-size: 13px; }
+  body.fside #filters:has(.fgrid) .checks input { width: 16px; height: 16px; }
+  body.fside #filters:has(.fgrid) .fmore > summary { font-size: 13.5px; }
+  body.fside #filters:has(.fgrid) .ffoot { margin: 12px -12px 0; padding: 9px 12px 11px; gap: 6px; }
+  body.fside #filters:has(.fgrid) .ffoot .btn { padding: 8px 12px; font-size: 14px; }
+  body.fside.fshown #filters:has(.fgrid) { animation: fslide .26s ease-out; }
+  body.fside.fshown #filters.fout { animation: fslideout .2s ease-in forwards; pointer-events: none; }
+}
+@media (min-width: 1000px) and (max-width: 1240px) { body.fside.fshown .list.l3, body.fside.fshown .arch-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } body.fside.fshown .list.l6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@keyframes fslide { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes fslideout { to { opacity: 0; transform: translateX(-60px); } }
+@media (max-width: 760px) {
+  .fgrid { gap: 14px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { body.fside.fshown #filters, body.fside.fshown #filters.fout { animation: none !important; } }
+
+/* карта: на всю ширину содержимого и выше; объявления видимой области — сеткой под картой (через 3 с после остановки) */
+.map { overflow: hidden; contain: paint; }
+@media (min-width: 761px) {
+  body.mapmode main:where(:not(#ipage)) { max-width: 1680px; }
+  body.mapmode #map { height: max(480px, 72vh); }
+}
+.maplist { margin-top: 16px; }
+.ml-items { transition: opacity .25s; }
+.ml-items.wait { opacity: .55; }
+.ml-head .muted { font-weight: 400; font-size: 13px; }
+@media (min-width: 761px) { .ml-items { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; } }
+
+/* метки не лезут друг на друга и за край; всплывающее окно — мягко, без горизонтальной прокрутки */
+.leaflet-popup { animation: none; }
+.leaflet-popup-content-wrapper { animation: popin .22s ease-out both; transform-origin: 50% 100%; }
+@keyframes popin { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+.leaflet-popup-content { overflow: hidden; }
+.mlist { overflow-x: hidden; overscroll-behavior: contain; }
+.mlist > *, .mlist .card.mc { min-width: 0; max-width: 100%; }
+.mk-p span, .mk-c span { transition: background-color .15s, color .15s; }
+@media (prefers-reduced-motion: reduce) { .leaflet-popup-content-wrapper { animation: none; } }
+.leaflet-popup.flip .leaflet-popup-tip-container { display: none; }
+.leaflet-popup.flip .leaflet-popup-content-wrapper { transform-origin: 50% 0; }

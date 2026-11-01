@@ -10,19 +10,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.15.1">
-<script src="design.js?v=5.5"></script>
-<link rel="stylesheet" href="offer.css?v=5.8.1">
-<link rel="stylesheet" href="notify.css?v=5.9.1">
-<link rel="stylesheet" href="crm.css?v=5.15">
-<link rel="stylesheet" href="reklama/rk.css?v=5.13">
-<link rel="stylesheet" href="support.css?v=5.11">
+<link rel="stylesheet" href="style.css?v=5.16">
+<link rel="stylesheet" href="nav.css?v=5.16">
+<script src="design.js?v=5.16"></script>
+<link rel="stylesheet" href="offer.css?v=5.16">
+<link rel="stylesheet" href="notify.css?v=5.16">
+<link rel="stylesheet" href="crm.css?v=5.16">
+<link rel="stylesheet" href="reklama/rk.css?v=5.16">
+<link rel="stylesheet" href="support.css?v=5.16">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-180.png">
 <meta name="theme-color" content="#1453d8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
-<script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+<script src="tg.js?v=5.16"></script>
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -60,9 +61,11 @@
       <div class="mg" data-g="help"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🤖 Помощник <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <a class="link agent-only" href="hub.html#helper">🤖 Мой помощник</a>
+          <a class="link agent-only" href="hub.html#lawyer">⚖️ Юрист</a>
+          <a class="link agent-only" href="hub.html#broker">🏦 Ипотечный брокер</a>
+          <a class="link agent-only" href="hub.html#kb">📚 База знаний</a>
           <a class="link agent-only" href="hub.html#chat">💬 Чат подписчиков</a>
           <a class="link agent-only" href="hub.html#taxes">🧾 Налоги при продаже</a>
-          <a class="link agent-only" href="hub.html#deal">📚 База знаний по сделкам</a>
           <a class="link" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a>
         </div></div>
       <div class="mg" data-g="cab"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">👤 Кабинет <span class="mg-a" aria-hidden="true">▾</span></button>
@@ -90,36 +93,32 @@
     <div class="chips q-place" id="q-place"></div>
 
     <section id="filters" class="filters closed" aria-label="Фильтры">
-      <button type="button" class="minimap" id="minimap" aria-label="Показать объекты на карте"><span>🗺 Показать объекты на карте</span></button>
-      <div class="fhead"><b>Фильтры</b><button type="button" class="x" id="f-close" aria-label="Скрыть фильтры" title="Скрыть фильтр">⟨</button></div>
-      <div class="fside-row"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇦ Фильтр слева</button></div>
-      <div class="fcols">
-        <div class="fcol">
-          <div class="fcell"><div class="fl" data-h="kind">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
-          <div class="fcell"><div class="fl" data-h="rooms">Комнаты</div><div class="chips" id="f-rooms"></div></div>
-          <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div>
+      <div class="fhead"><b>Фильтры</b><span class="fhead-r"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇧ Сверху</button><button type="button" class="x" id="f-close" aria-label="Скрыть фильтры" title="Скрыть фильтр">⟨</button></span></div>
+      <div class="fgrid">
+        <div class="fcell w2"><div class="fl" data-h="kind">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
+        <div class="fcell w2"><div class="fl" data-h="rooms">Комнаты</div><div class="chips" id="f-rooms"></div></div>
+        <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div>
             <div class="pair"><input id="amin" type="number" min="0" placeholder="от" inputmode="numeric"><span>—</span><input id="amax" type="number" min="0" placeholder="до" inputmode="numeric"></div></div>
-          <div class="fcell"><div class="fl" data-h="price">Цена, ₽</div>
+        <div class="fcell"><div class="fl" data-h="price">Цена, ₽</div>
             <div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off"></div></div>
-          <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div>
+        <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div>
             <div class="chips"><button type="button" class="chip pick-btn" id="open-areas">Район</button><button type="button" class="chip pick-btn" id="open-zk">ЖК</button></div></div>
-          <div class="fcell"><div class="fl" data-h="sea">До моря (по прямой)</div><select id="sea" aria-label="Расстояние до моря по прямой"></select></div>
-        </div>
-        <div class="fcol">
-          <div class="fcell"><div class="fl" data-h="floor">Этаж</div>
+        <div class="fcell"><div class="fl" data-h="sea" title="Расстояние до моря по прямой">До моря</div><select id="sea" aria-label="Расстояние до моря по прямой"></select></div>
+        <div class="fcell w2"><div class="fl" data-h="floor">Этаж</div>
             <div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label><label data-h="nold"><input type="checkbox" id="nold"> не старый фонд</label></div></div>
-          <div class="fcell"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
-          <div class="fcell"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
-          <div class="fcell agent-only"><div class="fl" data-h="ext">Источники</div><div class="checks"><label><input type="checkbox" id="f-ext"> Дополнительный поиск с рекламных источников</label></div></div>
-          <div class="fcell"><div class="fl" data-h="sort">Сортировка</div>
+        <details class="fmore w2" id="f-more"><summary>Ещё фильтры <b id="f-more-n" class="fmore-n" hidden></b></summary><div class="fgrid">
+        <div class="fcell w2"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
+        <div class="fcell w2"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
+        <div class="fcell w2 agent-only"><div class="fl" data-h="ext">Источники</div><div class="checks"><label><input type="checkbox" id="f-ext"> Дополнительный поиск с рекламных источников</label></div></div>
+        </div></details>
+        <div class="fcell w2"><div class="fl" data-h="sort">Сортировка</div>
             <select id="sort" aria-label="Сортировка">
               <option value="new">Сначала новые</option>
               <option value="price">Сначала дешевле</option>
               <option value="price_desc">Сначала дороже</option>
               <option value="area_desc">Больше площадь</option>
             </select></div>
-        </div>
       </div>
       <div class="ffoot">
         <div id="f-drop" class="fdrop" hidden></div>
@@ -131,6 +130,7 @@
     <div class="bar">
       <p id="status" class="status muted"></p>
       <div class="bar-r">
+        <span class="fbar" id="fbar"><button type="button" class="btn ghost sm" id="bar-f">⚙ Фильтр <b id="bar-fn" class="fmore-n" hidden></b></button><button type="button" class="btn ghost sm" id="bar-reset">Сбросить все</button></span>
         <div class="views" id="layouts" title="Сколько объявлений на экране"><button class="seg ic" data-lay="3" title="3 объявления на экране">▥ 3</button><button class="seg ic" data-lay="6" title="6 объявлений на экране, миниатюры">▦ 6</button></div>
         <div class="views"><button class="seg on" data-view="list" aria-current="true">Список</button><button class="seg" data-view="map" id="go-map">Карта</button></div>
       </div>
@@ -140,7 +140,6 @@
     <button id="more" class="btn more" hidden>Показать ещё</button>
     <div id="map" class="map" hidden></div>
     <section id="maplist" class="maplist" hidden>
-      <div class="ml-filter"><button type="button" class="link" id="ml-filter">⚙ Фильтр</button><button type="button" class="link" id="ml-reset">Сбросить все</button></div>
       <div class="ml-head"><b id="ml-count"></b>
         <select id="ml-sort" aria-label="Сортировка списка">
           <option value="new">Сначала новые</option><option value="price">Сначала дешевле</option>
@@ -160,6 +159,7 @@
     <span id="selcount"></span>
     <button class="btn ghost" id="sel-clear">Очистить</button>
     <button class="btn soft agent-only" id="sel-rk">📣 Отправить в рекламу</button>
+    <button class="btn soft agent-only" id="sel-video" title="Видеообзор 10 с из фото отмеченных объектов (тариф MAX)">🎬 Ролик</button>
     <button class="btn primary" id="sel-make">Сформировать подборку</button>
   </div>
 </div>
@@ -179,21 +179,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.15" defer></script>
-<script src="suggest.js?v=5.2.1" defer></script>
-<script src="offer.js?v=5.15" defer></script>
-<script src="plans.js?v=5.15" defer></script>
-<script src="mfa.js?v=5.7" defer></script>
-<script src="admin.js?v=5.15" defer></script>
-<script src="guest.js?v=5.6.1" defer></script>
-<script src="partner.js?v=5.15" defer></script>
-<script src="profile.js?v=5.10" defer></script>
-<script src="notify.js?v=5.12" defer></script>
-<script src="share.js?v=5.15" defer></script>
-<script src="crm.js?v=5.15" defer></script>
-<script src="reklama/rk.js?v=5.13" defer></script>
-<script src="hub.js?v=5.15" defer></script>
-<script src="app.js?v=5.15.1" defer></script>
-<script src="support.js?v=5.11" defer></script>
+<script src="filters.js?v=5.16" defer></script>
+<script src="suggest.js?v=5.16" defer></script>
+<script src="offer.js?v=5.16" defer></script>
+<script src="plans.js?v=5.16" defer></script>
+<script src="mfa.js?v=5.16" defer></script>
+<script src="admin.js?v=5.16" defer></script>
+<script src="guest.js?v=5.16" defer></script>
+<script src="partner.js?v=5.16" defer></script>
+<script src="profile.js?v=5.16" defer></script>
+<script src="notify.js?v=5.16" defer></script>
+<script src="share.js?v=5.16" defer></script>
+<script src="crm.js?v=5.16" defer></script>
+<script src="reklama/rk.js?v=5.16" defer></script>
+<script src="hub.js?v=5.16" defer></script>
+<script src="nav.js?v=5.16" defer></script>
+<script src="app.js?v=5.16" defer></script>
+<script src="support.js?v=5.16" defer></script>
 </body>
 </html>

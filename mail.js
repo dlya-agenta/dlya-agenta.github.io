@@ -111,9 +111,8 @@
       : a.status === 'password' ? `<label class="field">Облачный пароль Telegram<input id="ml-pass" type="password" autocomplete="current-password"></label>
           <div class="ml-row"><button class="btn primary" id="ml-pass-go">Войти</button><button class="btn ghost" id="ml-cancel">Отмена</button></div>`
       : wait ? '<p class="muted ml-wait">Подождите…</p>'
-      : `<div class="ml-row"><button class="btn primary" id="ml-qr-go">Войти по QR-коду</button><button class="btn ghost" id="ml-ph-show">По номеру и коду</button></div>
-         <div id="ml-ph" hidden><label class="field">Номер телефона в Telegram<input id="ml-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 900 123-45-67"></label>
-         <button class="btn primary" id="ml-ph-go">Получить код</button></div>`}
+      : `<div class="ml-row"><button class="btn primary" id="ml-live">Войти в Telegram</button></div>
+         <p class="hint">Откроется окно с настоящим Telegram Web на нашем сервере: отсканируйте QR-код телефоном или войдите по номеру и коду — как в обычном браузере. Ключ API не нужен.</p>`}
       <p class="hint">Номер телефона, коды и облачный пароль не сохраняются — используются один раз для входа. Сессия хранится в зашифрованном виде и используется только для ваших рассылок.</p>`;
   }
   function s2() {
@@ -184,12 +183,14 @@
     const st = e.target.closest('[data-step]'); if (st && !st.disabled) { step = +st.dataset.step; return wizard(); }
     const id = e.target.closest('button')?.id;
     try {
+      if (id === 'ml-live') { CONN.open('tg', { title: '✈️ Вход в Telegram', onOk: async () => { S = await call('mail_init'); step = S.acc.status === 'ok' ? 2 : 1; wizard(); } }); return; }
       if (id === 'ml-qr-go') { S.acc = (await call('mail_login', { how: 'qr' })).acc; wizard(); }
       if (id === 'ml-ph-show') { $('#ml-ph').hidden = false; $('#ml-phone').focus(); }
       if (id === 'ml-ph-go') { S.acc = (await call('mail_login', { how: 'phone', phone: $('#ml-phone').value })).acc; wizard(); }
       if (id === 'ml-code-go') { S.acc = (await call('mail_code', { code: $('#ml-code').value })).acc; wizard(); }
       if (id === 'ml-pass-go') { S.acc = (await call('mail_pass', { password: $('#ml-pass').value })).acc; wizard(); }
       if (id === 'ml-cancel' || (id === 'ml-out' && confirm('Выйти из Telegram на сервере рассылок и удалить сессию? Расписание остановится.'))) {
+        if (id === 'ml-out') await CONN.call('conn_logout', { svc: 'tg' }).catch(() => null);   // вход через живой браузер (v5.16) — удалить и его
         const r = await call('mail_logout'); S.acc = r.acc; if (r.note) toast(r.note, 9000); else if (r.gone) toast('Сессия удалена'); wizard();
       }
       if (id === 'ml-gadd') { S.groups = (await call('mail_group_add', { title: $('#ml-gt').value })).groups; wizard(); }

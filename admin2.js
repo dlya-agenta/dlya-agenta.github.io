@@ -5,7 +5,7 @@
 (() => {
   const $ = s => document.querySelector(s);
   const H = window.HUB, esc = H.esc;
-  const TITLES = { dash: 'Сводка', sales: 'Продажи и оплаты', users: 'Участники и настройки', listings: 'Объявления и выгрузка', support: 'Поддержка', ai: 'Ключи, API и ИИ', ref: 'Партнёрка', mod: 'Модерация', content: 'Новостройки и тексты', system: 'Система' };
+  const TITLES = { dash: 'Сводка', sales: 'Продажи и оплаты', users: 'Участники и настройки', listings: 'Объявления и выгрузка', support: 'Поддержка', ai: 'Ключи, API и ИИ', ref: 'Партнёрка', mod: 'Модерация', content: 'Новостройки и тексты', design: 'Стиль сайта', system: 'Система' };
   let S = null, fx = null;
   const usd = v => `${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} $`;
   const money = v => fx ? `${H.rub(v, fx)}<small> · ${usd(v)}</small>` : usd(v);
@@ -29,7 +29,7 @@
     $('#adm-at').textContent = S?.at ? `данные на ${H.when(S.at)}` : '';
     $('#adm-side').classList.remove('open');
     $('#adm-body').onclick = null;   // обработчик прошлого раздела
-    ({ dash, sales, users, listings, support, ai, ref, mod, content, system }[s] ?? dash)();
+    ({ dash, sales, users, listings, support, ai, ref, mod, content, design, system }[s] ?? dash)();
   }
   const body = h => { $('#adm-body').innerHTML = h; };
 
@@ -113,6 +113,31 @@
     <section class="hub-sec"><h3>Эксклюзивы</h3><p>Объекты видны коллегам только после проверки договора ИИ-юристом; договор не хранится.</p><p><a class="btn soft" href="hub.html#excl">Открыть эксклюзивы</a></p></section>`); }
   function content() { body(`<section class="hub-sec"><h3>Новостройки</h3><p>Карточки ЖК: телефон отдела продаж, правила фиксации, кабинет партнёра, официальные фото, новости.</p><p><a class="btn primary" href="hub.html#newb">Открыть новостройки</a></p></section>
     <section class="hub-sec"><h3>Тарифы, цены и тексты</h3><p>Тарифы и что в них входит — в «Участники и настройки» (блок «Тарифы»). Документы: <a href="prices.html" target="_blank">тарифы</a>, <a href="oferta.html" target="_blank">оферта</a>, <a href="rules.html" target="_blank">правила</a>, <a href="privacy.html" target="_blank">политика</a>.</p></section>`); }
+  // ---------- Стиль сайта (v5.16): три оформления, выбор админа — по умолчанию для всех; участник может выбрать себе другой кнопкой «🎨 Стиль» ----------
+  const LOOKS = [
+    { id: 'classic', name: 'Классика', text: 'Как эта админка: тёмно-синяя шапка, белые карточки с синей полосой, спокойно и строго.' },
+    { id: 'aurora', name: 'Аврора', text: 'Креатив и движение: переливающийся фон-сияние, стеклянные панели, блик на кнопках, мягкое появление карточек.' },
+    { id: 'premium', name: 'Премиум', text: 'Тёмный и дорогой: графит и золото, блеск на кнопках, золотая рамка карточек — видно, что сервис стоит своих денег.' }];
+  async function design() {
+    body('<p class="muted">Загрузка…</p>');
+    let cur = 'classic';
+    try { cur = (await H.call('adm_design')).default; } catch (e) { H.toast(e.message, 5000); }
+    const D = window.DESIGN;
+    const draw = () => body(`<section class="hub-sec"><h3>🎨 Стиль сайта для всех участников</h3>
+        <p class="hint">Выбранный стиль увидят все, кто не выбрал себе другой. Участник может сменить стиль у себя кнопкой «🎨 Стиль» в меню — по кругу из трёх; это меняет только его экран.</p>
+        <div class="dz-grid">${LOOKS.map(l => `<article class="dz-card${l.id === cur ? ' on' : ''}" data-look="${l.id}">
+          <div class="dz-prev dz-${l.id}" aria-hidden="true"><i class="dz-top"><b></b><s></s><s></s><s></s></i><span class="dz-t"><u></u><em></em></span><span class="dz-t"><u></u><em></em></span><span class="dz-t"><u></u><em></em></span><span class="dz-btn"></span></div>
+          <h4>${esc(l.name)}${l.id === cur ? ' <span class="tag ok">для всех</span>' : ''}${D?.get() === l.id ? ' <span class="tag">у вас сейчас</span>' : ''}</h4><p class="hint">${esc(l.text)}</p>
+          <p class="dz-act"><button class="btn ghost" data-try="${l.id}">Примерить у себя</button>${l.id === cur ? '' : `<button class="btn primary" data-def="${l.id}">Сделать для всех</button>`}</p></article>`).join('')}</div>
+        ${D?.mine() ? `<p class="hint">У вас выбран личный стиль «${esc(D.names[D.mine()])}». <button class="btn ghost" data-mine-reset>Вернуть стиль «для всех»</button></p>` : ''}</section>`);
+    draw();
+    $('#adm-body').onclick = async e => {
+      const t = e.target.closest('[data-try]'); if (t) { D?.set(t.dataset.try); draw(); return; }
+      if (e.target.closest('[data-mine-reset]')) { D?.reset(); draw(); return; }
+      const d = e.target.closest('[data-def]');
+      if (d) { d.disabled = true; try { cur = (await H.call('adm_design_set', { default: d.dataset.def })).default; D?.setDefault(cur); H.toast(`Стиль «${LOOKS.find(x => x.id === cur).name}» — теперь для всех`); draw(); } catch (er) { H.toast(er.message, 5000); d.disabled = false; } }
+    };
+  }
   function system() {
     const sp = S.space;
     body(`<div class="adm-tiles">${tile('База', `${n(sp.db_mb)} МБ`, 'из 500 МБ (Free)')}${Object.entries(sp.files ?? {}).map(([b, mb]) => tile(`Файлы: ${b}`, `${n(mb)} МБ`)).join('')}</div>

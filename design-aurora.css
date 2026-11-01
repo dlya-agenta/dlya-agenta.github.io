@@ -1,0 +1,134 @@
+/* Стиль «Аврора» (v5.16) — креатив и движение: медленно переливающийся фон (северное сияние), стеклянные панели, мягкое появление
+   карточек, «живые» кнопки с бликом, бегущая полоса в шапке. Анимируются только transform и opacity; при «уменьшить движение» — всё стоит.
+   Основа — раскладка админки (панели с полосой сверху, крупные цифры). Подключается поверх style.css (design.js). */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+:root {
+  --bg: #f3f1fb;
+  --card: #ffffff;
+  --glass: rgba(255, 255, 255, .72);
+  --glass-line: rgba(255, 255, 255, .75);
+  --text: #15132b;
+  --muted: #565470;
+  --accent: #5b3df5;
+  --accent2: #0ea5b7;
+  --accent-text: #ffffff;
+  --link: #4f30e8;
+  --line: rgba(35, 25, 90, .11);
+  --soft: #ebe6ff;
+  --ok: #0f7a55;
+  --ok-soft: #d9f5ea;
+  --warn: #a15c00;
+  --bad: #d12f4a;
+  --radius: 18px;
+  --shadow: 0 1px 2px rgba(40, 30, 110, .06), 0 10px 30px rgba(60, 40, 160, .10);
+  --grad: linear-gradient(120deg, #5b3df5 0%, #7c3aed 35%, #0ea5b7 100%);
+  --a1: rgba(124, 92, 255, .55); --a2: rgba(20, 184, 166, .45); --a3: rgba(236, 72, 153, .32); --a4: rgba(56, 189, 248, .40);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #080a18;
+    --card: #12142a;
+    --glass: rgba(18, 20, 42, .66);
+    --glass-line: rgba(160, 150, 255, .16);
+    --text: #eceaff;
+    --muted: #a7a5c6;
+    --accent: #8b74ff;
+    --accent2: #2dd4bf;
+    --link: #a99bff;
+    --line: rgba(200, 190, 255, .13);
+    --soft: #221d4a;
+    --ok: #4ade80;
+    --ok-soft: #10301f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px rgba(0, 0, 0, .35);
+    --a1: rgba(110, 80, 255, .40); --a2: rgba(16, 185, 129, .30); --a3: rgba(217, 70, 239, .22); --a4: rgba(14, 165, 233, .26);
+  }
+}
+html, body { font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--bg); }
+/* северное сияние: четыре размытых пятна плавают за страницей (только transform) */
+body::before, body::after { content: ''; position: fixed; z-index: -1; pointer-events: none; width: 75vmax; height: 75vmax; border-radius: 50%; filter: blur(70px); will-change: transform; }
+body::before { left: -25vmax; top: -30vmax; background: radial-gradient(circle at 30% 30%, var(--a1), transparent 60%), radial-gradient(circle at 75% 70%, var(--a3), transparent 55%);
+  animation: aur1 26s ease-in-out infinite alternate; }
+body::after { right: -30vmax; bottom: -35vmax; background: radial-gradient(circle at 60% 40%, var(--a2), transparent 60%), radial-gradient(circle at 25% 75%, var(--a4), transparent 55%);
+  animation: aur2 32s ease-in-out infinite alternate; }
+@keyframes aur1 { from { transform: translate(0, 0) rotate(0deg) scale(1); } to { transform: translate(18vw, 14vh) rotate(40deg) scale(1.15); } }
+@keyframes aur2 { from { transform: translate(0, 0) rotate(0deg) scale(1.1); } to { transform: translate(-16vw, -12vh) rotate(-35deg) scale(.95); } }
+html { background: var(--bg); }
+body, main, .hub-main, .adm-main { background: transparent !important; }
+body.adm2 { background: transparent !important; }
+
+/* шапка — стекло и бегущая цветная полоса снизу */
+.top { background: var(--glass) !important; -webkit-backdrop-filter: saturate(1.6) blur(18px) !important; backdrop-filter: saturate(1.6) blur(18px) !important;
+  border-bottom: 0 !important; box-shadow: 0 6px 24px rgba(60, 40, 160, .08); overflow: visible; }
+.top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; pointer-events: none; opacity: .85;
+  background: linear-gradient(90deg, #5b3df5, #0ea5b7, #ec4899, #5b3df5); }
+/* блик бежит по полосе (transform, без выхода за край экрана) */
+.top::before { content: ''; position: absolute; left: 0; bottom: 0; width: 20%; height: 3px; pointer-events: none; z-index: 1;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .95), transparent); animation: auline 4.5s cubic-bezier(.45, 0, .55, 1) infinite; }
+@keyframes auline { from { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { transform: translateX(400%); opacity: 0; } }
+.logo svg { border-radius: 12px; background: var(--grad); }
+.logo rect { fill: transparent; }
+.brand b { font-weight: 800; letter-spacing: -.02em; }
+.brand small { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent !important; font-weight: 700; }
+.menu .link { border-radius: 999px; font-weight: 600; transition: background .2s, color .2s; }
+.top .menu .link.on, .mg-b.on { background: var(--soft); color: var(--link); box-shadow: none; }
+@media (min-width: 761px) {
+  .top .mg-p { background: var(--glass); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); border: 1px solid var(--glass-line);
+    border-radius: 16px; box-shadow: 0 18px 40px rgba(60, 40, 160, .18); animation: pop .22s cubic-bezier(.2, .8, .2, 1); transform-origin: top left; }
+}
+@keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+
+/* стекло: шапка, фильтр, разделы, окна (не на каждой карточке объявления — так быстрее) */
+.filters, .hub-sec, .adm-panel, .ucard, .hub-lock, .hub-note, .sheet-box, .views, .adm-side {
+  background: var(--glass) !important; -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--glass-line); box-shadow: var(--shadow); border-radius: var(--radius); }
+.adm-side { border-radius: 0; border-width: 0 1px 0 0; }
+.adm-side, .adm-side nav a, .adm-back { color: var(--text) !important; }
+.adm-side .adm-brand { color: var(--text); }
+.adm-side nav a:hover { background: var(--soft); }
+.adm-side nav a.on { background: var(--grad) !important; color: #fff !important; box-shadow: 0 6px 18px rgba(91, 61, 245, .35); }
+.hub-sec, .adm-panel, .adm-tile { position: relative; }
+.hub-sec::before, .adm-tile::before { content: ''; position: absolute; left: 16px; right: 16px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--grad); opacity: .9; }
+.adm-tile { background: var(--glass) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--glass-line); border-top: 1px solid var(--glass-line) !important; border-radius: var(--radius); }
+.adm-tile b { font-size: 27px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.adm-tile b small { -webkit-text-fill-color: var(--muted); }
+
+/* карточки объявлений — плотные (без размытия), мягко поднимаются при наведении и появляются при прокрутке */
+.card { background: color-mix(in srgb, var(--card) 94%, transparent); border: 1px solid var(--glass-line); box-shadow: var(--shadow); border-radius: var(--radius);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s; }
+@media (hover: hover) { .card:hover { transform: translateY(-4px); box-shadow: 0 2px 6px rgba(40, 30, 110, .08), 0 22px 44px rgba(60, 40, 160, .18); } }
+.card, .hub-card, .hub-sec, .adm-tile, .hub-row, .ucard { animation: rise .55s cubic-bezier(.2, .8, .2, 1) backwards; }
+@supports (animation-timeline: view()) {
+  .card, .hub-card, .hub-row { animation: rise linear backwards; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+}
+@keyframes rise { from { opacity: 0; translate: 0 18px; scale: .985; } }
+.price b { font-size: 23px; font-weight: 800; letter-spacing: -.02em; }
+.hub-main h2, .adm-head h1 { font-weight: 800; letter-spacing: -.02em; }
+
+/* «живые» кнопки: градиент, блик пробегает при наведении, лёгкий подъём */
+.btn { border-radius: 999px; font-weight: 600; position: relative; overflow: hidden; transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, background .2s; }
+.btn.primary { background: var(--grad); background-size: 140% 100%; box-shadow: 0 8px 22px rgba(91, 61, 245, .32); }
+.btn.primary::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .45), transparent); transform: translateX(-160%) skewX(-18deg); }
+@media (hover: hover) {
+  .btn:not(:disabled):hover { transform: translateY(-2px); }
+  .btn.primary:not(:disabled):hover { box-shadow: 0 12px 28px rgba(91, 61, 245, .42); }
+  .btn.primary:not(:disabled):hover::after { transform: translateX(330%) skewX(-18deg); transition: transform .8s ease; }
+}
+.btn.soft { background: var(--soft); color: var(--link); }
+.chip { border-radius: 999px; transition: transform .15s, background .15s; }
+.chip.on, .seg.on { background: var(--grad); color: #fff; border-color: transparent; }
+input, select, textarea { border-radius: 14px; background: color-mix(in srgb, var(--card) 88%, transparent); }
+.search input { border-radius: 999px; padding-left: 18px; box-shadow: var(--shadow); border-color: var(--glass-line); }
+.fl { color: var(--link); letter-spacing: .07em; }
+.pro-line { background: var(--grad); color: #fff; }
+.pro-line .btn.soft { background: #fff; color: var(--accent); }
+.sheet-box { border-radius: 24px 24px 0 0; }
+@media (min-width: 720px) { .sheet-box { border-radius: 24px; } }
+.hub-msg.ai, .hub-msg.user { border-radius: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after, .top::before, .card, .hub-card, .hub-sec, .adm-tile, .hub-row, .ucard, .top .mg-p { animation: none !important; }
+  .btn, .card { transition: none !important; }
+}
+@media (prefers-color-scheme: dark) { .tag.sea { background: #0f2433; color: #7dd3fc; } }

@@ -114,5 +114,53 @@ window.HUB = (() => {
   // MAX: ссылки на чат по номеру нет — копируем номер и текст, открываем MAX
   document.addEventListener('click', e => { const m = e.target.closest('[data-max]'); if (m && m.dataset.max) copy(`+${m.dataset.max}`, 'Номер скопирован — найдите контакт в MAX'); });
 
-  return { call, web, toast, copy, esc, rate, rub, both, rubNum, fxNote, rubify, rules, ping, dev, locked, star, STAR, when, day, mln, msgLinks, token, mobile };
+  // ---------- голос: распознаёт браузер; слушает, пока человек говорит (паузы до 4 с не обрывают), стоп — повторное нажатие ----------
+  // voice(input, btn, {onDone(text), lang, silence_ms}) — текст дописывается в поле; onDone — после остановки (вручную или тишина)
+  const voiceOk = () => 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  function voice(input, btn, o = {}) {
+    if (!voiceOk()) { toast('Голос не поддерживается этим браузером — откройте сайт в Chrome, Яндекс Браузере или Safari'); return null; }
+    if (btn._rec) { btn._rec.stopNow(); return null; }
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition, rec = new R();
+    const base = input.value ? input.value.replace(/\s+$/, '') + ' ' : '', label = btn.innerHTML, quiet = o.silence_ms ?? 4000;
+    let finals = '', inter = '', stopped = false, t = null;
+    rec.lang = o.lang ?? 'ru-RU'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+    const show = () => { input.value = (base + finals + inter).replace(/\s+/g, ' ').trimStart(); input.dispatchEvent(new Event('input', { bubbles: true })); };
+    const arm = () => { clearTimeout(t); t = setTimeout(() => rec.stopNow(), quiet); };
+    rec.stopNow = () => { stopped = true; clearTimeout(t); try { rec.stop(); } catch { /* уже */ } };
+    rec.onresult = e => { inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) finals += x[0].transcript + ' '; else inter += x[0].transcript; } show(); arm(); };
+    rec.onerror = e => { if (e.error === 'no-speech' || e.error === 'aborted') return; stopped = true; toast(e.error === 'not-allowed' ? 'Разрешите микрофон в настройках браузера' : 'Не расслышал — попробуйте ещё раз'); };
+    // Safari и Chrome сами завершают распознавание через ~5–60 с — продолжаем, пока человек не нажал «стоп» и не молчит 4 с
+    rec.onend = () => {
+      if (!stopped) { try { rec.start(); return; } catch { /* не вышло — завершаем */ } }
+      clearTimeout(t); btn._rec = null; btn.classList.remove('on'); btn.innerHTML = label; btn.title = 'Сказать голосом';
+      inter = ''; show(); const v = input.value.trim(); if (v && o.onDone) o.onDone(v);
+    };
+    btn._rec = rec; btn.classList.add('on'); btn.innerHTML = '⏹'; btn.title = 'Остановить запись';
+    try { rec.start(); arm(); } catch { btn._rec = null; btn.innerHTML = label; }
+    toast('Говорите — пауза 4 секунды или ⏹ закончит запись', 2500);
+    return rec;
+  }
+
+  // ---------- ответ ИИ: простая разметка (заголовки ##, **жирный**, списки «- » и «1. », таблицы — строками) → безопасный HTML ----------
+  function md(text) {
+    const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+    const out = []; let list = null;
+    const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+    for (const raw of String(text ?? '').split('\n')) {
+      const l = raw.trimEnd();
+      let m;
+      if (!l.trim()) { close(); continue; }
+      if (/^\*\s*Перед сделкой/.test(l.trim())) { close(); out.push(`<p class="hub-star"><b>*</b> ${esc(l.trim().replace(/^\*\s*/, ''))}</p>`); continue; }
+      if ((m = l.match(/^#{1,6}\s+(.*)/))) { close(); out.push(`<p class="md-h">${inl(m[1])}</p>`); continue; }
+      if (/^\s*([-*•])\s+/.test(l)) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inl(l.replace(/^\s*[-*•]\s+/, ''))}</li>`); continue; }
+      if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inl(m[1])}</li>`); continue; }
+      if (/^\s*\|?\s*:?-{3,}/.test(l)) continue;   // разделитель таблицы
+      close();
+      out.push(l.includes('|') ? `<p class="md-row">${l.split('|').map(x => x.trim()).filter(Boolean).map(inl).join(' · ')}</p>` : `<p>${inl(l)}</p>`);
+    }
+    close();
+    return `<div class="md">${out.join('')}</div>`;
+  }
+
+  return { call, web, toast, copy, esc, rate, rub, both, rubNum, fxNote, rubify, rules, ping, dev, locked, star, STAR, when, day, mln, msgLinks, token, mobile, voice, voiceOk, md };
 })();
