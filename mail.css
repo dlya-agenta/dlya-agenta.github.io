@@ -1,0 +1,61 @@
+/* Рассылки (ТЗ v2, шаг 4.2): страница mail.html — сначала телефон 375–390 px, токены style.css, светлая и тёмная темы */
+.mailpage .pmain { max-width: 820px; margin: 0 auto; padding: 14px 12px 30px; }
+.ml { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-width: 100%; }
+.ml > * { min-width: 0; }
+.ml-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius, 14px); padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.ml-card h3 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.ml-card p { margin: 0; }
+.ml-msg { display: flex; gap: 6px; flex-wrap: wrap; }
+.ml-msg .chip.dis { opacity: .55; cursor: default; }
+.ml-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.ml-steps li { flex: none; }
+.ml-steps button { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 12px 6px 6px; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.ml-steps button span { width: 22px; height: 22px; border-radius: 50%; background: var(--soft); color: var(--link); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12.5px; }
+.ml-steps button.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.ml-steps button.on span { background: var(--accent); color: var(--accent-text, #fff); }
+.ml-steps button.dis { opacity: .5; cursor: default; }
+.ml-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ml-warn { font-size: 14px; background: color-mix(in srgb, var(--warn) 10%, var(--card)); color: var(--text); border-left: 3px solid var(--warn); border-radius: 8px; padding: 9px 11px; }
+.ml-off, .ml-stop { font-size: 14px; color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--card)); border-radius: 10px; padding: 9px 11px; margin: 0; }
+.ml-stop { color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--card)); }
+.ml-ok { color: var(--ok); }
+.ml-big { font-size: 16.5px; font-weight: 600; }
+.ml-help { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--soft); color: var(--link); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; flex: none; }
+.ml-qrbox { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+#ml-qr { width: 236px; height: 236px; padding: 8px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+#ml-qr img, #ml-qr canvas { display: block; }
+.ml-wait::before { content: ''; display: inline-block; width: 13px; height: 13px; margin-right: 7px; vertical-align: -2px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: mlspin .8s linear infinite; }
+@keyframes mlspin { to { transform: rotate(360deg); } }
+.ml input[type=tel], .ml input[type=password], .ml input[inputmode=numeric], .ml input#ml-gt, .ml input[type=number] { font-size: 16px; }
+.ml-groups { display: flex; flex-direction: column; gap: 8px; }
+.ml-g { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.ml-g.ok { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.ml-g.bad { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+.ml-g small { color: var(--muted); font-size: 13px; }
+.ml-g .chip { align-self: flex-start; font-size: 13px; padding: 5px 11px; }
+.ml-cand { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.ml-cand span { display: flex; flex-direction: column; }
+.ml-cand input, .ml-allow input { width: 20px; height: 20px; accent-color: var(--ok); flex: none; margin: 1px 0 0; }
+.ml-allow { display: flex; gap: 8px; align-items: center; font-weight: 600; padding: 6px 0; flex-wrap: wrap; }
+.ml-add { display: flex; flex-direction: column; gap: 8px; }
+.ml-hours { display: flex; flex-wrap: wrap; gap: 6px; }
+.ml-hours .chip { cursor: pointer; font-size: 14px; padding: 7px 12px; }
+.ml-hours input { position: absolute; opacity: 0; pointer-events: none; }
+.ml-prev { display: flex; flex-direction: column; gap: 6px; }
+.ml-bubble { max-width: 420px; background: var(--soft); border-radius: 14px 14px 14px 4px; overflow: hidden; }
+.ml-bubble .ml-ph { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 2px; }
+.ml-bubble img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+.ml-bubble pre { margin: 0; padding: 10px 12px; white-space: pre-wrap; font: inherit; font-size: 14px; overflow-wrap: anywhere; }
+.ml-runs { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.ml-run { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; padding: 7px 10px; border-radius: 10px; background: var(--soft); }
+.ml-run.stopped, .ml-run.error { background: color-mix(in srgb, var(--bad) 8%, var(--card)); }
+.ml-run small { flex-basis: 100%; }
+.ml-pop { position: fixed; inset: 0; z-index: 3700; background: rgba(0, 0, 0, .45); display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+.ml-pop-box { background: var(--card); color: var(--text); border-radius: 16px; padding: 16px; max-width: 460px; width: 100%; max-height: 88vh; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.ml-pop-box p { margin: 0; }
+.ml-scrs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ml-scr { width: 170px; border: 2px solid var(--line); border-radius: 16px; overflow: hidden; font-size: 12.5px; background: var(--bg); }
+.ml-scr-top { background: var(--soft); padding: 8px 10px; font-weight: 700; }
+.ml-scr-row { padding: 8px 10px; border-top: 1px solid var(--line); }
+.ml-scr-row.on { background: color-mix(in srgb, var(--accent) 16%, var(--card)); font-weight: 600; outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (min-width: 761px) { .ml-pop { align-items: center; } .ml-add { flex-direction: row; align-items: flex-end; } .ml-add .field { flex: 1; } }

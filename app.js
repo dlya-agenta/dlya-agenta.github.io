@@ -934,7 +934,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
   if (g === 'rk') { if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/reklama/rk.js (шаг 4.1)
-  if (g === 'mail') { if (me.can_mail) PLANS.soon('mail'); else PLANS.locked('mail'); }   // сами рассылки — шаг 4.2
+  if (g === 'mail') { if (me.can_mail) location.href = 'mail.html'; else PLANS.locked('mail'); }   // рассылки — своя страница mail.html (шаг 4.2)
   if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
