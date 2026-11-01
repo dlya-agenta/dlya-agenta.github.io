@@ -10,20 +10,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.16">
-<link rel="stylesheet" href="nav.css?v=5.16">
-<script src="design.js?v=5.16"></script>
-<link rel="stylesheet" href="offer.css?v=5.16">
-<link rel="stylesheet" href="notify.css?v=5.16">
-<link rel="stylesheet" href="crm.css?v=5.16">
-<link rel="stylesheet" href="reklama/rk.css?v=5.16">
-<link rel="stylesheet" href="support.css?v=5.16">
+<link rel="stylesheet" href="style.css?v=5.17">
+<link rel="stylesheet" href="nav.css?v=5.17">
+<script src="design.js?v=5.17"></script>
+<link rel="stylesheet" href="offer.css?v=5.17">
+<link rel="stylesheet" href="notify.css?v=5.17">
+<link rel="stylesheet" href="crm.css?v=5.17">
+<link rel="stylesheet" href="reklama/rk.css?v=5.17">
+<link rel="stylesheet" href="support.css?v=5.17">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-180.png">
 <meta name="theme-color" content="#1453d8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
-<script src="tg.js?v=5.16"></script>
+<script src="tg.js?v=5.17"></script>
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -31,7 +31,7 @@
 <div id="app" hidden>
   <header class="top">
     <div class="brand">
-      <span class="logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14"/><path d="M14 34 32 18l18 16v14H38V38H26v10H14z"/></svg></span>
+      <span class="logo" aria-hidden="true"></span>
       <span><b>Для Агента</b><small>5 минут — вместо тысячи часов!</small></span>
     </div>
     <nav class="menu" id="menu">
@@ -60,33 +60,33 @@
         </div></div>
       <div class="mg" data-g="help"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🤖 Помощник <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
-          <a class="link agent-only" href="hub.html#helper">🤖 Мой помощник</a>
+          <a class="link agent-only client-ok" href="hub.html#helper">🤖 Мой помощник</a>
           <a class="link agent-only" href="hub.html#lawyer">⚖️ Юрист</a>
-          <a class="link agent-only" href="hub.html#broker">🏦 Ипотечный брокер</a>
+          <a class="link agent-only client-ok" href="hub.html#broker">🏦 Ипотечный брокер</a>
           <a class="link agent-only" href="hub.html#kb">📚 База знаний</a>
           <a class="link agent-only" href="hub.html#chat">💬 Чат подписчиков</a>
-          <a class="link agent-only" href="hub.html#taxes">🧾 Налоги при продаже</a>
+          <a class="link agent-only client-ok" href="hub.html#taxes">🧾 Налоги при продаже</a>
           <a class="link" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a>
         </div></div>
-      <div class="mg" data-g="cab"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">👤 Кабинет <span class="mg-a" aria-hidden="true">▾</span></button>
+      <div class="mg" data-g="cab"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">💼 Кабинет <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <a class="link agent-only" href="hub.html#balance">💰 Баланс</a>
           <a class="link agent-only" href="partner.html" id="go-ref"><span class="lbl-long">🤝 Партнёрская программа</span><span class="lbl-short">🤝 Партнёрам</span> <span class="ref-30" style="background:#facc15;color:#422006;border-radius:6px;padding:1px 5px;font-size:11.5px;font-weight:700">30%</span></a>
           <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
         </div></div>
-      <button class="link client-btn" data-go="client" id="go-client">👤 С клиентом</button>
+      <button class="link client-btn" data-go="client" id="go-client">🖥️ С клиентом</button>
       <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
       <button class="link" data-go="pay" id="go-pay" hidden>Продлить доступ</button>
       <button type="button" class="link" data-style id="go-style">🎨 Стиль</button>
       <button class="link" id="logout" hidden>Выйти</button>
     </nav>
-    <button class="who" data-go="prof" id="go-prof" title="Профиль: тариф, номера, контакты, устройства"><span id="who"></span><small id="until"></small><small id="quota" class="agent-only" hidden></small></button>
+    <button class="who" data-go="prof" id="go-prof" title="Профиль: тариф, номера, контакты, устройства"><b class="who-t">Профиль</b><span id="who"></span><small id="until"></small><small id="quota" class="agent-only" hidden></small></button>
     <button type="button" class="burger" id="burger" aria-expanded="false" aria-controls="menu">☰ Меню</button>
   </header>
 
   <main>
     <form id="qform" class="search">
-      <div class="qbox"><input id="q" type="search" placeholder="Улица, дом, ЖК или «2к до 15 млн Мамайка»" autocomplete="off" enterkeyhint="search" aria-label="Поиск: улица, дом, ЖК, район или запрос словами"><button type="button" class="q-mic agent-only" id="q-mic" title="Спросить помощника голосом" aria-label="Спросить помощника голосом" hidden>🎤</button></div>
+      <div class="qbox"><input id="q" type="search" placeholder="Улица, дом, ЖК или «2к до 15 млн Мамайка»" autocomplete="off" enterkeyhint="search" aria-label="Поиск: улица, дом, ЖК, район или запрос словами"><button type="button" class="q-mic agent-only client-ok" id="q-mic" title="Спросить помощника голосом" aria-label="Спросить помощника голосом" hidden>🎤</button></div>
       <button type="submit" class="btn primary">Найти</button>
       <button type="button" class="btn ghost" id="toggle-f">Фильтры <span id="fcount"></span></button>
     </form>
@@ -179,22 +179,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.16" defer></script>
-<script src="suggest.js?v=5.16" defer></script>
-<script src="offer.js?v=5.16" defer></script>
-<script src="plans.js?v=5.16" defer></script>
-<script src="mfa.js?v=5.16" defer></script>
-<script src="admin.js?v=5.16" defer></script>
-<script src="guest.js?v=5.16" defer></script>
-<script src="partner.js?v=5.16" defer></script>
-<script src="profile.js?v=5.16" defer></script>
-<script src="notify.js?v=5.16" defer></script>
-<script src="share.js?v=5.16" defer></script>
-<script src="crm.js?v=5.16" defer></script>
-<script src="reklama/rk.js?v=5.16" defer></script>
-<script src="hub.js?v=5.16" defer></script>
-<script src="nav.js?v=5.16" defer></script>
-<script src="app.js?v=5.16" defer></script>
-<script src="support.js?v=5.16" defer></script>
+<script src="filters.js?v=5.17" defer></script>
+<script src="suggest.js?v=5.17" defer></script>
+<script src="offer.js?v=5.17" defer></script>
+<script src="plans.js?v=5.17" defer></script>
+<script src="mfa.js?v=5.17" defer></script>
+<script src="admin.js?v=5.17" defer></script>
+<script src="guest.js?v=5.17" defer></script>
+<script src="partner.js?v=5.17" defer></script>
+<script src="profile.js?v=5.17" defer></script>
+<script src="notify.js?v=5.17" defer></script>
+<script src="share.js?v=5.17" defer></script>
+<script src="crm.js?v=5.17" defer></script>
+<script src="reklama/rk.js?v=5.17" defer></script>
+<script src="hub.js?v=5.17" defer></script>
+<script src="nav.js?v=5.17" defer></script>
+<script src="app.js?v=5.17" defer></script>
+<script src="support.js?v=5.17" defer></script>
 </body>
 </html>

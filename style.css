@@ -600,7 +600,6 @@ button.who:hover, button.who.on { background: var(--soft); }
   .burger { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-weight: 600; cursor: pointer; }
   .top.open .burger { background: var(--soft); color: var(--link); border-color: transparent; }
   .top > button.who { max-width: 46vw; padding: 4px 6px; }
-  .top > button.who #who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   #until:not(.warn) { display: none; }
   .top .menu { display: none; order: 10; width: 100%; flex-direction: column; align-items: stretch; gap: 2px; padding: 6px 0 4px; border-top: 1px solid var(--line); max-height: calc(100vh - 70px); overflow-y: auto; }
   .top.open .menu { display: flex; }
@@ -773,3 +772,39 @@ button.who:hover, button.who.on { background: var(--soft); }
 @media (prefers-reduced-motion: reduce) { .leaflet-popup-content-wrapper { animation: none; } }
 .leaflet-popup.flip .leaflet-popup-tip-container { display: none; }
 .leaflet-popup.flip .leaflet-popup-content-wrapper { transform-origin: 50% 0; }
+/* v5.17: знак логотипа (design.js — 4 варианта, цвета задаёт стиль), бренд на входе, значки меню (nav.js — 4 набора), «Профиль» справа в шапке */
+:root { --logo-bg: var(--accent); --logo-ink: #fff; --brand-serif: 'Playfair Display', Georgia, 'Times New Roman', serif; }
+.logo .lg-bg { fill: var(--logo-bg); }
+.logo .lg-s { fill: none; stroke: var(--logo-ink); stroke-linecap: round; stroke-linejoin: round; }
+.logo .lg-f { fill: var(--logo-ink); stroke: none; }
+.logo .lg-t { fill: var(--logo-ink); font-family: var(--brand-serif); font-weight: 600; letter-spacing: -.4px; }
+.gbrand { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 0 0 10px; text-align: center; }
+.gbrand .logo svg { width: 76px; height: 76px; display: block; border-radius: 19px; box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 28%, transparent); }
+.gbrand b { display: block; font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: .01em; line-height: 1.1; color: var(--text); }
+.gbrand small { display: block; margin-top: 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.mi { display: inline-flex; align-items: center; justify-content: center; vertical-align: -4px; margin-right: 7px; flex: none; }
+.mi svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mg-b .mi svg { width: 19px; height: 19px; }
+html[data-icons=tiles] .mi { padding: 4px; border-radius: 7px; background: color-mix(in srgb, currentColor 13%, transparent); vertical-align: -6px; }
+html[data-icons=tiles] .mi svg { width: 16px; height: 16px; }
+html[data-icons=none] .mi { display: none; }
+html[data-icons=emoji] .mi svg { display: none; }
+html[data-icons=emoji] .mi::before { content: attr(data-e); font-size: 1em; line-height: 1; }
+html[data-icons=emoji] .mi { margin-right: 5px; vertical-align: 0; }
+/* «Профиль»: вместо имени — слово «Профиль», под ним подписка и лимит номеров, всё по центру */
+.top > .who { display: inline-flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; text-decoration: none; color: inherit; border-radius: 10px; padding: 4px 12px; }
+.top > a.who:hover { background: var(--soft); }
+.who .who-t { font-size: 15px; font-weight: 700; letter-spacing: .01em; display: inline-flex; align-items: center; }
+.who .who-t .mi { margin-right: 5px; vertical-align: 0; }
+.who #who { display: none; }
+.who small { font-size: 12px; }
+body.client .agent-only.client-ok:not([hidden]) { display: revert !important; }
+@media (min-width: 761px) {
+  .top > .who { grid-column: 3; grid-row: 1; }
+  .top .menu [data-style] { margin-left: auto; }
+  .top .menu [data-style] ~ #logout { margin-left: 0; }
+}
+@media (max-width: 760px) {
+  .top > .who { padding: 2px 6px; max-width: 46vw; }
+  .who .who-t { font-size: 14px; }
+}

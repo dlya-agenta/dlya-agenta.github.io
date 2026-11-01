@@ -76,7 +76,7 @@ function showLogin(reason, tab = 'login') {
   }
   const why = { expired: 'Доступ закончился. Войдите снова: если оплата открыта, продлите доступ сразу, иначе обратитесь к администратору.', no_access: 'Ваш Telegram не одобрен в боте. Войдите по логину и паролю.', kicked: 'Выполнен вход на другом устройстве — войдите снова.',
     off: 'Доступ закрыт — обратитесь к администратору.', no_auth: '' }[reason] ?? reason ?? '';   // не код из списка — готовый текст (второй шаг входа, вход админа в Mini App)
-  gate(`
+  gate(`<div data-brand></div>
     <div class="tabs2"><button class="seg ${tab === 'login' ? 'on' : ''}" data-tab="login">Вход</button><button class="seg ${tab === 'reg' ? 'on' : ''}" data-tab="reg">Регистрация</button></div>
     ${why ? `<p class="muted">${esc(why)}</p>` : ''}
     ${tab === 'login' ? `<form id="login" class="form">
@@ -1064,7 +1064,7 @@ function mgClose(except) { window.NAV?.close(except); }
 function mgSync() {
   document.querySelectorAll('.mg').forEach(g => {
     const items = [...g.querySelectorAll('.mg-p > [data-go], .mg-p > a')];
-    g.hidden = !items.some(i => !i.hidden && !(document.body.classList.contains('client') && i.classList.contains('agent-only')));
+    g.hidden = !items.some(i => !i.hidden && !(document.body.classList.contains('client') && i.classList.contains('agent-only') && !i.classList.contains('client-ok')));
     g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
   });
   // ссылки меню с других страниц: ./#favs, ./#sels, ./#prof — открыть этот раздел (один раз, после загрузки)
@@ -1088,11 +1088,11 @@ function clientUi() {
   mgSync();
   const b = $('#go-client');
   b.classList.toggle('on', client.on);
-  b.textContent = client.on ? '👤 С клиентом ✓' : '👤 С клиентом';
+  b.textContent = client.on ? '🖥️ С клиентом ✓' : '🖥️ С клиентом';
 }
 function clientSheet() {
   sheet('Показ клиенту', `
-    <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «Контакт» скрыты: экран можно показывать клиенту.</p>
+    <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «Контакт» скрыты: экран можно показывать клиенту. «Мой помощник», «Ипотечный брокер» и «Налоги при продаже» остаются в меню «Помощник» — посчитать ипотеку или налог при клиенте.</p>
     <label class="field">Комиссия сверху цены: <b id="c-cm-v">${client.cm}%</b><input id="c-cm" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>
     <div class="hint">Цена округляется до 10 000 ₽, как в PDF клиенту. Фильтр цены тоже с комиссией: «до 15 млн» — до 15 млн вместе с ней.</div>
     <div class="sheet-foot">${client.on ? '<button class="btn ghost" id="c-off">Выключить</button>' : '<button class="btn ghost" data-close>Отмена</button>'}

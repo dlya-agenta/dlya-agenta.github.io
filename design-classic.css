@@ -1,6 +1,7 @@
 /* Стиль «Классика» (v5.16) — как админка, которая больше всего нравится Алексею: тёмно-синяя шапка (как боковая панель админки),
    светлый фон, белые карточки с синей полосой сверху, крупные цифры, аккуратные тени. Подключается поверх style.css (design.js).
-   Тёмная тема устройства — ночной синий. */
+   Тёмная тема устройства — ночной синий. v5.17: бренд «Для Агента» — Playfair Display, подписи фильтров — жирнее. */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
 :root {
   --bg: var(--tg-theme-secondary-bg-color, #eef2f8);
   --card: var(--tg-theme-bg-color, #ffffff);
@@ -21,6 +22,8 @@
   --head-text: #e6ebf5;
   --head-muted: #9aa7bd;
   --stripe: 3px solid var(--accent);
+  --logo-bg: #2563eb;
+  --logo-ink: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -44,8 +47,12 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, 
 .top { background: var(--head) !important; color: var(--head-text); border-bottom: 0; box-shadow: 0 2px 14px rgba(10, 14, 22, .18);
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .top .brand b, .top a.brand { color: #fff; text-decoration: none; }
-.top .brand small { color: #8fb4ff; }
-.logo rect { fill: #3b82f6; }
+.top .brand b { font-family: var(--brand-serif); font-weight: 700; font-size: 22px; letter-spacing: .01em; }
+.top .brand small { color: #8fb4ff; font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; margin-top: 1px; }
+.top .logo svg { border-radius: 11px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 6px 16px rgba(37, 99, 235, .35); }
+.gbrand small { color: var(--link); }
+.top > .who .who-t { color: #fff; }
+.top > a.who:hover, .top > button.who:hover { background: rgba(255, 255, 255, .08); }
 .top .menu .link, .top > button.who, .top .who #who { color: var(--head-text); }
 .top .who small { color: var(--head-muted); }
 .top .who small.warn, .top .who #quota.warn { color: #ffb4a8; }
@@ -81,7 +88,10 @@ input, select, textarea { border-radius: 10px; }
 .hub-sec, .filters, .ucard { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); border-left: 0; border-right: 0; border-bottom: 0; }
 .price b { font-size: 23px; font-weight: 800; letter-spacing: -.02em; }
 .adm-tile b { font-size: 26px; letter-spacing: -.02em; }
-.fl { color: var(--link); letter-spacing: .06em; }
+/* подписи фильтров — жирные и тёмные, чтобы сразу находить нужный (v5.17) */
+.fl { color: var(--text); font-weight: 800; font-size: 12px; letter-spacing: .07em; }
+.filters .fhead b, .fmore > summary { font-weight: 800; }
+.checks label { font-weight: 500; }
 .hub-main h2, .adm-head h1 { letter-spacing: -.02em; }
 .sheet-box { border-top: var(--stripe); }
 .pro-line { background: var(--head); color: var(--head-text); }

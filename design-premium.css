@@ -34,10 +34,11 @@ body.adm2 { background: var(--bg) !important; }
   border-bottom: 1px solid var(--line) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
 .top::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
   background: linear-gradient(90deg, transparent, #d6b25e 30%, #f4dc9b 50%, #d6b25e 70%, transparent); opacity: .7; }
-.logo svg { border-radius: 12px; background: var(--gold); }
-.logo rect { fill: transparent; }
-.logo path { fill: #1a1406; }
-.brand b { font-family: var(--serif); font-weight: 600; font-size: 21px; letter-spacing: .01em; color: var(--text); }
+.logo svg { border-radius: 12px; background: var(--gold); box-shadow: 0 6px 18px rgba(214, 178, 94, .25); }
+:root { --logo-bg: transparent; --logo-ink: #1a1406; --brand-serif: var(--serif); }
+.brand b, .gbrand b { font-family: var(--serif); font-weight: 600; font-size: 22px; letter-spacing: .02em; background: var(--gold); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gbrand b { font-size: 38px; }
+.gbrand small { color: var(--accent); }
 .brand small { color: var(--accent) !important; letter-spacing: .06em; text-transform: uppercase; font-size: 11px !important; }
 .top .menu .link, .top > button.who, .top .who #who { color: color-mix(in srgb, var(--text) 86%, transparent); }
 .top .who small { color: var(--muted); }
@@ -101,7 +102,6 @@ input:focus, select:focus, textarea:focus { outline-color: rgba(214, 178, 94, .5
 .adm-side { background: #08090b !important; border-right: 1px solid var(--line); }
 .adm-side nav a, .adm-back { color: #cfc7b8 !important; }
 .adm-side .adm-brand b { font-family: var(--serif); color: var(--text); }
-.adm-side .adm-brand .logo rect { fill: transparent; }
 .adm-side nav a:hover { background: rgba(214, 178, 94, .08); color: var(--link) !important; }
 .adm-side nav a.on { background: var(--gold) !important; color: #1a1406 !important; }
 .adm-heat i, .adm-bar i { background: var(--accent) !important; }
