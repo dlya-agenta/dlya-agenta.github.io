@@ -83,6 +83,7 @@
     S = d;
     const seen = new Set(msgs.map(m => m.id));
     msgs = msgs.concat((d.msgs ?? []).filter(m => !seen.has(m.id))).sort((a, b) => a.id - b.id);
+    if (Array.isArray(d.files)) syncPend(d.files);   // приложенные, но не отправленные: переживают перезагрузку окна
   }
   const busy = () => ['queued', 'running', 'publishing'].includes(S?.run?.status) || (S?.approvals ?? []).some(a => a.status === 'applying');
 
