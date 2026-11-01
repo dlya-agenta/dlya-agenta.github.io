@@ -106,10 +106,10 @@ input:focus, select:focus, textarea:focus { outline-color: color-mix(in srgb, va
 .hub-sec { position: relative; }
 .hub-sec::before, .adm-tile::before { content: ''; position: absolute; left: 18px; right: 18px; top: -1px; height: 2px; background: linear-gradient(90deg, transparent, var(--brass2), transparent); }
 .adm-tile { position: relative; }
-.price b, .adm-tile b { font-family: var(--serif); font-weight: 700; letter-spacing: .005em; font-variant-numeric: lining-nums tabular-nums; font-feature-settings: 'lnum' 1, 'tnum' 1; }
-.price b { font-size: 24px; color: var(--accent); }
+.price b, .adm-tile b { font-family: Manrope, -apple-system, sans-serif; font-weight: 800; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }   /* у Spectral цифры «старинные» (скачут) — цены ровным шрифтом */
+.price b { font-size: 23px; color: var(--accent); }
 @media (prefers-color-scheme: dark) { .price b { color: var(--link); } }
-.adm-tile b { font-size: 27px; color: var(--accent); }
+.adm-tile b { font-size: 26px; color: var(--accent); }
 .hub-main h2, .hub-main h3, .adm-head h1, .sheet-head b, .gate h2 { font-family: var(--serif); font-weight: 700; letter-spacing: .01em; }
 .hub-main h2, .adm-head h1 { font-size: 27px; }
 .sheet-head b { font-size: 20px; }
