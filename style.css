@@ -689,6 +689,9 @@ button.who:hover, button.who.on { background: var(--soft); }
 /* сетка фильтра: два столбца, широкие ячейки (.w2) — на всю ширину; редкие фильтры — в «Ещё фильтры» */
 .fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; }
 .fgrid .w2 { grid-column: 1 / -1; }
+/* v5.20: «Этаж от — до» — той же ширины, что «Площадь» (ячейка широкая только ради галочек под полями) */
+.fgrid .pair.half { width: calc((100% - 16px) / 2); }
+body:not(.fside) .filters .fgrid .pair.half { width: calc((100% - 22px) / 2); }
 .fmore > summary { cursor: pointer; color: var(--link); font-weight: 600; font-size: 14px; list-style: none; padding: 2px 0; user-select: none; }
 .fmore > summary::-webkit-details-marker { display: none; }
 .fmore > summary::after { content: ' ▾'; font-size: 11px; }
