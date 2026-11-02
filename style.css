@@ -849,3 +849,9 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 .map-sheet .ms-x { position: absolute; top: 4px; right: 6px; z-index: 2; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--muted, inherit); font-size: 24px; line-height: 30px; cursor: pointer; }
 @keyframes msheet { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .map-sheet { animation: none; } }
+/* v5.19: «✉️ В рассылку» на фото карточки — левее «🤝 Контакт» */
+.mailb { position: absolute; top: 8px; right: 92px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(15,18,24,.55); font-size: 17px; line-height: 36px; padding: 0; cursor: pointer; filter: grayscale(1); opacity: .85; }
+.mailb.on { filter: none; opacity: 1; background: rgba(20, 83, 216, .88); }
+.list.l6 .mailb, .card.mc .mailb { width: 30px; height: 30px; font-size: 14px; line-height: 30px; top: 6px; right: 74px; }
+.mlist.many .card.mc .mailb, .map-sheet .card.mc .mailb { display: none; }
+@media (max-width: 720px) { .list.l6 .mailb { width: 30px; height: 30px; font-size: 14px; line-height: 30px; top: 6px; right: 74px; } }

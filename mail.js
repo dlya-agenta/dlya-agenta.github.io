@@ -34,6 +34,8 @@
       scr('Недвижимость Сочи — риелторы', [['👥 1 240 участников', 1], ['Закреплено: правила группы'], ['Сообщение…']])],
     admin: ['Где можно рекламу', 'Подходят группы, где вы администратор, или где правила разрешают объявления. Посмотреть: группа → нажмите на название → «Администраторы» или закреплённые правила.',
       scr('Управление группой', [['Тип группы'], ['Администраторы', 1], ['Участники'], ['Разрешения']])],
+    src: ['Откуда берём объявления', 'Вариант 1 — своя группа-витрина (или «Избранное»): складывайте туда предложения, сервер перешлёт их во все ваши группы как есть, пачками до 30 с паузой. Вариант 2 — «Список рассылки» с сайта: кнопка «✉️ В рассылку» на карточке объявления, список — справа на этой странице.',
+      scr('Мои Вторички', [['🏠 2-комн., 56 м², 8,4 млн ₽', 1], ['🏠 Студия у моря, 5,9 млн ₽', 1], ['Переслать → 5 групп']])],
   };
   const help = k => `<button class="ml-help" type="button" data-help="${k}" aria-label="Подсказка">?</button>`;
   function showHelp(k) {
@@ -46,7 +48,28 @@
   }
 
   let S = null, step = 1, poll = null;
-  const STEPS = ['Вход', 'Группы', 'Проверка Избранного', 'Расписание', 'Тестовая отправка'];
+  const STEPS = ['Вход', 'Группы', 'Что рассылаем', 'Расписание', 'Тестовая отправка'];
+  // v5.19: источник — «chat» (своя группа или «Избранное» мессенджера) или «site» («Список рассылки» — колонка справа, кнопка «✉️ В рассылку» на сайте)
+  const isChat = () => S?.acc.src === 'chat' || S?.acc.src === 'saved';
+  const srcName = () => isChat() ? `«${S.acc.src_title || 'Избранное'}»` : '«Списка рассылки»';
+  const picked = () => (S?.list ?? []).filter(x => x.pick && !x.gone);
+  const money = v => `${Math.round(v).toLocaleString('ru-RU')} ₽`;
+  // колонка «Список рассылки»: отметить, убрать, добавить по номеру или из Избранного
+  function side() {
+    const L = S.list ?? [], k = picked().length;
+    return `<aside class="ml-side${isChat() ? ' dim' : ''}" aria-label="Список рассылки"><div class="ml-side-h"><b>✉️ Список рассылки</b><small>${k} из ${L.length} отмечено</small></div>
+      ${isChat() ? `<p class="hint">Сейчас рассылаем из ${esc(srcName())}. Чтобы рассылать объявления с сайта — выберите «С сайта» в шаге 3.</p>` : ''}
+      <p class="hint">Добавляйте объявления кнопкой <b>✉️ В рассылку</b> на карточках сайта — они появятся здесь.</p>
+      <div class="ml-side-add"><input id="ml-num" inputmode="numeric" placeholder="№ объявления" autocomplete="off"><button class="btn soft" id="ml-num-go">Добавить</button></div>
+      <div class="ml-row ml-side-acts"><button class="chip" id="ml-favs">★ Из Избранного</button>${L.length ? `<button class="chip" data-lall="1">Отметить все</button><button class="chip" data-lall="0">Снять все</button>` : ''}${L.some(x => x.gone) ? '<button class="chip" id="ml-lgone">Убрать снятые</button>' : ''}</div>
+      <div class="ml-items">${L.length ? L.map(x => `<div class="ml-it${x.pick ? ' on' : ''}${x.gone ? ' gone' : ''}">
+          <label class="ml-it-pick"><input type="checkbox" data-lpick="${x.id}" ${x.pick ? 'checked' : ''} ${x.gone ? 'disabled' : ''} aria-label="Отправлять"></label>
+          ${x.photo ? `<img src="${esc(x.photo)}" alt="" loading="lazy">` : '<span class="ml-it-ph"></span>'}
+          <a class="ml-it-t" href="./#o=${x.num}" target="_blank"><b>${esc(x.what)}</b><small>${x.gone ? 'снято с продажи' : money(x.price)}${x.where ? ` · ${esc(x.where)}` : ''}</small><small class="${x.ai ? 'ok' : 'muted'}">${x.ai ? '✨ текст переписан ИИ' : '✨ текст перепишет ИИ перед отправкой'}</small></a>
+          <button class="ml-it-x" data-ldel="${x.id}" aria-label="Убрать из списка" title="Убрать">✕</button></div>`).join('')
+        : '<p class="muted ml-empty">Список пуст. Откройте объявления на сайте и нажмите «✉️ В рассылку» — или добавьте по номеру.</p>'}</div>
+      <a class="btn ghost" href="./">Открыть объявления</a></aside>`;
+  }
   const okAcc = () => S?.acc.status === 'ok';
   const okGroups = () => (S?.groups ?? []).filter(g => g.status === 'ok');
 
@@ -55,7 +78,7 @@
     try { S = await call('mail_init'); }
     catch (e) {
       const d = e.data ?? {};
-      if (d.error === 'need_pro') return gate('<h2>✉️ Рассылки в мессенджеры</h2><p>Объявления из «Избранного» уходят в ваши группы Telegram, WhatsApp и MAX по расписанию — не чаще раза в 3 часа в группу.</p><p>Рассылки — в тарифах PRO и MAX.</p><a class="btn primary" href="./#pro">Оформить PRO</a>');
+      if (d.error === 'need_pro') return gate('<h2>✉️ Рассылки в мессенджеры</h2><p>Объявления из вашей группы-витрины или «Списка рассылки» уходят в ваши группы Telegram, WhatsApp и MAX по расписанию — не чаще раза в 3 часа в группу.</p><p>Рассылки — в тарифах PRO и MAX.</p><a class="btn primary" href="./#pro">Оформить PRO</a>');
       if (d.error === 'soon') return gate('<h2>✉️ Рассылки</h2><p>Раздел скоро откроется.</p><a class="btn ghost" href="./">На главную</a>');
       return gate(`<h2>Рассылки</h2><p>${esc(e.message)}</p><a class="btn primary" href="./">${e.status === 401 ? 'Войти' : 'На главную'}</a>`);
     }
@@ -87,9 +110,9 @@
       ${a.stopped_at ? `<p class="ml-stop">⛔ Рассылки остановлены ${msk(a.stopped_at)}: ${esc(a.message ?? 'мессенджер ограничил отправку')}. Подождите, проверьте аккаунт и включите расписание снова.</p>` : ''}
       <ol class="ml-steps">${STEPS.map((t, i) => `<li><button class="${step === i + 1 ? 'on' : ''}${i + 1 < 2 || okAcc() ? '' : ' dis'}" data-step="${i + 1}" ${i + 1 < 2 || okAcc() ? '' : 'disabled'}>
         <span>${i + 1}</span>${esc(t)}${i === 0 && okAcc() ? ' ✓' : i === 1 && okGroups().length ? ' ✓' : ''}</button></li>`).join('')}</ol>
-      <section class="ml-card" id="ml-step">${[s1, s2, s3, s4, s5][step - 1]()}</section></div>`;
+      <div class="ml-grid"><section class="ml-card" id="ml-step">${[s1, s2, s3, s4, s5][step - 1]()}</section>${okAcc() ? side() : ''}</div></div>`;
     if (step === 1 && a.qr) loadQr().then(() => { const el = $('#ml-qr'); if (el && !el.dataset.v) { el.dataset.v = a.qr; new window.QRCode(el, { text: a.qr, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M }); } }).catch(() => null);
-    if (step === 3) preview();
+    if (step === 3 && !isChat()) preview();
     if (busy || (S.groups ?? []).some(g => g.status === 'search')) poll = setTimeout(refresh, 2500);
   }
   async function refresh() {
@@ -147,23 +170,28 @@
       <div class="ml-row"><button class="btn primary" data-step="3" ${okGroups().length ? '' : 'disabled'}>Дальше: проверка Избранного</button></div>`;
   }
   function s3() {
-    const n = S.favs, lim = S.limit, saved = S.acc.src === 'saved';
-    const src = `<div class="ml-src"><b>Что рассылаем</b>
-      <label class="opt"><input type="radio" name="ml-src" value="site" ${saved ? '' : 'checked'}><span>Объявления из «Избранного» на сайте — текст и фото соберём сами, с вашими контактами</span></label>
-      ${M === 'tg' ? `<label class="opt"><input type="radio" name="ml-src" value="saved" ${saved ? 'checked' : ''}><span>Сообщения из «Избранного» в Telegram — перешлём ваши последние сообщения оттуда как есть</span></label>` : ''}</div>`;
-    if (saved && M === 'tg') return `<h3>3. Проверка Избранного</h3>${src}
-      <p class="ml-big">⚠ В группы уйдут последние сообщения из вашего «Избранного» в Telegram (тест — 3, рассылка — до 10). Проверьте, что там <b>только предложения</b> — ничего личного и лишнего.</p>
-      <p class="hint">Удобно: заведите для рассылок отдельную группу-витрину, складывайте туда объявления и пересылайте их себе в «Избранное» перед рассылкой.</p>
-      <div class="ml-row"><button class="btn primary" id="ml-mk-save" data-next="4">Дальше: расписание</button></div>`;
-    return `<h3>3. Проверка Избранного</h3>${src}
-      <p class="ml-big">В рассылку уйдут все ${n} объявлений из Избранного. Проверьте, что там нет лишнего.</p>
-      ${n > lim ? `<p class="hint">За одну рассылку в группу — до ${lim} объявлений: уйдут первые ${lim} (сначала добавленные последними).</p>` : ''}
-      ${n ? '' : '<p class="err">В «Избранном» нет объявлений на продажу — добавьте их звёздочкой ★ на карточках.</p>'}
-      <div class="ml-row"><a class="btn soft" href="./">Открыть Избранное</a></div>
-      <label class="field">Комиссия сверху цены, %<input id="ml-mk" type="number" min="0" max="10" step="0.5" value="${S.acc.markup}"></label>
-      <p class="hint">В сообщении: тип, площадь, этаж, цена, район и микрорайон, ЖК, до моря, описание и <b>ваши</b> контакты из профиля. Без улицы и номера дома, без телефона собственника и источника.</p>
-      <div id="ml-prev" class="ml-prev"><p class="muted">Пример сообщения…</p></div>
-      <div class="ml-row"><button class="btn primary" id="ml-mk-save" data-next="4">Дальше: расписание</button></div>`;
+    const chats = S.acc.chats ?? [], chat = isChat();
+    const own = chats.filter(c => c.own && c.kind !== 'saved'), rest = chats.filter(c => !c.own && c.kind !== 'saved' && c.kind !== 'chat');
+    const saved = chats.find(c => c.kind === 'saved') || (M !== 'wa' ? { peer: 'saved', title: 'Избранное' } : null);
+    // по умолчанию — своя созданная группа (для WhatsApp — всегда), иначе «Избранное»
+    const cur = S.acc.src_peer || own[0]?.peer || (saved ? 'saved' : rest[0]?.peer) || '';
+    const opt = c => `<option value="${esc(c.peer)}" ${c.peer === cur ? 'selected' : ''}>${esc(c.title)}</option>`;
+    const sel = `<select id="ml-sp">${saved ? `<option value="saved" ${cur === 'saved' ? 'selected' : ''}>⭐ Избранное (сообщения для себя)</option>` : ''}
+      ${own.length ? `<optgroup label="Ваши группы и каналы">${own.map(opt).join('')}</optgroup>` : ''}${rest.length ? `<optgroup label="Другие группы">${rest.map(opt).join('')}</optgroup>` : ''}</select>`;
+    return `<h3>3. Что рассылаем ${help('src')}</h3>
+      <div class="ml-src">
+        <label class="opt big"><input type="radio" name="ml-src" value="chat" ${chat ? 'checked' : ''}><span><b>Пересылать из группы ${MN[M]}</b> — ваша группа-витрина или «Избранное». Складывайте туда объявления, а мы перешлём их во все группы как есть.</span></label>
+        <div class="ml-src-pick" ${chat ? '' : 'hidden'}>${chats.length ? `<label class="field">Откуда пересылать${sel}</label>
+            <p class="hint">Свои группы — первыми. ${M === 'wa' ? 'Удобно: создайте в WhatsApp свою группу (например, «Мои Вторички»), складывайте туда предложения — отсюда они разойдутся по остальным.' : 'Пересылаем объявления (текст от 40 знаков, альбом — одним объявлением), одинаковые — один раз.'}</p>`
+          : `<p class="hint">Список ваших чатов ещё не загружен.</p><div class="ml-row"><button class="btn soft" id="ml-gall">Загрузить мои чаты из ${MN[M]}</button></div>`}</div>
+        <label class="opt big"><input type="radio" name="ml-src" value="site" ${chat ? '' : 'checked'}><span><b>С сайта — «Список рассылки»</b> (колонка справа): текст и фото соберём сами, с вашими контактами; описание перепишет ИИ.</span></label>
+        <div class="ml-src-site" ${chat ? 'hidden' : ''}>
+          <p class="ml-big">${picked().length ? `Отмечено ${picked().length} объявлений — за одну рассылку в группу уйдёт до ${S.limit}.` : 'В списке рассылки пока ничего не отмечено.'}</p>
+          <label class="field">Комиссия сверху цены, %<input id="ml-mk" type="number" min="0" max="10" step="0.5" value="${S.acc.markup}"></label>
+          <p class="hint">В сообщении: тип, площадь, этаж, цена, район и микрорайон, ЖК, до моря, описание и <b>ваши</b> контакты из профиля. Без улицы и номера дома, без телефона собственника и источника.</p>
+          <div id="ml-prev" class="ml-prev"><p class="muted">Пример сообщения…</p></div></div>
+      </div>
+      <div class="ml-row"><button class="btn primary" id="ml-mk-save" data-next="4">Сохранить и дальше: расписание</button></div>`;
   }
   async function preview() {
     try { const r = await call('mail_preview'); const el = $('#ml-prev'); if (!el) return;
@@ -182,20 +210,21 @@
   }
   function s5() {
     const gs = okGroups();
-    return `<h3>5. Тестовая отправка в одну группу</h3><p>Отправим 3 первых ${S.acc.src === 'saved' && M === 'tg' ? 'сообщения из «Избранного» Telegram' : 'объявления из Избранного'} в выбранную группу — проверите, как они выглядят. Это тоже рассылка: следующая в эту группу — через ${S.rules.gap_h} часа.</p>
-      <label class="field">Группа<select id="ml-tg">${gs.map(g => `<option value="${g.id}">${esc(g.title)}</option>`).join('')}</select></label>
+    return `<h3>5. Тестовая отправка в одну группу</h3><p>Отправим 3 ${isChat() ? `последних объявления из ${esc(srcName())}` : 'первых отмеченных объявления из «Списка рассылки»'} в выбранную группу — проверите, как они выглядят. Это тоже рассылка: следующая в эту группу — через ${S.rules.gap_h} часа.</p>
+      <label class="field">Группа<select id="ml-tg">${gs.filter(g => !isSrc(g)).map(g => `<option value="${g.id}">${esc(g.title)}</option>`).join('')}</select></label>
       ${warn()}
       <div class="ml-row"><button class="btn primary" id="ml-test" ${gs.length ? '' : 'disabled'}>Отправить 3 объявления</button><button class="btn soft" id="ml-now" ${gs.length ? '' : 'disabled'}>Запустить рассылку сейчас</button></div>
       ${runs()}`;
   }
+  const isSrc = g => { if (!isChat() || !g.peer) return false; try { const h = String(JSON.parse(g.peer).h ?? ''); return h === S.acc.src_peer || h.replace(/^#/, '').replace(/^-100(\d{9,})$/, '-$1') === S.acc.src_peer; } catch { return false; } };
   const RST = { queued: 'в очереди', run: 'идёт', done: 'готово', stopped: 'остановлена', error: 'ошибка' };
   const runs = () => S.runs?.length ? `<div class="ml-runs"><b>Последние рассылки</b>${S.runs.slice(0, 6).map(r => `<div class="ml-run ${r.status}"><span>${msk(r.created_at)} · ${esc((S.groups.find(g => g.id === r.group_id) ?? {}).title ?? 'группа')}${r.kind === 'test' ? ' · тест' : ''}</span>
-    <span>${RST[r.status] ?? r.status} · ${r.sent} из ${r.planned}${r.failed ? `, ошибок ${r.failed}` : ''}</span>${r.error ? `<small class="err">${esc(r.error)}</small>` : ''}</div>`).join('')}<a href="#log">Весь журнал</a></div>` : '';
+    <span>${RST[r.status] ?? r.status} · ${r.status === 'done' || r.status === 'stopped' || r.status === 'error' || !isChat() ? `${r.sent} из ${r.planned}` : `отправлено ${r.sent}`}${r.failed ? `, ошибок ${r.failed}` : ''}</span>${r.error ? `<small class="err">${esc(r.error)}</small>` : ''}</div>`).join('')}<a href="#log">Весь журнал</a></div>` : '';
   // экран перед запуском (ТЗ): сколько уйдёт, предупреждение — и только потом отправка
   function confirmRun(title, n, go) {
     const d = document.createElement('div');
-    d.className = 'ml-pop'; d.innerHTML = `<div class="ml-pop-box" role="dialog"><b>${esc(title)}</b>${S.acc.src === 'saved' && M === 'tg' ? `<p class="ml-big">Перешлём последние сообщения из «Избранного» Telegram. Проверьте, что там только предложения — ничего личного.</p>`
-        : `<p class="ml-big">В рассылку уйдут все ${S.favs} объявлений из Избранного. Проверьте, что там нет лишнего.</p>${n < S.favs ? `<p class="hint">Сейчас уйдут первые ${n}.</p>` : ''}`}${warn()}<div class="ml-row"><button class="btn primary" data-go>Отправить</button><a class="btn ghost" href="./">Проверить Избранное</a><button class="btn ghost" data-x>Отмена</button></div></div>`;
+    d.className = 'ml-pop'; d.innerHTML = `<div class="ml-pop-box" role="dialog"><b>${esc(title)}</b>${isChat() ? `<p class="ml-big">Перешлём объявления из ${esc(srcName())} (до ${n}). Проверьте, что там только предложения — ничего личного.</p>`
+        : `<p class="ml-big">Уйдут ${Math.min(n, picked().length)} из ${picked().length} отмеченных объявлений «Списка рассылки».</p>`}${warn()}<div class="ml-row"><button class="btn primary" data-go>Отправить</button><button class="btn ghost" data-x>Отмена</button></div></div>`;
     d.onclick = e => { if (e.target === d || e.target.closest('[data-x]')) d.remove(); if (e.target.closest('[data-go]')) { d.remove(); go(); } };
     document.body.append(d);
   }
@@ -229,20 +258,33 @@
         S.groups = (await call('mail_group_ok', { id: +g, pick: +pick, allowed: !!$('#ga' + g)?.checked })).groups; S = await call('mail_init'); wizard(); }
       const del = e.target.closest('[data-gdel]');
       if (del) { S.groups = (await call('mail_group_del', { id: +del.dataset.gdel })).groups; wizard(); }
-      if (id === 'ml-mk-save') { S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +($('#ml-mk')?.value ?? S.acc.markup), src: document.querySelector('input[name="ml-src"]:checked')?.value ?? S.acc.src })).acc; step = 4; wizard(); }
+      if (id === 'ml-mk-save') { const src = document.querySelector('input[name="ml-src"]:checked')?.value ?? S.acc.src;
+        S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +($('#ml-mk')?.value ?? S.acc.markup), src, ...(src === 'chat' && $('#ml-sp') ? { src_peer: $('#ml-sp').value } : {}) })).acc;
+        toast(isChat() ? `Рассылаем из ${srcName()}` : 'Рассылаем «Список рассылки»'); step = 4; wizard(); }
+      // список рассылки
+      const lp = e.target.closest('[data-lpick]');
+      if (lp) { S.list = (await call('mail_list_pick', { id: +lp.dataset.lpick, pick: lp.checked })).list; return wizard(); }
+      const ld = e.target.closest('[data-ldel]');
+      if (ld) { S.list = (await call('mail_list_del', { id: +ld.dataset.ldel })).list; return wizard(); }
+      const la = e.target.closest('[data-lall]');
+      if (la) { S.list = (await call('mail_list_pick', { all: true, pick: la.dataset.lall === '1' })).list; return wizard(); }
+      if (id === 'ml-lgone') { S.list = (await call('mail_list_del', { gone: true })).list; return wizard(); }
+      if (id === 'ml-favs') { const r = await call('mail_list_add', { from: 'favs' }); S.list = r.list; toast(`Из Избранного добавлено: ${r.added}`); return wizard(); }
+      if (id === 'ml-num-go') { const v = $('#ml-num').value.replace(/\D/g, ''); if (!v) return; const r = await call('mail_list_add', { num: +v }); S.list = r.list; toast('Добавлено в список рассылки'); return wizard(); }
       if (id === 'ml-sched') {
         const hours = [...document.querySelectorAll('.ml-hours input:checked')].map(i => +i.value);
         S.acc = (await call('mail_sched', { hours, auto: $('#ml-auto').checked, markup: S.acc.markup, src: S.acc.src })).acc; toast(S.acc.auto ? 'Расписание включено' : 'Расписание сохранено, автоматическая рассылка выключена'); wizard();
       }
-      if (id === 'ml-test') confirmRun('Тестовая отправка: 3 объявления', Math.min(3, S.favs), async () => {
+      if (id === 'ml-test') confirmRun('Тестовая отправка: 3 объявления', 3, async () => {
         try { const r = await call('mail_test', { group_id: +$('#ml-tg').value }); toast(runText(r), 7000); S = await call('mail_init'); step = 5; wizard(); } catch (er) { toast(er.message, 6000); } });
-      if (id === 'ml-now') confirmRun('Рассылка во все группы сейчас', Math.min(S.limit, S.favs), async () => {
+      if (id === 'ml-now') confirmRun('Рассылка во все группы сейчас', S.limit, async () => {
         try { const r = await call('mail_run', {}); toast(runText(r), 8000); S = await call('mail_init'); step = 5; wizard(); } catch (er) { toast(er.message, 6000); } });
     } catch (er) { toast(er.message, 6000); }
   });
   $('#mail').addEventListener('input', e => { if (e.target.id !== 'ml-flt') return; const q = e.target.value.toLowerCase().replace(/ё/g, 'е');
     document.querySelectorAll('.ml-list .ml-cand').forEach(l => l.hidden = !!q && !l.textContent.toLowerCase().replace(/ё/g, 'е').includes(q)); });
-  $('#mail').addEventListener('change', e => { const c = e.target.closest('.ml-hours input'); if (c) c.closest('label').classList.toggle('on', c.checked); });
+  $('#mail').addEventListener('change', e => { const c = e.target.closest('.ml-hours input'); if (c) c.closest('label').classList.toggle('on', c.checked);
+    if (e.target.name === 'ml-src') { const chat = e.target.value === 'chat'; $('.ml-src-pick').hidden = !chat; $('.ml-src-site').hidden = chat; if (!chat) preview(); } });
 
   // ---------- журнал ----------
   async function journal() {
@@ -268,6 +310,11 @@
         <p class="hint">my.telegram.org → войти по номеру → API development tools → создать приложение (название «Для Агента», платформа Other) → скопировать api_id и api_hash сюда. В чат их не присылайте.</p>
         <label class="field">api_id<input id="ma-id" inputmode="numeric" autocomplete="off"></label><label class="field">api_hash<input id="ma-hash" autocomplete="off" spellcheck="false"></label>
         <button class="btn soft" id="ma-tg">Сохранить ключ</button></details>
+      <details${r.proxy?.wa || r.proxy?.all ? '' : ' open'}><summary>🛡 VPN (прокси) сервера для WhatsApp и Instagram${r.proxy && Object.keys(r.proxy).length ? ' — задан' : ' — не задан'}</summary>
+        <p class="hint">Сервер рассылок стоит в России: WhatsApp Web с него не соединяется, Instagram закрыт. Нужен один прокси за пределами России (свой сервер или платный прокси; бесплатным — не доверяйте вход в аккаунты).
+          Вид: <code>http://адрес:порт</code>, <code>socks5://адрес:порт</code> или <code>http://логин:пароль@адрес:порт</code>. Пустое поле — без прокси. Сейчас: ${Object.entries(r.proxy ?? {}).map(([k, v]) => `${k} → ${esc(v)}`).join(', ') || 'нет'}.</p>
+        ${[['wa', 'WhatsApp'], ['ig', 'Instagram'], ['all', 'Все остальные (если нужно)']].map(([k, t]) => `<label class="field">${t}<input id="mx-${k}" placeholder="${r.proxy?.[k] ? 'задан — оставьте пустым, чтобы не менять' : 'например socks5://1.2.3.4:1080'}" autocomplete="off" spellcheck="false"></label>`).join('')}
+        <div class="ml-row"><button class="btn soft" id="ma-px">Сохранить прокси</button><button class="btn ghost" id="ma-px0">Убрать все</button></div></details>
       <p class="hint">Правила ТЗ не меняются: не чаще раза в ${m.gap_h} часа в группу, ${m.from_h}:00–${m.to_h}:00 МСК, 50 / 150 объявлений.</p>
       <div class="ml-row"><button class="btn primary" id="ma-save">Сохранить</button></div></section>
       <section class="ml-card"><h3>Последние рассылки всех участников</h3><div class="ascroll"><table class="atable"><thead><tr><th>№</th><th>Логин</th><th>Когда</th><th>Вид</th><th>Итог</th></tr></thead><tbody>
@@ -277,6 +324,9 @@
     $('#ma-tg').onclick = async () => {
       try { await call('mail_adm_tg', { api_id: $('#ma-id').value, api_hash: $('#ma-hash').value }); toast('Ключ сохранён'); admin(); } catch (e) { toast(e.message, 6000); }
     };
+    $('#ma-px').onclick = async () => { const b = {}; for (const k of ['wa', 'ig', 'all']) { const v = $('#mx-' + k).value.trim(); if (v) b[k] = v; }
+      try { await call('mail_adm_proxy', b); toast('Прокси сохранён — сервер применит его в течение минуты'); admin(); } catch (e) { toast(e.message, 6000); } };
+    $('#ma-px0').onclick = async () => { if (!confirm('Убрать все прокси?')) return; try { await call('mail_adm_proxy', { all: '', wa: '', ig: '', tg: '', max: '', yt: '', vk: '' }); toast('Прокси убраны'); admin(); } catch (e) { toast(e.message, 6000); } };
     $('#ma-save').onclick = async () => {
       try { await call('mail_adm_set', { enabled: $('#ma-on').checked, mail: { testers: $('#ma-t').value.split(/[\s,]+/).filter(Boolean), pause: [+$('#ma-p0').value, +$('#ma-p1').value], photos: +$('#ma-ph').value } });
         toast('Сохранено'); admin(); } catch (e) { toast(e.message, 5000); }

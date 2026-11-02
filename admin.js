@@ -30,7 +30,7 @@ window.ADMIN = (() => {
     ['devices', 'Устройств', 'number'], ['seats', 'Мест (пусто — без ограничений)', 'number'], ['disc_m3', 'Скидка за 3 мес, %', 'number'], ['disc_m12', 'Скидка за 12 мес, %', 'number'],
     ['opts.arch', 'Архив и старые объявления', 'check'], ['opts.rk_month', 'Черновики для рекламы в месяц', 'number'], ['opts.rk_daily', 'Готовых черновиков в день', 'number'],
     ['opts.mail_items', 'Объявлений в рассылке', 'number'], ['opts.mail_groups', 'Чатов для рассылок на мессенджер', 'number'], ['opts.house_chats', 'Домовые чаты', 'check'], ['opts.video', 'Ролики из фото', 'check'],
-    ['opts.video_day', 'Роликов в сутки', 'number'], ['opts.helper', 'Запросов «Моему помощнику» (Подписчик — всего, PRO/MAX — в месяц)', 'number'], ['opts.deal', 'Вкладка «Сделка» (со 2-го месяца)', 'check'], ['opts.deal_ai', 'Помощь ИИ в «Сделке» в сутки', 'number']];   // v5.15
+    ['opts.video_day', 'Роликов в сутки', 'number'], ['opts.helper', 'Запросов «Моему помощнику» (Подписчик — всего, PRO/MAX — в месяц)', 'number'], ['opts.deal', 'Вкладка «Сделка» (с первого дня, v5.19)', 'check'], ['opts.deal_ai', 'Помощь ИИ в «Сделке» в сутки', 'number']];   // v5.15
   let ui = null, r = null, show = 'all';
   const changed = new Map();   // JSON-ключ поля → значение: ["u", логин, поле] | ["s", путь настройки]
 

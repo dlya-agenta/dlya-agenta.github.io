@@ -536,6 +536,7 @@ function gallery(x) {
     ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
     ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
     ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
+    ${meta.features.mail ? `<button class="mailb agent-only" data-mail="${x.num}" aria-label="В рассылку" title="В рассылку — объявление появится в «Списке рассылки»">✉️</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
   </div>`;
 }
@@ -730,6 +731,7 @@ function itemView(x, k) {
         ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
         ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
         ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
+        ${meta.features.mail ? `<button class="mailb agent-only" data-mail="${x.num}" aria-label="В рассылку" title="В рассылку — объявление появится в «Списке рассылки»">✉️</button>` : ''}
       </div>
       ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
@@ -1123,7 +1125,7 @@ function mgSync() {
     g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
   });
   // ссылки меню с других страниц: ./#favs, ./#sels, ./#prof — открыть этот раздел (один раз, после загрузки)
-  const h = /^#(favs|sels|prof)$/.exec(location.hash);
+  const h = /^#(favs|sels|prof|deals)$/.exec(location.hash);
   if (h && !mgSync.done && me) { mgSync.done = true; history.replaceState(null, '', location.pathname); setTimeout(() => document.querySelector(`.top [data-go="${h[1]}"]`)?.click(), 300); }
 }
 // активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
@@ -1172,3 +1174,18 @@ function payGate(pay) {   // страница оплаты pay.html по pay-т�
 }
 
 start();
+
+// v5.19: «✉️ В рассылку» — объявление в «Список рассылки» (страница «Рассылки», колонка справа); рассылки живут в функции auto
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-mail]');
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!token) return toast('Войдите, чтобы добавлять объявления в рассылку');
+  b.disabled = true;
+  try {
+    const r = await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'mail_list_add', auth: { token }, num: +b.dataset.mail }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || j.error || 'Не получилось');
+    b.classList.add('on'); toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`);
+  } catch (err) { toast(err.message); } finally { b.disabled = false; }
+}, true);

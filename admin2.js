@@ -110,7 +110,7 @@
       <p><a class="btn primary" href="partner.html#admin">Заявки на выплату и настройки</a></p>`);
   }
   function mod() { body(`<section class="hub-sec"><h3>Чат подписчиков</h3><p>Жалобы, замечания и баны.</p><p><a class="btn primary" href="hub.html#chat">Открыть чат и модерацию</a></p></section>
-    <section class="hub-sec"><h3>Эксклюзивы</h3><p>Объекты видны коллегам только после проверки договора ИИ-юристом; договор не хранится.</p><p><a class="btn soft" href="hub.html#excl">Открыть эксклюзивы</a></p></section>`); }
+    <section class="hub-sec"><h3>Эксклюзивы</h3><p>Подписчики размещают свою вторичку без документов (v5.19); срок размещения 30 дней с продлением.</p><p><a class="btn soft" href="excl.html">Открыть эксклюзивы</a></p></section>`); }
   function content() { body(`<section class="hub-sec"><h3>Новостройки</h3><p>Карточки ЖК: телефон отдела продаж, правила фиксации, кабинет партнёра, официальные фото, новости.</p><p><a class="btn primary" href="hub.html#newb">Открыть новостройки</a></p></section>
     <section class="hub-sec"><h3>Тарифы, цены и тексты</h3><p>Тарифы и что в них входит — в «Участники и настройки» (блок «Тарифы»). Документы: <a href="prices.html" target="_blank">тарифы</a>, <a href="oferta.html" target="_blank">оферта</a>, <a href="rules.html" target="_blank">правила</a>, <a href="privacy.html" target="_blank">политика</a>.</p></section>`); }
   // ---------- Стиль сайта (v5.16; v5.17 — «Резиденция» вместо «Авроры», логотип и значки меню): выбор админа — по умолчанию для всех;

@@ -44,8 +44,10 @@ window.CONN = (() => {
     txt.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (txt.value) { send([{ t: 'text', v: txt.value }, { t: 'key', k: 'Enter' }]); txt.value = ''; } else send([{ t: 'key', k: 'Enter' }]); } });
     // нажатие на экран → координаты страницы сервера
     img.addEventListener('click', e => {
-      const r = img.getBoundingClientRect();
-      const x = Math.round((e.clientX - r.left) * w / r.width), y = Math.round((e.clientY - r.top) * h / r.height);
+      // v5.19: картинка вписана с полями (object-fit: contain) — считаем от самой картинки, а не от рамки; нажатие на поля — мимо
+      const r = img.getBoundingClientRect(), k = Math.min(r.width / w, r.height / h), ox = (r.width - w * k) / 2, oy = (r.height - h * k) / 2;
+      const x = Math.round((e.clientX - r.left - ox) / k), y = Math.round((e.clientY - r.top - oy) / k);
+      if (x < 0 || y < 0 || x > w || y > h) return;
       flush(); send([{ t: 'click', x, y }]);
       const dot = document.createElement('i'); dot.className = 'conn-dot'; dot.style.left = `${e.clientX - r.left}px`; dot.style.top = `${e.clientY - r.top}px`; scr.appendChild(dot); setTimeout(() => dot.remove(), 600);
       scr.focus();

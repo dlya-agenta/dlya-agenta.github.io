@@ -10,20 +10,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.18">
-<link rel="stylesheet" href="nav.css?v=5.18">
-<script src="design.js?v=5.18"></script>
-<link rel="stylesheet" href="offer.css?v=5.18">
-<link rel="stylesheet" href="notify.css?v=5.18">
-<link rel="stylesheet" href="crm.css?v=5.18">
-<link rel="stylesheet" href="reklama/rk.css?v=5.18">
-<link rel="stylesheet" href="support.css?v=5.18">
+<link rel="stylesheet" href="style.css?v=5.19">
+<link rel="stylesheet" href="nav.css?v=5.19">
+<script src="design.js?v=5.19"></script>
+<link rel="stylesheet" href="offer.css?v=5.19">
+<link rel="stylesheet" href="notify.css?v=5.19">
+<link rel="stylesheet" href="crm.css?v=5.19">
+<link rel="stylesheet" href="reklama/rk.css?v=5.19">
+<link rel="stylesheet" href="support.css?v=5.19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-180.png">
 <meta name="theme-color" content="#1453d8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
-<script src="tg.js?v=5.18"></script>
+<script src="tg.js?v=5.19"></script>
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -39,21 +39,22 @@
         <div class="mg-p" role="menu">
           <button class="link on" data-go="all" aria-current="page"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></button>
           <a class="link agent-only" href="hub.html#newb">🏗 Новостройки</a>
-          <a class="link agent-only" href="hub.html#excl">💎 Эксклюзивы коллег</a>
           <button class="link agent-only" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
           <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
         </div></div>
+      <a class="link agent-only mg-solo" data-g="excl" href="excl.html">💎 Эксклюзивы</a>
       <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <button class="link" data-go="favs">★ Избранное</button>
           <button class="link agent-only" data-go="sels"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span></button>
           <button class="link agent-only" data-go="crm" id="go-crm" hidden>👥 Клиенты<b class="crm-badge" id="crm-badge" hidden></b></button>
+          <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
           <a class="link agent-only" href="hub.html#deal">📑 Сделки</a>
           <a class="link agent-only" href="hub.html#fix">📌 Фиксации</a>
         </div></div>
       <div class="mg" data-g="promo"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">📣 Продвижение <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
-          <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
+          <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
           <button class="link agent-only" data-go="rk" id="go-rk">📣 Реклама</button>
           <button class="link agent-only" data-go="mail" id="go-mail">✉️ Рассылки</button>
           <a class="link agent-only" href="hub.html#video">🎬 Видеомонтаж-СММ</a>
@@ -72,7 +73,6 @@
         <div class="mg-p" role="menu">
           <a class="link agent-only" href="hub.html#balance">💰 Баланс</a>
           <a class="link agent-only" href="partner.html" id="go-ref"><span class="lbl-long">🤝 Партнёрская программа</span><span class="lbl-short">🤝 Партнёрам</span> <span class="ref-30" style="background:#facc15;color:#422006;border-radius:6px;padding:1px 5px;font-size:11.5px;font-weight:700">30%</span></a>
-          <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
         </div></div>
       <button class="link client-btn" data-go="client" id="go-client">🖥️ С клиентом</button>
       <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
@@ -179,22 +179,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.18" defer></script>
-<script src="suggest.js?v=5.18" defer></script>
-<script src="offer.js?v=5.18" defer></script>
-<script src="plans.js?v=5.18" defer></script>
-<script src="mfa.js?v=5.18" defer></script>
-<script src="admin.js?v=5.18" defer></script>
-<script src="guest.js?v=5.18" defer></script>
-<script src="partner.js?v=5.18" defer></script>
-<script src="profile.js?v=5.18" defer></script>
-<script src="notify.js?v=5.18" defer></script>
-<script src="share.js?v=5.18" defer></script>
-<script src="crm.js?v=5.18" defer></script>
-<script src="reklama/rk.js?v=5.18" defer></script>
-<script src="hub.js?v=5.18" defer></script>
-<script src="nav.js?v=5.18" defer></script>
-<script src="app.js?v=5.18" defer></script>
-<script src="support.js?v=5.18" defer></script>
+<script src="filters.js?v=5.19" defer></script>
+<script src="suggest.js?v=5.19" defer></script>
+<script src="offer.js?v=5.19" defer></script>
+<script src="plans.js?v=5.19" defer></script>
+<script src="mfa.js?v=5.19" defer></script>
+<script src="admin.js?v=5.19" defer></script>
+<script src="guest.js?v=5.19" defer></script>
+<script src="partner.js?v=5.19" defer></script>
+<script src="profile.js?v=5.19" defer></script>
+<script src="notify.js?v=5.19" defer></script>
+<script src="share.js?v=5.19" defer></script>
+<script src="crm.js?v=5.19" defer></script>
+<script src="reklama/rk.js?v=5.19" defer></script>
+<script src="hub.js?v=5.19" defer></script>
+<script src="nav.js?v=5.19" defer></script>
+<script src="app.js?v=5.19" defer></script>
+<script src="support.js?v=5.19" defer></script>
 </body>
 </html>

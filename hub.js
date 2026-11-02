@@ -6,7 +6,7 @@ window.HUB = (() => {
   const URL_ = () => String(window.API).replace(/\/web$/, '/hub');
   const token = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
   // сеть на миг пропала («Load failed») или функция ответила 502–546 — ещё 2 попытки (как call в app.js); оплату, подборку, код входа не повторяем
-  const ONCE = /^(pay|topup|sel_create|login_code|register|bal_|help_ask|law_ask|rk_add|excl_save|chat_send)/;
+  const ONCE = /^(pay|topup|sel_create|login_code|register|bal_|help_ask|law_ask|rk_add|excl_save|chat_send|deal_ai|deal_doc_add|deal_doc_check)/;
   async function post(url, action, extra, signal) {
     const body = JSON.stringify({ action, auth: { token: token() }, ...extra });
     for (let i = 0; ; i++) {

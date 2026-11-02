@@ -7,12 +7,13 @@
 // наведение с «намерением» — быстрый проход мыши над соседней группой не перехватывает открытое меню; справа — «Профиль» с подпиской, под ним «Стиль» и «Выйти».
 window.NAV = (() => {
   const G = [
-    ['obj', '🏠 Объявления', [['./', '🏠 Все объявления'], ['hub.html#newb', '🏗 Новостройки'], ['hub.html#excl', '💎 Эксклюзивы коллег'], ['arch.html', '🗂 Архив 2 года'], ['hub.html#market', '📈 Цены рынка']]],
-    ['my', '⭐ Моё', [['./#favs', '★ Избранное'], ['./#sels', '📄 Мои подборки'], ['./#crm', '👥 Клиенты'], ['hub.html#deal', '📑 Сделки'], ['hub.html#fix', '📌 Фиксации']]],
-    ['promo', '📣 Продвижение', [['./#rk', '📣 Реклама'], ['mail.html', '✉️ Рассылки'], ['hub.html#video', '🎬 Видеомонтаж-СММ']]],
+    ['obj', '🏠 Объявления', [['./', '🏠 Все объявления'], ['hub.html#newb', '🏗 Новостройки'], ['arch.html', '🗂 Архив 2 года'], ['hub.html#market', '📈 Цены рынка']]],
+    ['excl', '💎 Эксклюзивы', 'excl.html'],
+    ['my', '⭐ Моё', [['./#favs', '★ Избранное'], ['./#sels', '📄 Мои подборки'], ['./#crm', '👥 Клиенты'], ['./#deals', '🤝 Контакт'], ['hub.html#deal', '📑 Сделки'], ['hub.html#fix', '📌 Фиксации']]],
+    ['promo', '📣 Продвижение', [['hub.html#msg', '🔗 Мессенджеры и соцсети'], ['./#rk', '📣 Реклама'], ['mail.html', '✉️ Рассылки'], ['hub.html#video', '🎬 Видеомонтаж-СММ']]],
     ['help', '🤖 Помощник', [['hub.html#helper', '🤖 Мой помощник'], ['hub.html#lawyer', '⚖️ Юрист'], ['hub.html#broker', '🏦 Ипотечный брокер'], ['hub.html#kb', '📚 База знаний'],
       ['hub.html#chat', '💬 Чат подписчиков'], ['hub.html#taxes', '🧾 Налоги при продаже'], ['help-helper.html', '📘 Как пользоваться помощником']]],
-    ['cab', '💼 Кабинет', [['hub.html#balance', '💰 Баланс'], ['partner.html', '🤝 Партнёрская программа'], ['hub.html#msg', '🔗 Мессенджеры и соцсети'], ['pay.html', '💳 Оплата и тарифы'], ['support.html', '💬 Помощь']]],
+    ['cab', '💼 Кабинет', [['hub.html#balance', '💰 Баланс'], ['partner.html', '🤝 Партнёрская программа'], ['pay.html', '💳 Оплата и тарифы'], ['support.html', '💬 Помощь']]],
   ];
   let iconTimer = 0;
   function iconize() {
@@ -41,7 +42,8 @@ window.NAV = (() => {
   }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hoverable = () => matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches;
-  const groupHtml = ([id, title, items]) => `<div class="mg" data-g="${id}"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">${title} <span class="mg-a" aria-hidden="true">▾</span></button>
+  // v5.19: пункт без подменю (строка G с href вместо списка) — просто ссылка в шапке, например «💎 Эксклюзивы»
+  const groupHtml = ([id, title, items]) => typeof items === 'string' ? `<a class="link mg-solo" data-g="${id}" href="${esc(items)}">${title}</a>` : `<div class="mg" data-g="${id}"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">${title} <span class="mg-a" aria-hidden="true">▾</span></button>
     <div class="mg-p" role="menu">${items.map(([href, t]) => `<a class="link" role="menuitem" href="${esc(href)}"${/^help-/.test(href) ? ' target="_blank"' : ''}>${esc(t)}</a>`).join('')}</div></div>`;
 
   function close(except) {
