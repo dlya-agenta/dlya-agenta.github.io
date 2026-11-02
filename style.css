@@ -815,3 +815,37 @@ html[data-icons=tiles] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > .mi { color: inherit; }
 .adm-side nav a > .mi { margin-right: 2px; }
 .adm-side nav a > .mi svg { width: 18px; height: 18px; }
+
+/* v5.18: окно точки на карте — компактное (264 px), всегда в поле карты (app.js placePop); телефон — шторка снизу карты (#map-sheet) */
+.mkpop .leaflet-popup-content { margin: 8px; }
+.mkpop .leaflet-popup-content-wrapper { border-radius: 12px; }
+.mkpop .mlist { max-height: 460px; gap: 6px; }
+.mkpop .card.mc .gal { aspect-ratio: auto; height: 168px; border-radius: 8px; overflow: hidden; }
+.mkpop .mlist.many .card.mc .gal { height: auto; aspect-ratio: 4 / 3; width: 96px; }
+:is(.mkpop, .map-sheet) .card.mc :is(.tags, .meta) { display: none; }
+:is(.mkpop, .map-sheet) .card.mc .body { padding: 7px 2px 2px; gap: 2px; }
+:is(.mkpop, .map-sheet) .card.mc .price b { font-size: 16.5px; }
+:is(.mkpop, .map-sheet) .card.mc .price small { font-size: 11.5px; }
+:is(.mkpop, .map-sheet) .card.mc :is(.title, .zk) { font-size: 13px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+:is(.mkpop, .map-sheet) .card.mc .addr { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+:is(.mkpop, .map-sheet) .card.mc .actions { padding-top: 4px; gap: 6px; }
+:is(.mkpop, .map-sheet) .card.mc .actions .btn { padding: 5px 9px; font-size: 12.5px; }
+:is(.mkpop, .map-sheet) .card.mc .phone { font-size: 12.5px; }
+:is(.mkpop, .map-sheet) .card.mc .phone .msgs { gap: 4px; flex-wrap: wrap; }
+:is(.mkpop, .map-sheet) .card.mc .phone .msgs > * { padding: 3px 7px; font-size: 12px; }
+.mkpop .leaflet-popup-close-button { z-index: 3; }
+.mkpop a.leaflet-popup-close-button { top: 2px; right: 2px; }
+.map-sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 1001; max-height: 56%; display: flex; flex-direction: column;
+  background: var(--card); color: var(--text); border-radius: 14px; box-shadow: 0 -6px 24px rgba(0,0,0,.28); padding: 10px 10px 8px; animation: msheet .2s ease-out; }
+.map-sheet[hidden] { display: none; }
+.map-sheet .mlist { width: auto; max-height: none; min-height: 0; flex: 1; overflow-y: auto; gap: 6px; }
+.map-sheet .card.mc { flex-direction: row; gap: 10px; box-shadow: none; border-radius: 0; }
+.map-sheet .card.mc .gal { width: 128px; flex: none; aspect-ratio: 4 / 3; align-self: flex-start; border-radius: 8px; overflow: hidden; }
+.map-sheet .card.mc .body { padding: 0 22px 0 0; min-width: 0; flex: 1; }
+.map-sheet .mlist.many .card.mc { border-top: 1px solid var(--line); padding-top: 6px; }
+.map-sheet .card.mc :is(.deal, .dots, .nav, .newmark), .map-sheet .mlist.many .card.mc .pick { display: none; }
+.map-sheet .card.mc .pick { font-size: 11px; padding: 3px 6px; top: 4px; left: 4px; }
+.map-sheet .card.mc .fav { width: 26px; height: 26px; font-size: 13px; line-height: 26px; top: 4px; right: 4px; }
+.map-sheet .ms-x { position: absolute; top: 4px; right: 6px; z-index: 2; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--muted, inherit); font-size: 24px; line-height: 30px; cursor: pointer; }
+@keyframes msheet { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .map-sheet { animation: none; } }

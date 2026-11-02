@@ -73,7 +73,7 @@ window.RK = (() => {
         ${done.map(x => { const p = x.report; return `<tr><td>${x.num}</td><td>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.offer)}</a>` : esc(p.offer ?? '')}</td><td>${esc(p.addr ?? '')}</td>
           <td>${p.area ?? ''}</td><td>${p.floor ?? ''}${p.floors ? '/' + p.floors : ''}</td><td>${money(p.price)}${p.m2 ? `<br><small>${money(p.m2)}/м²</small>` : ''}</td><td>${esc(p.price_src ? srcName(p.price_src) : '')}</td>
           <td>${p.photos ?? ''}</td><td>${esc((p.notes ?? []).join('; '))}</td></tr>`; }).join('')}</tbody></table></div></div>` : ''}
-      <div class="rk-soon"><b>Скоро</b><span>Авито и ЦИАН — по 25 черновиков в PRO</span><span>Продающие ролики из фото — в MAX</span></div></div>`;
+      <div class="rk-soon"><b>Скоро</b><span>Ещё две крупные площадки — по 25 черновиков в PRO</span><span>Продающие ролики из фото — в MAX</span></div></div>`;
     bind(async e => {
       if (tabs(e)) return;
       if (e.target.closest('[data-csv]')) return csv(done);

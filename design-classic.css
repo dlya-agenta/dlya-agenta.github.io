@@ -98,3 +98,6 @@ input, select, textarea { border-radius: 10px; }
 .pro-line .btn.soft { background: #3b82f6; color: #fff; }
 .foot { color: var(--muted); }
 @media (prefers-color-scheme: dark) { .tag.sea { background: #0f2433; color: #7dd3fc; } }
+/* v5.18: в окне точки на карте и в шторке на телефоне — без цветной полосы у каждой карточки списка, только тонкий разделитель */
+:is(.mkpop, .map-sheet) .card.mc { border-top: 0 !important; }
+:is(.mkpop, .map-sheet) .mlist.many .card.mc { border-top: 1px solid var(--line) !important; }

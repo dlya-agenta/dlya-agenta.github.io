@@ -4,7 +4,10 @@
 // на размытой обложке: агентство / имя / телефон / мессенджеры / адрес — того, кто делает ролик (из профиля или введённые здесь).
 // Безопасные зоны: ничего важного выше 200 и ниже 1300 px (из 1920). Низ фото срезан на 1/20 (водяные знаки площадок).
 // Перед сборкой агент обязательно пишет короткое описание (или «✨ Написать ИИ») и проверяет имя и телефон. Готово: просмотр, «Скачать»,
-// «Поделиться», описание к посту и заголовок для YouTube/Rutube с кнопками «Скопировать». Ролик хранится на сервере 1 час. Сервер — hub/video.ts.
+// «Поделиться», описание к посту и заголовок для YouTube/Rutube с кнопками «Скопировать». Сервер — hub/video.ts.
+// v5.18: ролик хранится на сервере 12 часов, «Мои ролики за 12 часов» (vid_list) — найти после перезагрузки; шаги номерами, шаг 1 — обложка;
+// «Куда отправить» одним кликом: телефон — системное «Поделиться» с файлом; компьютер — файл скачивается, описание копируется,
+// открывается страница загрузки сервиса. Вошли в сервис (раздел «Мессенджеры и соцсети», живой вход) — «вы вошли ✓», нет — «Войти один раз».
 (() => {
   const H = window.HUB, esc = H.esc;
   const PH = 'https://arojogajdamsyrrpcmso.supabase.co/storage/v1/object/public/photos/w', MEDIA = 'https://zpkqduhbymvadtwgcyhp.supabase.co/storage/v1/object/public/photos/w';
@@ -20,9 +23,17 @@
     .vid-ph input:checked+img{border-color:${GOLD}}.vid-ph b{position:absolute;right:6px;top:4px;background:#0009;color:#fff;border-radius:8px;padding:0 6px;font-size:12px}
     .vid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 12px}.vid-grid .field{margin:0}.vid-grid input,.vid-grid textarea{width:100%}
     .vid-sc{display:grid;grid-template-columns:48px 1fr 1fr;gap:6px;align-items:center;margin:4px 0}.vid-sc img{width:48px;height:64px;object-fit:cover;border-radius:6px}
-    .vid-two{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;align-items:start}.vid-cv{width:100%;max-width:360px;aspect-ratio:9/16;border-radius:14px;background:#0b0e14;display:block}
+    .vid-two{display:grid;grid-template-columns:1fr minmax(280px,380px);gap:16px;align-items:start}.vid-cv{width:100%;max-width:360px;aspect-ratio:9/16;border-radius:14px;background:#0b0e14;display:block}
     .vid-need{color:#b91c1c;font-weight:600}.vid-obj{display:flex;flex-wrap:wrap;gap:6px}.vid-obj span{background:var(--soft,#eef3ff);border-radius:10px;padding:4px 10px;font-size:13px}
-    @media (max-width:760px){.vid-two{grid-template-columns:1fr}.vid-sc{grid-template-columns:40px 1fr}.vid-sc input:last-child{grid-column:2}}`;
+    .vid-step h3{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:18px}.vid-step h3 small{flex-basis:100%;font-size:13px;font-weight:500;padding-left:40px}.vid-n{flex:none;width:30px;height:30px;border-radius:50%;background:${GOLD};color:#1b1b1b;display:grid;place-items:center;font-weight:800;font-size:16px}
+    .vid-cov{display:flex;flex-wrap:wrap;gap:10px}.vid-cov label{position:relative;cursor:pointer}.vid-cov input{position:absolute;opacity:0}.vid-cov img{width:104px;height:138px;object-fit:cover;border-radius:12px;display:block;border:4px solid transparent}
+    .vid-cov input:checked+img{border-color:${GOLD}}.vid-cov input:focus-visible+img{outline:2px solid ${GOLD};outline-offset:2px}.vid-cov em{position:absolute;left:6px;bottom:6px;background:${GOLD};color:#1b1b1b;font-style:normal;font-weight:700;font-size:12px;border-radius:8px;padding:1px 7px}
+    .vid-send{display:grid;gap:10px;margin-top:8px}.vid-big{font-size:17px;padding:14px 18px;width:100%}.vid-tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+    .vid-to{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid var(--line,#d9dee8);background:var(--card,#fff);color:inherit;cursor:pointer;font:inherit}
+    .vid-to b{font-size:15px}.vid-to small{font-size:12px;opacity:.75}.vid-to .ok{color:#15803d;opacity:1;font-weight:600}.vid-to a{font-size:12px}
+    .vid-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.vid-item{border:1px solid var(--line,#d9dee8);border-radius:14px;padding:10px;display:grid;gap:8px;min-width:0}
+    .vid-item video{width:100%;aspect-ratio:9/16;max-height:340px;border-radius:10px;background:#0b0e14;object-fit:contain}.vid-item .row{display:flex;flex-wrap:wrap;gap:6px}
+    @media (max-width:760px){.vid-two{grid-template-columns:1fr}.vid-cv{max-height:62vh;width:auto;margin:0 auto}.vid-sc{grid-template-columns:40px 1fr}.vid-sc input:last-child{grid-column:2}}`;
   const addCss = () => { if (!document.getElementById('vid-css')) { const s = document.createElement('style'); s.id = 'vid-css'; s.textContent = css; document.head.appendChild(s); } };
 
   async function open(arg, ctx) {
@@ -47,8 +58,10 @@
         <li>Внизу появится полоса выбора — нажмите <b>«🎬 Ролик»</b>.</li><li>Или попросите помощника: «сделай ролик по № 172480».</li></ol>
       ${sel.length ? `<p><button class="btn primary" data-sel-go="${sel.join(',')}">🎬 Ролик из отмеченных на главной (${sel.length})</button></p>` : ''}
       <form class="hub-ask" id="v-nums"><input id="v-n" placeholder="Или номера объектов через запятую: 172480, 188198" inputmode="numeric" aria-label="Номера объектов"><button class="btn primary">Сделать ролик</button></form>
-      <p><a class="btn soft" href="./">К объявлениям</a> <a class="btn soft" href="#helper">🤖 Помощник</a></p>`;
-    el.onclick = e => { const b = e.target.closest('[data-sel-go]'); if (b) location.hash = `video=${b.dataset.selGo}`; };
+      <p><a class="btn soft" href="./">К объявлениям</a> <a class="btn soft" href="#helper">🤖 Помощник</a></p>
+      <section class="hub-sec"><h3>Мои ролики за 12 часов</h3><div id="v-mine"><p class="muted">Загрузка…</p></div></section>`;
+    mine();
+    el.onclick = e => { const b = e.target.closest('[data-sel-go]'); if (b) location.hash = `video=${b.dataset.selGo}`; else onSend(e); };
     el.querySelector('#v-nums').onsubmit = e => { e.preventDefault(); const n = (el.querySelector('#v-n').value.match(/\d{6}/g) ?? []).slice(0, 6); if (!n.length) return H.toast('Введите номера объектов (6 цифр)'); location.hash = `video=${n.join(',')}`; };
   }
   const itemOf = num => prep.items.find(x => x.num === num) ?? prep.items[0];
@@ -74,38 +87,52 @@
   function draw() {
     const a = prep.agent, x = prep.items[0], need = !a.name || !a.phone;
     el.innerHTML = `<h2>🎬 Видеообзор объекта</h2>
-      <p class="hint">Роликов сегодня: ${prep.used} из ${prep.lim}. Ролик 10 секунд 9:16, финальный кадр — ваше имя и контакты. Видео хранится на сервере 1 час — скачайте его сразу.</p>
+      <p class="hint">Роликов сегодня: ${prep.used} из ${prep.lim}. Ролик 10 секунд 9:16, финальный кадр — ваше имя и контакты. Готовый ролик хранится на сервере 12 часов — он будет в «Моих роликах» на странице «Видеомонтаж».</p>
       <div class="vid-obj">${prep.items.map(i => `<span>№ ${i.num} · ${esc([i.zk, i.rooms || i.kind, area(i.area), i.place].filter(Boolean).join(' · '))}</span>`).join('')}</div>
       <div class="vid-two">
-        <section class="hub-sec"><h3>Видео</h3><div id="v-out"><canvas id="v-cv" width="${W}" height="${HH}" class="vid-cv"></canvas></div>
-          <p><button class="btn primary" data-make>🎬 Собрать ролик</button> <button class="btn ghost" data-preview>Обложка</button></p><div id="v-actions"></div></section>
         <div class="vid-steps">
-          <section class="hub-sec"><h3>1. Фото и подписи (${scenes.filter(s => s.on).length} из 4–6, первое — обложка)</h3>
-            <div class="vid-ph">${scenes.map((s, i) => `<label><input type="checkbox" data-on="${i}"${s.on ? ' checked' : ''}><img src="${esc(s.u)}" alt="" crossorigin="anonymous"><b>${i + 1}</b></label>`).join('')}</div>
+          <section class="hub-sec vid-step"><h3><span class="vid-n">1</span>Выберите обложку — первое фото ролика</h3>
+            <p class="hint">Обложку видно в ленте и в статусах до того, как ролик начнут смотреть. Нажмите на самое яркое фото.</p>
+            <div class="vid-cov" role="radiogroup" aria-label="Обложка">${scenes.map((s, i) => `<label><input type="radio" name="v-cover" data-cover="${i}"${i === 0 ? ' checked' : ''} aria-label="Фото ${i + 1}"><img src="${esc(s.u)}" alt="" crossorigin="anonymous">${i === 0 ? '<em>Обложка</em>' : ''}</label>`).join('')}</div></section>
+          <section class="hub-sec vid-step"><h3><span class="vid-n">2</span>Отметьте остальные фото <small class="muted" id="v-cnt">в ролике ${scenes.filter(s => s.on).length} фото вместе с обложкой (лучше 4–6)</small></h3>
+            <div class="vid-ph">${scenes.map((s, i) => i === 0 ? '' : `<label><input type="checkbox" data-on="${i}"${s.on ? ' checked' : ''}><img src="${esc(s.u)}" alt="" crossorigin="anonymous"><b>${i + 1}</b></label>`).join('')}</div>
             <details><summary>Подписи сцен (до 4 слов, подзаголовок до 5)</summary>${scenes.map((s, i) => `<div class="vid-sc"><img src="${esc(s.u)}" alt="" crossorigin="anonymous">
               ${i === 0 ? '<small class="muted">Обложка — «крючок» ниже</small><span></span>' : `<input data-t="${i}" value="${esc(s.title)}" maxlength="40" aria-label="Название сцены ${i + 1}"><input data-s="${i}" value="${esc(s.sub)}" maxlength="50" aria-label="Подзаголовок сцены ${i + 1}">`}</div>`).join('')}</details></section>
-          <section class="hub-sec"><h3>2. Описание <span class="vid-need">*</span></h3>
+          <section class="hub-sec vid-step"><h3><span class="vid-n">3</span>Описание <span class="vid-need">*</span></h3>
             <div class="vid-grid"><label class="field" style="grid-column:1/-1">Коротко об объекте — обязательно (до 200 знаков, пойдёт в описание к посту)
               <textarea id="v-short" rows="3" maxlength="200" placeholder="Например: светлая двушка с видом на горы, 10 минут пешком до парка «Ривьера», чистый подъезд, тихие соседи">${esc(prep.short ?? '')}</textarea></label>
               <label class="field">Фишка для обложки (до 4 слов)<input id="v-fish" value="${esc(prep.items.length > 1 ? '' : x.fishka ?? '')}" maxlength="40" placeholder="например: вид на море"></label>
               </div>
             <label class="hub-chk"><input type="checkbox" id="v-price"> Показать цену в ролике и в описании${x.price && prep.items.length === 1 ? ` (${esc(H.mln(x.price))})` : ''}</label>
             <p><button class="btn soft" data-ai>✨ Написать ИИ</button> <small class="muted">ИИ пишет только по характеристикам объекта — проверьте текст.</small></p></section>
-          <section class="hub-sec"><h3>3. Ваше имя и контакты ${need ? '<span class="vid-need">* в профиле их нет — заполните</span>' : '<small class="muted">из профиля</small>'}</h3>
+          <section class="hub-sec vid-step"><h3><span class="vid-n">4</span>Ваше имя и контакты ${need ? '<span class="vid-need">* в профиле их нет — заполните</span>' : '<small class="muted">из профиля</small>'}</h3>
             <div class="vid-grid"><label class="field">Имя и фамилия *<input id="v-name" value="${esc(a.name)}" maxlength="80" autocomplete="name"></label>
               <label class="field">Телефон *<input id="v-phone" value="${esc(a.phone)}" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="+7 918 123-45-67"></label>
               <label class="field">Агентство<input id="v-ag" value="${esc(a.agency)}" maxlength="120" placeholder="без агентства — крупно имя"></label>
               <label class="field">Мессенджеры<input id="v-msg" value="${esc(a.messengers)}" maxlength="120" placeholder="WhatsApp · Telegram @ник"></label>
               <label class="field" style="grid-column:1/-1">Адрес офиса<input id="v-addr" value="${esc(a.address)}" maxlength="160" placeholder="по желанию"></label></div>
             <label class="hub-chk"><input type="checkbox" id="v-save"${need ? ' checked' : ''}> Сохранить в профиль — в следующий раз подставятся сами</label></section>
-          <section class="hub-sec" id="v-post" hidden><h3>4. Описание к посту</h3>
+          <section class="hub-sec" id="v-post" hidden><h3>Описание к посту — скопируется само при отправке</h3>
             <label class="field">Заголовок (YouTube, Rutube, Дзен)<input id="v-title" maxlength="120"></label>
             <textarea id="v-cap" rows="11" maxlength="3000"></textarea>
             <p><button class="btn primary" data-copy-cap>Скопировать описание</button> <button class="btn soft" data-copy-title>Скопировать заголовок</button></p></section>
-        </div></div>`;
+        </div>
+        <section class="hub-sec vid-step vid-make"><h3><span class="vid-n">5</span>Соберите ролик</h3><div id="v-out"><canvas id="v-cv" width="${W}" height="${HH}" class="vid-cv"></canvas></div>
+          <p><button class="btn primary" data-make>🎬 Собрать ролик</button> <button class="btn ghost" data-preview>Обложка</button></p><div id="v-actions"></div></section>
+      </div>`;
     el.onchange = e => {
       const c = e.target.closest('[data-on]');
-      if (c) { scenes[+c.dataset.on].on = c.checked; el.querySelector('.vid-steps h3').textContent = `1. Фото и подписи (${scenes.filter(s => s.on).length} из 4–6, первое — обложка)`; }
+      if (c) { scenes[+c.dataset.on].on = c.checked; el.querySelector('#v-cnt').textContent = `в ролике ${scenes.filter(s => s.on).length} фото вместе с обложкой (лучше 4–6)`; }
+      const cv = e.target.closest('[data-cover]');
+      if (cv && +cv.dataset.cover > 0) {   // выбранное фото — первым (обложка), подписи сцен — заново по порядку
+        const k = +cv.dataset.cover, s0 = { ...scenes[k], on: true };
+        scenes = [s0, ...scenes.filter((_, i) => i !== k)].map((s, i) => ({ ...s, ...titleOf(i, s) }));
+        const keep = { short: val('#v-short'), fish: val('#v-fish'), price: el.querySelector('#v-price').checked, c: contact(), save: el.querySelector('#v-save').checked };
+        draw();
+        el.querySelector('#v-short').value = keep.short; el.querySelector('#v-fish').value = keep.fish; el.querySelector('#v-price').checked = keep.price; el.querySelector('#v-save').checked = keep.save;
+        [['#v-name', 'name'], ['#v-phone', 'phone'], ['#v-ag', 'agency'], ['#v-msg', 'messengers'], ['#v-addr', 'address']].forEach(([id, k2]) => el.querySelector(id).value = keep.c[k2]);
+        H.toast('Обложка выбрана');
+      }
     };
     el.oninput = e => { const t = e.target; if (t.dataset.t) scenes[+t.dataset.t].title = t.value; if (t.dataset.s) scenes[+t.dataset.s].sub = t.value; };
     el.onclick = onClick;
@@ -289,24 +316,97 @@
         const up = await H.call('vid_upload', { type: mp4 ? 'mp4' : 'webm', nums: prep.items.map(x => x.num), caption: el.querySelector('#v-cap').value });
         const r = await fetch(up.upload, { method: 'PUT', body: blob, headers: { 'content-type': blob.type } });
         if (!r.ok) throw new Error(`Хранилище не приняло ролик (${r.status})`);
-        job = await H.call('vid_done', { id: up.id, size: blob.size }); job.id = up.id;
+        job = await H.call('vid_done', { id: up.id, size: blob.size }); job.id = up.id; job.dl = job.dl || up.dl;
         actions(false, mp4);
       } catch (er) { H.toast(`Ролик готов, но на сервер не загрузился: ${er.message}. Скачайте его кнопкой «Скачать».`, 7000); }
     } catch (er) { H.toast(er.message, 6000); }
     busy = false; b.disabled = false; b.textContent = '🎬 Собрать заново';
   }
   function actions(local, mp4) {
-    const t = job?.expires_at ? new Date(job.expires_at).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' }) : '';
     const kb = Math.round(blob.size / 1024);
-    el.querySelector('#v-actions').innerHTML = `<p class="hub-inline"><a class="btn primary" download="obzor.${mp4 ? 'mp4' : 'webm'}" href="${URL.createObjectURL(blob)}">⬇ Скачать ${mp4 ? 'MP4' : 'WebM'}</a>
-      <button class="btn soft" data-share>📤 Поделиться</button></p>
+    el.querySelector('#v-actions').innerHTML = `<h3 class="vid-step" style="margin:14px 0 0"><span class="vid-n" style="display:inline-grid;margin-right:8px">6</span>Куда отправить</h3>
+      <div id="v-send"></div>
       <p class="hint">${mp4 ? 'MP4' : 'WebM'}, 9:16, 10 с, ${kb > 1024 ? `${(kb / 1024).toFixed(1)} МБ` : `${kb} КБ`}.${mp4 ? '' : ' Этот браузер записывает видео только в WebM: Telegram, YouTube, VK и Rutube его принимают; для Instagram и WhatsApp-статуса откройте сайт в Safari или новом Chrome — там будет MP4.'}</p>
-      <p class="hint">${local ? '⏳ Загружаю копию на сервер…' : `⏳ Копия на сервере удалится в ${t} МСК. Уведомление о готовности ушло в бот и push.`}</p>`;
+      <p class="hint">${local ? '⏳ Сохраняю ролик на сервер…' : `✅ Ролик сохранён на 12 часов — до ${until(job.expires_at)}. Найти его: «Видеомонтаж» → «Мои ролики».`}</p>`;
+    sendBlock(el.querySelector('#v-send'), { blob, dl: job?.dl, caption: () => el.querySelector('#v-cap')?.value ?? '', title: () => el.querySelector('#v-title')?.value ?? '', mp4 });
   }
-  async function share() {
-    const file = new File([blob], `obzor.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`, { type: blob.type }), text = el.querySelector('#v-cap').value;
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text }); } catch { /* отмена */ } }
-    else await H.copy(text, 'Описание скопировано — скачайте ролик и отправьте его в мессенджере');
+  const until = s => { if (!s) return ''; const d = new Date(s), o = { timeZone: 'Europe/Moscow' };
+    const same = d.toLocaleDateString('ru-RU', o) === new Date().toLocaleDateString('ru-RU', o);
+    return `${d.toLocaleTimeString('ru-RU', { ...o, hour: '2-digit', minute: '2-digit' })} МСК${same ? '' : ` ${d.toLocaleDateString('ru-RU', { ...o, day: '2-digit', month: '2-digit' })}`}`; };
+
+  // ---------- «Куда отправить» (v5.18): один клик — файл, описание и нужная страница сервиса ----------
+  // svc — живой вход из «Мессенджеры и соцсети» (auto conn_init); на телефоне всё уходит через системное «Поделиться» с файлом
+  const TO = [
+    { id: 'wa', name: 'WhatsApp — статус', icon: '🟢', svc: 'wa', href: 'https://web.whatsapp.com/', how: 'Статус → «+» → перетащите файл' },
+    { id: 'max', name: 'MAX', icon: '💬', svc: 'max', href: 'https://web.max.ru/', how: 'Чат или канал → скрепка → файл' },
+    { id: 'tg', name: 'Telegram', icon: '✈️', svc: 'tg', href: 'https://web.telegram.org/a/', how: 'Чат или канал → перетащите файл' },
+    { id: 'yt', name: 'YouTube Shorts', icon: '▶️', svc: 'yt', href: 'https://www.youtube.com/upload', how: 'Перетащите файл, вставьте заголовок' },
+    { id: 'rt', name: 'Rutube', icon: '🟣', svc: null, href: 'https://studio.rutube.ru/', how: '«Загрузить видео» → файл' },
+    { id: 'ig', name: 'Instagram Reels', icon: '📸', svc: 'ig', href: 'https://www.instagram.com/', how: '«Создать» → перетащите файл' },
+    { id: 'vk', name: 'VK Клипы', icon: '🔵', svc: 'vk', href: 'https://vk.com/clips', how: '«Опубликовать клип» → файл' },
+  ];
+  let conns = null;
+  async function connState() {
+    if (conns) return conns;
+    try {
+      const r = await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'conn_init', auth: { token: H.token() } }) });
+      const d = await r.json(); conns = Object.fromEntries((d.items ?? []).map(x => [x.id, x.status]));
+    } catch { conns = {}; }
+    return conns;
+  }
+  const sendCtx = new WeakMap();
+  async function sendBlock(box, o) {
+    if (!box) return;
+    sendCtx.set(box, o);
+    const phone = H.mobile(), st = await connState();
+    box.innerHTML = `<div class="vid-send">
+      ${phone ? `<button class="btn primary vid-big" data-sys>📤 Отправить: статусы WhatsApp, MAX, Telegram, Instagram…</button>` : ''}
+      <div class="row" style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn ${phone ? 'soft' : 'primary'}" data-dl>⬇ Скачать ролик</button><button class="btn soft" data-cap>Скопировать описание</button></div>
+      <small class="muted">${phone ? 'Или выберите сервис — откроется его страница, описание скопируется:' : 'Один клик: ролик скачается, описание скопируется, откроется страница сервиса — перетащите файл в окно.'}</small>
+      <div class="vid-tg">${TO.map(t => `<div class="vid-to" data-to="${t.id}" role="button" tabindex="0"><b>${t.icon} ${esc(t.name)}</b><small>${esc(t.how)}</small>
+        ${t.svc ? (st[t.svc] === 'ok' ? '<small class="ok">вы вошли ✓</small>' : `<a href="hub.html#msg=${t.svc}" data-login>Войти один раз</a>`) : ''}</div>`).join('')}</div></div>`;
+  }
+  async function fileOf(o) {
+    if (o.blob) return new File([o.blob], `obzor.${o.blob.type.includes('mp4') ? 'mp4' : 'webm'}`, { type: o.blob.type });
+    const r = await fetch(o.url); const b = await r.blob();
+    return new File([b], `obzor.${o.url.includes('.mp4') ? 'mp4' : 'webm'}`, { type: b.type || (o.url.includes('.mp4') ? 'video/mp4' : 'video/webm') });
+  }
+  function download(o) {
+    const a = document.createElement('a');
+    if (o.blob) { a.href = URL.createObjectURL(o.blob); a.download = `obzor.${o.blob.type.includes('mp4') ? 'mp4' : 'webm'}`; }
+    else a.href = o.dl;   // ссылка ?download= — хранилище отдаёт файл вложением
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  async function sysShare(o) {
+    try {
+      const file = await fileOf(o);
+      if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text: o.caption() }); } catch { /* отмена */ } return true; }
+    } catch { /* нет сети — ниже скачивание */ }
+    return false;
+  }
+  async function onSend(e) {
+    const box = e.target.closest('.vid-send')?.parentElement, o = box && sendCtx.get(box);
+    if (!o || e.target.closest('[data-login]')) return;
+    if (e.target.closest('[data-sys]')) { if (!(await sysShare(o))) { download(o); H.toast('Этот браузер не умеет «Поделиться» файлом — ролик скачан', 5000); } return; }
+    if (e.target.closest('[data-dl]')) { download(o); return H.toast('Ролик скачивается — он в папке «Загрузки»'); }
+    if (e.target.closest('[data-cap]')) return H.copy(o.caption(), 'Описание скопировано');
+    const t = TO.find(x => x.id === e.target.closest('[data-to]')?.dataset.to);
+    if (!t) return;
+    const cap = t.id === 'yt' || t.id === 'rt' ? `${o.title()}\n\n${o.caption()}`.trim() : o.caption();
+    if (H.mobile() && await sysShare(o)) return;   // телефон: системное окно — там выбрать WhatsApp, MAX, Telegram…
+    const w = window.open(t.href, '_blank', 'noopener');
+    download(o);
+    await H.copy(cap, `Ролик скачан, описание скопировано — в открытой вкладке ${t.name}: ${t.how}`);
+    if (!w) H.toast(`Разрешите сайту открывать вкладки или откройте ${t.href}`, 6000);
+  }
+  // «Мои ролики за 12 часов»
+  async function mine(box = el.querySelector('#v-mine')) {
+    if (!box) return;
+    let r; try { r = await H.call('vid_list'); } catch (er) { box.innerHTML = `<p class="err">${esc(er.message)}</p>`; return; }
+    if (!r.items.length) { box.innerHTML = '<p class="muted">Пока пусто. Готовые ролики хранятся здесь 12 часов.</p>'; return; }
+    box.innerHTML = `<div class="vid-list">${r.items.map(j => `<div class="vid-item"><video src="${esc(j.url)}#t=0.6" preload="metadata" controls playsinline></video>
+      <small class="muted">№ ${esc((j.nums ?? []).join(', №'))} · удалится в ${esc(until(j.expires_at))}</small><div data-mine="${j.id}"></div></div>`).join('')}</div>`;
+    for (const j of r.items) sendBlock(box.querySelector(`[data-mine="${j.id}"]`), { url: j.url, dl: j.dl, caption: () => j.caption ?? '', title: () => (j.caption ?? '').split('\n')[0], mp4: j.url.includes('.mp4') });
   }
   async function aiText(b) {
     b.disabled = true; b.textContent = 'ИИ пишет… ~5–15 с';
@@ -324,15 +424,17 @@
     if (e.target.closest('[data-ai]')) return aiText(e.target.closest('[data-ai]'));
     if (e.target.closest('[data-copy-cap]')) return H.copy(el.querySelector('#v-cap').value, 'Описание скопировано');
     if (e.target.closest('[data-copy-title]')) return H.copy(el.querySelector('#v-title').value, 'Заголовок скопирован');
-    if (e.target.closest('[data-share]')) return share();
+    onSend(e);
   }
   async function show(id) {
     try {
       const r = await H.call('vid_get', { id });
-      el.innerHTML = `<h2>🎬 Ролик</h2><video src="${esc(r.url)}" controls playsinline class="vid-cv"></video><p class="hub-warn">⏳ Удалится в ${new Date(r.expires_at).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })} МСК.</p>
-        <p><a class="btn primary" href="${esc(r.url)}" download>⬇ Скачать</a> <button class="btn soft" data-c="${esc(r.caption ?? '')}">Скопировать описание</button></p>`;
-      el.onclick = e => { const c = e.target.closest('[data-c]'); if (c) H.copy(c.dataset.c); };
-    } catch (er) { el.innerHTML = `<p class="err">${esc(er.message)}</p><a class="btn primary" href="#video">Собрать новый</a>`; }
+      el.innerHTML = `<h2>🎬 Ролик</h2><div class="vid-two"><video src="${esc(r.url)}" controls playsinline class="vid-cv"></video>
+        <section class="hub-sec vid-step"><h3>Куда отправить</h3><p class="hub-warn">⏳ Хранится до ${esc(until(r.expires_at))}.</p><div id="v-send"></div>
+        <p><a class="btn soft" href="#video">Все мои ролики</a></p></section></div>`;
+      el.onclick = onSend;
+      sendBlock(el.querySelector('#v-send'), { url: r.url, dl: r.dl, caption: () => r.caption ?? '', title: () => (r.caption ?? '').split('\n')[0], mp4: r.url.includes('.mp4') });
+    } catch (er) { el.innerHTML = `<p class="err">${esc(er.message)}</p><a class="btn primary" href="#video">Мои ролики и новый ролик</a>`; }
   }
   window.SEC = window.SEC || {};
   window.SEC.video = { title: 'Видеообзор', open };

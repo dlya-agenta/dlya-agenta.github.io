@@ -59,3 +59,10 @@
 .ml-scr-row { padding: 8px 10px; border-top: 1px solid var(--line); }
 .ml-scr-row.on { background: color-mix(in srgb, var(--accent) 16%, var(--card)); font-weight: 600; outline: 2px solid var(--accent); outline-offset: -2px; }
 @media (min-width: 761px) { .ml-pop { align-items: center; } .ml-add { flex-direction: row; align-items: flex-end; } .ml-add .field { flex: 1; } }
+/* v5.18: список групп галочками, выбор источника */
+.ml-all .ml-list { max-height: 340px; overflow: auto; border: 1px solid var(--line, rgba(127,127,127,.25)); border-radius: 10px; padding: 4px 10px; margin: 8px 0; }
+.ml-filter { width: 100%; margin-top: 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line, rgba(127,127,127,.3)); background: transparent; color: inherit; font: inherit; }
+.ml-src { display: grid; gap: 6px; margin: 4px 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line, rgba(127,127,127,.25)); }
+.ml-src .opt { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.ml-src .opt input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--ok); }
+.ml-msg .chip[data-m] { cursor: pointer; }

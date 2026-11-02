@@ -1,5 +1,5 @@
 // Рассылки в мессенджеры (ТЗ v2, шаг 4.2): страница mail.html — мастер «1. Вход → 2. Группы → 3. Проверка Избранного → 4. Расписание → 5. Тестовая отправка»,
-// журнал (#log) и настройки админа (#admin). Правила считает только сервер (функция auto: mail_*), отправляет сервер рассылок. Сначала Telegram; WhatsApp и MAX — «Скоро».
+// журнал (#log) и настройки админа (#admin). Правила считает только сервер (функция auto: mail_*), отправляет сервер рассылок. v5.18: Telegram, WhatsApp и MAX (вход живым браузером), группы галочками, источник — Избранное сайта или «Избранное» Telegram.
 // Подсказки «?» — схемы экранов (не настоящие снимки). Номер, код и облачный пароль уходят на сервер один раз и не сохраняются.
 (() => {
   const $ = s => document.querySelector(s);
@@ -10,8 +10,10 @@
   const gate = html => { $('#gate').innerHTML = html; $('#gate').hidden = false; $('#app').hidden = true; };
   const msk = t => t ? new Date(t).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
   const hm = t => t ? new Date(t).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' }) : '';
+  let M = ['tg', 'wa', 'max'].includes(localStorage.getItem('mail_m')) ? localStorage.getItem('mail_m') : 'tg';   // v5.18: Telegram, WhatsApp, MAX
+  const MN = { tg: 'Telegram', wa: 'WhatsApp', max: 'MAX' }, MI = { tg: '✈️', wa: '🟢', max: '💬' };
   async function call(action, extra = {}) {
-    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: tokenOf() }, ...extra }) });
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: tokenOf() }, m: M, ...extra }) });
     const d = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
     if (!r.ok || d.error) throw Object.assign(new Error(d.message || d.error), { data: d, status: r.status });
     return d;
@@ -79,8 +81,8 @@
     const a = S.acc;
     const busy = ['qr', 'phone', 'code', 'password', 'wait', 'logout'].includes(a.status);
     $('#mail').innerHTML = `<div class="ml">
-      <div class="ml-msg" role="tablist">${[['tg', 'Telegram'], ['wa', 'WhatsApp'], ['max', 'MAX']].map(([k, t]) => S.messengers.includes(k) ? `<button class="chip on" role="tab" aria-selected="true">${t}</button>`
-        : `<span class="chip dis" title="Сначала Telegram: WhatsApp и MAX — после двух недель без блокировок">${t} · скоро</span>`).join('')}</div>
+      <div class="ml-msg" role="tablist">${[['tg', 'Telegram'], ['wa', 'WhatsApp'], ['max', 'MAX']].map(([k, t]) => S.messengers.includes(k) ? `<button class="chip${k === M ? ' on' : ''}" role="tab" aria-selected="${k === M}" data-m="${k}">${MI[k]} ${t}</button>`
+        : `<span class="chip dis" title="Включает администратор">${t} · скоро</span>`).join('')}</div>
       ${S.worker.online ? '' : '<p class="ml-off">Сервер рассылок пока не на связи — вход и отправка временно недоступны. Группы и расписание сохранятся.</p>'}
       ${a.stopped_at ? `<p class="ml-stop">⛔ Рассылки остановлены ${msk(a.stopped_at)}: ${esc(a.message ?? 'мессенджер ограничил отправку')}. Подождите, проверьте аккаунт и включите расписание снова.</p>` : ''}
       <ol class="ml-steps">${STEPS.map((t, i) => `<li><button class="${step === i + 1 ? 'on' : ''}${i + 1 < 2 || okAcc() ? '' : ' dis'}" data-step="${i + 1}" ${i + 1 < 2 || okAcc() ? '' : 'disabled'}>
@@ -98,6 +100,12 @@
   const warn = () => `<p class="ml-warn">⚠️ ${esc(S.warn)}.</p>`;
   function s1() {
     const a = S.acc;
+    if (M !== 'tg') return a.status === 'ok' ? `<h3>1. Вход в ${MN[M]}</h3><p class="ml-ok">✓ Вход выполнен${a.name ? `: <b>${esc(a.name)}</b>` : ''}</p>${warn()}
+        <div class="ml-row"><button class="btn primary" data-step="2">Дальше: группы</button><button class="btn ghost" id="ml-out">Выйти и удалить сессию</button></div>`
+      : `<h3>1. Вход в ${MN[M]}</h3>${warn()}${a.message && a.status !== 'none' ? `<p class="${a.status === 'error' || a.status === 'need' ? 'err' : 'hint'}">${esc(a.message)}</p>` : ''}
+        <div class="ml-row"><button class="btn primary" id="ml-live">Войти в ${MN[M]}</button></div>
+        <p class="hint">${M === 'wa' ? 'Откроется WhatsApp Web на нашем сервере: WhatsApp на телефоне → Настройки → Связанные устройства → Привязка устройства → наведите камеру на QR-код. Один раз — дальше работает само.' : 'Откроется веб-версия MAX на нашем сервере: войдите по QR-коду из приложения MAX или по номеру и коду. Один раз — дальше работает само.'}</p>
+        <p class="hint">⚠ Это неофициальное подключение: лучше рабочий номер. Сессия хранится на нашем сервере в зашифрованном виде.</p>`;
     if (a.status === 'ok') return `<h3>1. Вход в Telegram</h3><p class="ml-ok">✓ Вход выполнен${a.name ? `: <b>${esc(a.name)}</b>` : ''}</p>
       <p class="hint">Сессия хранится в зашифрованном виде и используется только для ваших рассылок.</p>${warn()}
       <div class="ml-row"><button class="btn primary" data-step="2">Дальше: группы</button><button class="btn ghost" id="ml-out">Выйти и удалить сессию</button></div>`;
@@ -116,8 +124,16 @@
       <p class="hint">Номер телефона, коды и облачный пароль не сохраняются — используются один раз для входа. Сессия хранится в зашифрованном виде и используется только для ваших рассылок.</p>`;
   }
   function s2() {
-    const gs = S.groups ?? [], room = S.max_groups - gs.filter(g => g.status !== 'none').length;
+    const all = (S.groups ?? []).find(g => g.title === '*'), gs = (S.groups ?? []).filter(g => g.title !== '*'), room = S.max_groups - gs.filter(g => g.status !== 'none').length;
+    const list = !all ? '' : all.status === 'search' ? `<div class="ml-g"><b>Загружаем ваши группы из ${MN[M]}…</b><small class="ml-wait">20–60 секунд</small></div>`
+      : all.status === 'found' ? `<div class="ml-g found ml-all"><b>Ваши группы в ${MN[M]} — отметьте, куда рассылать (можно ещё ${room}):</b>
+          <input class="ml-filter" id="ml-flt" placeholder="Найти в списке" autocomplete="off">
+          <div class="ml-list">${all.cands.map((c, i) => `<label class="ml-cand"><input type="checkbox" name="gall" value="${i}"><span>${esc(c.title)}</span></label>`).join('')}</div>
+          <label class="ml-allow"><input type="checkbox" id="ga-all"> Я администратор этих групп или реклама в них разрешена ${help('admin')}</label>
+          <div class="ml-row"><button class="btn primary" data-gpick="${all.id}">Добавить отмеченные</button><button class="chip" data-gdel="${all.id}">Скрыть список</button></div></div>`
+      : `<div class="ml-g bad"><b>Список групп</b><small class="err">${esc(all.error ?? 'Не загрузился')}</small><button class="chip" data-gdel="${all.id}">Убрать</button></div>`;
     return `<h3>2. Группы ${help('group')}</h3><p>До ${S.max_groups} групп. Только группы — в личные сообщения ничего не отправляем.</p>
+      ${room > 0 && !all ? `<div class="ml-row"><button class="btn primary" id="ml-gall">Загрузить мои группы из ${MN[M]}</button></div><p class="hint">Покажем все ваши группы — отметите галочками нужные. Или найдите одну по названию ниже.</p>` : ''}${list}
       <div class="ml-groups">${gs.map(g => g.status === 'ok' ? `<div class="ml-g ok"><b>✓ ${esc(g.title)}</b><small>${g.members ? `${g.members.toLocaleString('ru-RU')} участников · ` : ''}${g.admin ? 'вы администратор' : 'реклама разрешена — по вашей отметке'}</small>
             ${g.can && !g.can.ok ? `<small class="muted">${g.can.why === 'gap' ? `следующая рассылка — с ${hm(g.can.next)} МСК` : g.can.why === 'hours' ? 'рассылки — с 10:00 до 20:00 МСК' : 'рассылка идёт'}</small>` : ''}
             <button class="chip" data-gdel="${g.id}">Убрать</button></div>`
@@ -131,8 +147,15 @@
       <div class="ml-row"><button class="btn primary" data-step="3" ${okGroups().length ? '' : 'disabled'}>Дальше: проверка Избранного</button></div>`;
   }
   function s3() {
-    const n = S.favs, lim = S.limit;
-    return `<h3>3. Проверка Избранного</h3>
+    const n = S.favs, lim = S.limit, saved = S.acc.src === 'saved';
+    const src = `<div class="ml-src"><b>Что рассылаем</b>
+      <label class="opt"><input type="radio" name="ml-src" value="site" ${saved ? '' : 'checked'}><span>Объявления из «Избранного» на сайте — текст и фото соберём сами, с вашими контактами</span></label>
+      ${M === 'tg' ? `<label class="opt"><input type="radio" name="ml-src" value="saved" ${saved ? 'checked' : ''}><span>Сообщения из «Избранного» в Telegram — перешлём ваши последние сообщения оттуда как есть</span></label>` : ''}</div>`;
+    if (saved && M === 'tg') return `<h3>3. Проверка Избранного</h3>${src}
+      <p class="ml-big">⚠ В группы уйдут последние сообщения из вашего «Избранного» в Telegram (тест — 3, рассылка — до 10). Проверьте, что там <b>только предложения</b> — ничего личного и лишнего.</p>
+      <p class="hint">Удобно: заведите для рассылок отдельную группу-витрину, складывайте туда объявления и пересылайте их себе в «Избранное» перед рассылкой.</p>
+      <div class="ml-row"><button class="btn primary" id="ml-mk-save" data-next="4">Дальше: расписание</button></div>`;
+    return `<h3>3. Проверка Избранного</h3>${src}
       <p class="ml-big">В рассылку уйдут все ${n} объявлений из Избранного. Проверьте, что там нет лишнего.</p>
       ${n > lim ? `<p class="hint">За одну рассылку в группу — до ${lim} объявлений: уйдут первые ${lim} (сначала добавленные последними).</p>` : ''}
       ${n ? '' : '<p class="err">В «Избранном» нет объявлений на продажу — добавьте их звёздочкой ★ на карточках.</p>'}
@@ -159,7 +182,7 @@
   }
   function s5() {
     const gs = okGroups();
-    return `<h3>5. Тестовая отправка в одну группу</h3><p>Отправим 3 первых объявления из Избранного в выбранную группу — проверите, как они выглядят. Это тоже рассылка: следующая в эту группу — через ${S.rules.gap_h} часа.</p>
+    return `<h3>5. Тестовая отправка в одну группу</h3><p>Отправим 3 первых ${S.acc.src === 'saved' && M === 'tg' ? 'сообщения из «Избранного» Telegram' : 'объявления из Избранного'} в выбранную группу — проверите, как они выглядят. Это тоже рассылка: следующая в эту группу — через ${S.rules.gap_h} часа.</p>
       <label class="field">Группа<select id="ml-tg">${gs.map(g => `<option value="${g.id}">${esc(g.title)}</option>`).join('')}</select></label>
       ${warn()}
       <div class="ml-row"><button class="btn primary" id="ml-test" ${gs.length ? '' : 'disabled'}>Отправить 3 объявления</button><button class="btn soft" id="ml-now" ${gs.length ? '' : 'disabled'}>Запустить рассылку сейчас</button></div>
@@ -171,8 +194,8 @@
   // экран перед запуском (ТЗ): сколько уйдёт, предупреждение — и только потом отправка
   function confirmRun(title, n, go) {
     const d = document.createElement('div');
-    d.className = 'ml-pop'; d.innerHTML = `<div class="ml-pop-box" role="dialog"><b>${esc(title)}</b><p class="ml-big">В рассылку уйдут все ${S.favs} объявлений из Избранного. Проверьте, что там нет лишнего.</p>
-      ${n < S.favs ? `<p class="hint">Сейчас уйдут первые ${n}.</p>` : ''}${warn()}<div class="ml-row"><button class="btn primary" data-go>Отправить</button><a class="btn ghost" href="./">Проверить Избранное</a><button class="btn ghost" data-x>Отмена</button></div></div>`;
+    d.className = 'ml-pop'; d.innerHTML = `<div class="ml-pop-box" role="dialog"><b>${esc(title)}</b>${S.acc.src === 'saved' && M === 'tg' ? `<p class="ml-big">Перешлём последние сообщения из «Избранного» Telegram. Проверьте, что там только предложения — ничего личного.</p>`
+        : `<p class="ml-big">В рассылку уйдут все ${S.favs} объявлений из Избранного. Проверьте, что там нет лишнего.</p>${n < S.favs ? `<p class="hint">Сейчас уйдут первые ${n}.</p>` : ''}`}${warn()}<div class="ml-row"><button class="btn primary" data-go>Отправить</button><a class="btn ghost" href="./">Проверить Избранное</a><button class="btn ghost" data-x>Отмена</button></div></div>`;
     d.onclick = e => { if (e.target === d || e.target.closest('[data-x]')) d.remove(); if (e.target.closest('[data-go]')) { d.remove(); go(); } };
     document.body.append(d);
   }
@@ -181,8 +204,15 @@
   $('#mail').addEventListener('click', async e => {
     const hp = e.target.closest('[data-help]'); if (hp) { e.preventDefault(); return showHelp(hp.dataset.help); }
     const st = e.target.closest('[data-step]'); if (st && !st.disabled) { step = +st.dataset.step; return wizard(); }
+    const mt = e.target.closest('[data-m]');
+    if (mt && mt.dataset.m !== M) { M = mt.dataset.m; localStorage.setItem('mail_m', M); S = await call('mail_init').catch(er => (toast(er.message), S)); step = S.acc.status === 'ok' ? (okGroups().length ? 3 : 2) : 1; return wizard(); }
     const id = e.target.closest('button')?.id;
     try {
+      if (id === 'ml-live' && M !== 'tg') { CONN.open(M, { title: `${MI[M]} Вход в ${MN[M]}`, onOk: async () => { S = await call('mail_init'); step = S.acc.status === 'ok' ? 2 : 1; wizard(); } }); return; }
+      if (id === 'ml-gall') { S.groups = (await call('mail_group_add', { all: true })).groups; wizard(); }
+      const gp = e.target.closest('[data-gpick]');
+      if (gp) { const picks = [...document.querySelectorAll('input[name="gall"]:checked')].map(i => +i.value);
+        S.groups = (await call('mail_group_pick', { id: +gp.dataset.gpick, picks, allowed: !!$('#ga-all')?.checked })).groups; S = await call('mail_init'); toast(`Добавлено групп: ${picks.length}`); wizard(); }
       if (id === 'ml-live') { CONN.open('tg', { title: '✈️ Вход в Telegram', onOk: async () => { S = await call('mail_init'); step = S.acc.status === 'ok' ? 2 : 1; wizard(); } }); return; }
       if (id === 'ml-qr-go') { S.acc = (await call('mail_login', { how: 'qr' })).acc; wizard(); }
       if (id === 'ml-ph-show') { $('#ml-ph').hidden = false; $('#ml-phone').focus(); }
@@ -190,7 +220,7 @@
       if (id === 'ml-code-go') { S.acc = (await call('mail_code', { code: $('#ml-code').value })).acc; wizard(); }
       if (id === 'ml-pass-go') { S.acc = (await call('mail_pass', { password: $('#ml-pass').value })).acc; wizard(); }
       if (id === 'ml-cancel' || (id === 'ml-out' && confirm('Выйти из Telegram на сервере рассылок и удалить сессию? Расписание остановится.'))) {
-        if (id === 'ml-out') await CONN.call('conn_logout', { svc: 'tg' }).catch(() => null);   // вход через живой браузер (v5.16) — удалить и его
+        if (id === 'ml-out') await CONN.call('conn_logout', { svc: M }).catch(() => null);   // вход через живой браузер (v5.16) — удалить и его
         const r = await call('mail_logout'); S.acc = r.acc; if (r.note) toast(r.note, 9000); else if (r.gone) toast('Сессия удалена'); wizard();
       }
       if (id === 'ml-gadd') { S.groups = (await call('mail_group_add', { title: $('#ml-gt').value })).groups; wizard(); }
@@ -199,10 +229,10 @@
         S.groups = (await call('mail_group_ok', { id: +g, pick: +pick, allowed: !!$('#ga' + g)?.checked })).groups; S = await call('mail_init'); wizard(); }
       const del = e.target.closest('[data-gdel]');
       if (del) { S.groups = (await call('mail_group_del', { id: +del.dataset.gdel })).groups; wizard(); }
-      if (id === 'ml-mk-save') { S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +$('#ml-mk').value })).acc; step = 4; wizard(); }
+      if (id === 'ml-mk-save') { S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +($('#ml-mk')?.value ?? S.acc.markup), src: document.querySelector('input[name="ml-src"]:checked')?.value ?? S.acc.src })).acc; step = 4; wizard(); }
       if (id === 'ml-sched') {
         const hours = [...document.querySelectorAll('.ml-hours input:checked')].map(i => +i.value);
-        S.acc = (await call('mail_sched', { hours, auto: $('#ml-auto').checked, markup: S.acc.markup })).acc; toast(S.acc.auto ? 'Расписание включено' : 'Расписание сохранено, автоматическая рассылка выключена'); wizard();
+        S.acc = (await call('mail_sched', { hours, auto: $('#ml-auto').checked, markup: S.acc.markup, src: S.acc.src })).acc; toast(S.acc.auto ? 'Расписание включено' : 'Расписание сохранено, автоматическая рассылка выключена'); wizard();
       }
       if (id === 'ml-test') confirmRun('Тестовая отправка: 3 объявления', Math.min(3, S.favs), async () => {
         try { const r = await call('mail_test', { group_id: +$('#ml-tg').value }); toast(runText(r), 7000); S = await call('mail_init'); step = 5; wizard(); } catch (er) { toast(er.message, 6000); } });
@@ -210,6 +240,8 @@
         try { const r = await call('mail_run', {}); toast(runText(r), 8000); S = await call('mail_init'); step = 5; wizard(); } catch (er) { toast(er.message, 6000); } });
     } catch (er) { toast(er.message, 6000); }
   });
+  $('#mail').addEventListener('input', e => { if (e.target.id !== 'ml-flt') return; const q = e.target.value.toLowerCase().replace(/ё/g, 'е');
+    document.querySelectorAll('.ml-list .ml-cand').forEach(l => l.hidden = !!q && !l.textContent.toLowerCase().replace(/ё/g, 'е').includes(q)); });
   $('#mail').addEventListener('change', e => { const c = e.target.closest('.ml-hours input'); if (c) c.closest('label').classList.toggle('on', c.checked); });
 
   // ---------- журнал ----------

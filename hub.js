@@ -5,14 +5,29 @@ window.HUB = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const URL_ = () => String(window.API).replace(/\/web$/, '/hub');
   const token = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
+  // сеть на миг пропала («Load failed») или функция ответила 502–546 — ещё 2 попытки (как call в app.js); оплату, подборку, код входа не повторяем
+  const ONCE = /^(pay|topup|sel_create|login_code|register|bal_|help_ask|law_ask|rk_add|excl_save|chat_send)/;
+  async function post(url, action, extra, signal) {
+    const body = JSON.stringify({ action, auth: { token: token() }, ...extra });
+    for (let i = 0; ; i++) {
+      try {
+        const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
+        if (![502, 503, 504, 546].includes(r.status) || i >= 2 || ONCE.test(action)) return r;
+      } catch (e) {
+        if (signal?.aborted || e.name === 'AbortError') throw e;
+        if (i >= 2 || ONCE.test(action)) throw Object.assign(new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'), { net: true });
+      }
+      await new Promise(ok => setTimeout(ok, i ? 2000 : 800));
+    }
+  }
   async function call(action, extra = {}, opt = {}) {
-    const r = await fetch(URL_(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: token() }, ...extra }), signal: opt.signal });
+    const r = await post(URL_(), action, extra, opt.signal);
     const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
     if (!r.ok || data.error) throw Object.assign(new Error(data.message || data.error || `HTTP ${r.status}`), { code: data.error, data, status: r.status });
     return data;
   }
   async function web(action, extra = {}) {
-    const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: token() }, ...extra }) });
+    const r = await post(window.API, action, extra);
     const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
     if (!r.ok || data.error) throw Object.assign(new Error(data.message || data.error), { code: data.error, data, status: r.status });
     return data;
