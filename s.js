@@ -3,6 +3,9 @@
 (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // описание (v5.17.3): разделы **жирным** по шаблону; у старых описаний — «Заголовок:» жирным, строка «Коротко:» не показывается
+  const descrHtml = s => esc(String(s ?? '').replace(/^Коротко:.*(\n|$)/m, '').trim())
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/^([А-ЯЁ][а-яё ]{2,20}:)/gm, '<b>$1</b>');
   const money = v => Math.round(v).toLocaleString('ru-RU');
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : '';
   const seaTxt = m => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} м` : `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`;
@@ -38,7 +41,7 @@
         ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
         ${tags.length ? `<div class="s-tags">${tags.map(g => `<span class="tag">${esc(g)}</span>`).join('')}</div>` : ''}
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
-        ${x.descr ? `<p class="s-descr">${esc(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
+        ${x.descr ? `<p class="s-descr">${descrHtml(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
         <div class="s-fb">
           <div class="s-marks" role="group" aria-label="Подходит ли объект">
             <button type="button" class="s-yes" data-mark="yes" aria-pressed="${x.mark === 'yes'}">✓ Подходит</button>

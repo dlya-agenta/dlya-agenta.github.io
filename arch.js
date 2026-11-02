@@ -5,6 +5,9 @@
 const tg = window.Telegram?.WebApp;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// описание (v5.17.3): разделы **жирным** по шаблону; у старых описаний — «Заголовок:» жирным, строка «Коротко:» не показывается
+const descrHtml = s => esc(String(s ?? '').replace(/^Коротко:.*(\n|$)/m, '').trim())
+  .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/^([А-ЯЁ][а-яё ]{2,20}:)/gm, '<b>$1</b>');
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } },
@@ -424,7 +427,7 @@ function itemPage(x, k) {
       <div class="meta">${metaLine(x, true)}</div>
       <div class="arch-actwrap">${acts(x)}</div>
       <div class="actions">${x.cont ? contHtml(x.cont) : '<button class="btn soft" data-cont>📞 Контакты и источник</button>'}</div>
-      ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${esc(x.descr)}</p></div>` : ''}
+      ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${descrHtml(x.descr)}</p></div>` : ''}
     </div></article>`;
   const el = $('#ipage .itemv');
   el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
