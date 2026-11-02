@@ -56,8 +56,23 @@ function savePrefs() {
   savePrefs.t = setTimeout(() => call('prefs', { prefs: { f, text, sort, lay: lays, fclosed, fside, fv: FV, client } }).catch(() => {}), 700);
 }
 
+// «Load failed» / «Failed to fetch» (v5.18): сеть или сервер на миг не ответили (холодный старт функции, смена Wi-Fi/LTE, 502–546 без заголовков CORS) —
+// повторяем ещё 2 раза через 0,8 и 2 с; действия, которые нельзя повторять (код входа, регистрация, подборка, оплата), — без повтора
+const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay']);
+const NET_MSG = 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
 async function call(action, extra = {}, signal) {   // signal — отменить устаревший запрос (новый поиск вместо прежнего)
-  const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth, ...extra }), signal });
+  const body = JSON.stringify({ action, auth, ...extra });
+  let r = null;
+  for (let i = 0; ; i++) {
+    try {
+      r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
+      if (![502, 503, 504, 546].includes(r.status) || i >= 2 || NO_RETRY.has(action)) break;
+    } catch (e) {
+      if (signal?.aborted || e.name === 'AbortError') throw e;
+      if (i >= 2 || NO_RETRY.has(action)) throw Object.assign(new Error(NET_MSG), { net: true });
+    }
+    await new Promise(ok => setTimeout(ok, i ? 2000 : 800));
+  }
   const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
   if (['no_auth', 'no_access', 'expired', 'kicked', 'off'].includes(data.error)) throw Object.assign(new Error(data.message), { gate: data.error, data });
   if (data.error === 'need_pro') PLANS.pro(data.message);   // Архив, Реклама, Рассылки — в PRO и MAX
@@ -143,7 +158,11 @@ async function start() {
   if (!auth && tg?.initData && !(await tgLogin())) return;
   if (!auth) return showLogin(undefined, location.search.includes('r=') ? 'reg' : 'login');   // ссылка партнёра ?r=код — сразу регистрация
   try { meta = await call('init'); }
-  catch (e) { return e.gate ? showLogin(e.gate) : gate(`<h2>Ошибка</h2><p>${esc(e.message)}</p>`); }
+  catch (e) {
+    if (e.gate) return showLogin(e.gate);
+    gate(`<h2>${e.net ? 'Нет связи' : 'Ошибка'}</h2><p>${esc(e.message)}</p><button class="btn primary" id="again">Повторить</button>`);
+    return $('#again').onclick = () => start();
+  }
   me = meta.me;
   if (me.guest) GUEST.use(me);   // гостевой доступ: только посмотреть (site/guest.js)
   PLANS.use({ call, sheet, toast }, meta);
@@ -904,17 +923,49 @@ const hoverOk = matchMedia('(hover: hover)').matches;   // компьютер с
 let hoverT = null;
 // v5.16: окно по наведению — через 0,2 с (мышь просто проехала — ничего не всплывает); ушла с метки и с окна — закрыть через 0,4 с
 function hoverOpen(fn) { clearTimeout(hoverT); hoverT = setTimeout(fn, 200); }
-// окно у края карты: карту не сдвигаем (раньше она «уезжала» вбок при наведении) — окно само встаёт ниже метки или сдвигается внутрь
-function placePop(p) {
-  const el = p?.getElement();
-  if (!hoverOk || !map || !el) return;
-  el.classList.remove('flip'); p.options.offset = L.point(0, 7); p.update();
-  const sz = map.getSize(), pt = map.latLngToContainerPoint(p.getLatLng()), w = el.offsetWidth, h = el.offsetHeight + 14;
-  let dx = 0, dy = 7;
-  if (pt.y - h < 6 && sz.y - pt.y > pt.y) { dy = h + 6; el.classList.add('flip'); }
-  const left = pt.x - w / 2, right = pt.x + w / 2;
-  if (left < 6) dx = 6 - left; else if (right > sz.x - 6) dx = sz.x - 6 - right;
-  if (dx || dy !== 7) { p.options.offset = L.point(dx, dy); p.update(); }
+// v5.18: окно точки компактное (264 px) и всегда целиком в поле карты. Карту не сдвигаем (autoPan выключен): окно встаёт над меткой,
+// под ней (не помещается сверху) и прижимается к краям; не помещается ни там, ни там — список внутри прокручивается. Сторону, выбранную
+// при открытии, держим (keep), пока окно там помещается, — окно не прыгает, когда догрузилась карточка или открылся телефон.
+// Телефон — нижняя шторка внутри карты (#map-sheet), карта под ней не двигается.
+const POPW = 264, POPM = 8, POPGAP = 14;
+const popOpts = () => ({ minWidth: POPW, maxWidth: POPW, autoPan: false, className: 'mkpop' });
+const popRO = window.ResizeObserver ? new ResizeObserver(() => { cancelAnimationFrame(popRO.f); popRO.f = requestAnimationFrame(() => { if (openPop) placePop(openPop, true); }); }) : null;
+function placePop(p, keep = false) {
+  const el = p?.getElement(), box = el?.querySelector('.mlist');
+  if (!map || !el || !p._map) return;
+  // Leaflet: низ окна = точка + offset.y − 20 (margin-bottom под хвостик), хвостик (20 px) в высоту окна не входит
+  const sz = map.getSize(), pt = map.latLngToContainerPoint(p.getLatLng());
+  const up = pt.y - 13 - POPM, down = sz.y - pt.y - POPGAP - POPM;
+  if (box) box.style.maxHeight = '';
+  const h = el.offsetHeight;
+  let side = h <= up ? 'up' : h <= down ? 'down' : up >= down ? 'up' : 'down';
+  if (keep && p._side && p._side !== side && h <= (p._side === 'up' ? up : down)) side = p._side;
+  p._side = side;
+  el.classList.toggle('flip', side === 'down');
+  const room = side === 'up' ? up : down;
+  if (h > room && box) box.style.maxHeight = `${Math.max(110, box.offsetHeight - (h - room))}px`;
+  const w = el.offsetWidth, left = pt.x - w / 2;
+  const dx = left < POPM ? POPM - left : left + w > sz.x - POPM ? sz.x - POPM - (left + w) : 0;
+  const tip = el.querySelector('.leaflet-popup-tip-container');   // хвостик — над меткой, даже если окно прижато к краю
+  if (tip) tip.style.marginLeft = `${-20 - Math.max(-w / 2 + 24, Math.min(w / 2 - 24, Math.round(dx)))}px`;
+  p.options.offset = L.point(Math.round(dx), side === 'up' ? 7 : el.offsetHeight + 20 + POPGAP);
+  p._updatePosition();
+}
+// открыть точку (одну или несколько в одном доме): компьютер — окно у метки, телефон — шторка снизу карты
+function openPts(latlng, ps) {
+  const key = ps.map(p => p.num).join(',');
+  loadItems(ps.map(p => p.num));
+  if (mobile()) {
+    let s = $('#map-sheet');
+    if (!s) { s = document.createElement('div'); s.id = 'map-sheet'; s.className = 'map-sheet'; $('#map').appendChild(s); L.DomEvent.disableClickPropagation(s); L.DomEvent.disableScrollPropagation(s); }
+    s.innerHTML = `<button type="button" class="ms-x" aria-label="Закрыть">×</button>${popHtml(ps)}`;
+    s.hidden = false; s.dataset.key = key;
+    s.querySelector('.ms-x').onclick = () => { s.hidden = true; };
+    return;
+  }
+  if (openPop?._key === key && openPop._map) return;
+  const p = L.popup(popOpts()).setLatLng(latlng).setContent(popHtml(ps));
+  p._key = key; p.openOn(map);
 }
 function hoverLeave() {
   clearTimeout(hoverT);
@@ -933,7 +984,7 @@ async function loadItems(nums) {
       document.querySelectorAll(`.card.mc[data-num="${x.num}"]`).forEach(el => { el.outerHTML = card(x, true); });
     }
     // окно на карте выросло (дата, ЖК, отметки) — пересчитать размер и сдвинуть карту, чтобы окно было видно целиком
-    if (openPop && r.items.some(x => openPop.getElement()?.querySelector(`.card.mc[data-num="${x.num}"]`))) { openPop.update(); placePop(openPop); }
+    if (openPop && r.items.some(x => openPop.getElement()?.querySelector(`.card.mc[data-num="${x.num}"]`))) placePop(openPop, true);
   } catch (e) { if (e.gate) showLogin(e.gate); }   // не ответил — карточка остаётся по данным точки
 }
 async function loadMap() {
@@ -944,7 +995,11 @@ async function loadMap() {
     map.on('movestart', () => { clearTimeout(mapList.wait); $('#ml-items').classList.add('wait'); })
       .on('moveend', () => { clearTimeout(mapList.wait); mapList.wait = setTimeout(() => mapList(), 3000); })
       .on('popupopen', e => { openPop = e.popup; const el = e.popup.getElement(); placePop(e.popup);
-        if (hoverOk && el && !el._hv) { el._hv = 1; el.addEventListener('mouseenter', () => clearTimeout(hoverT)); el.addEventListener('mouseleave', hoverLeave); } }).on('popupclose', () => { openPop = null; });
+        if (el) popRO?.observe(el.querySelector('.leaflet-popup-content'));
+        if (hoverOk && el && !el._hv) { el._hv = 1; el.addEventListener('mouseenter', () => clearTimeout(hoverT)); el.addEventListener('mouseleave', hoverLeave); } })
+      .on('popupclose', e => { popRO?.disconnect(); if (openPop === e.popup) openPop = null; })
+      .on('zoomend', () => { if (openPop) placePop(openPop, true); })
+      .on('click', () => { const s = $('#map-sheet'); if (s) s.hidden = true; });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   }
   [50, 400, 1200].forEach(ms => setTimeout(() => map.invalidateSize(), ms));   // раскладка «список слева, карта справа» меняет размер после показа
@@ -968,16 +1023,14 @@ async function loadMap() {
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40) return;
       hoverOpen(() => {
         const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b2) => a.i - b2.i);
-        L.popup({ minWidth: 300, maxWidth: 300, autoPan: false }).setLatLng(e.layer.getLatLng()).setContent(() => popHtml(ps)).openOn(map);
-        loadItems(ps.map(p => p.num));
+        openPts(e.layer.getLatLng(), ps);
       });
     }).on('clustermouseout', hoverLeave);
     cluster.on('clusterclick', e => {
       const b = e.layer.getBounds();
       if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
       const ps = e.layer.getAllChildMarkers().map(m => m.p).sort((a, b) => a.i - b.i);
-      L.popup({ minWidth: 300, maxWidth: 300, autoPan: !hoverOk }).setLatLng(e.layer.getLatLng()).setContent(() => popHtml(ps)).openOn(map);
-      loadItems(ps.map(p => p.num));
+      openPts(e.layer.getLatLng(), ps);
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
     mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old], i) =>
@@ -985,9 +1038,8 @@ async function loadMap() {
     const marks = mapPts.map(p => {
       const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mk-p', html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }) });
       m.p = p;
-      m.bindPopup(() => popHtml([p]), { minWidth: 250, maxWidth: 250, autoPan: !hoverOk });
-      m.on('popupopen', () => loadItems([p.num]));
-      if (hoverOk) m.on('mouseover', () => hoverOpen(() => { if (!m.isPopupOpen()) m.openPopup(); })).on('mouseout', hoverLeave);
+      m.on('click', () => { clearTimeout(hoverT); openPts(m.getLatLng(), [p]); });
+      if (hoverOk) m.on('mouseover', () => hoverOpen(() => openPts(m.getLatLng(), [p]))).on('mouseout', hoverLeave);
       return m;
     });
     map.addLayer(cluster);
