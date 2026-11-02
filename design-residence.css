@@ -65,10 +65,10 @@ body { background: var(--bg); }
 .gbrand b { font-size: 38px; }
 .brand small, .gbrand small { color: var(--brass) !important; font-size: 10.5px !important; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
 @media (prefers-color-scheme: dark) { .brand b, .gbrand b { color: var(--text); } }
-.top .menu .link, .top > button.who { color: var(--text); }
+.top .menu .link, .top button.who { color: var(--text); }
 .top .who small { color: var(--muted); }
-.top > .who .who-t { color: var(--accent); }
-@media (prefers-color-scheme: dark) { .top > .who .who-t { color: var(--link); } }
+.top .who .who-t { color: var(--accent); }
+@media (prefers-color-scheme: dark) { .top .who .who-t { color: var(--link); } }
 .menu .link { font-weight: 600; letter-spacing: .01em; transition: color .2s, background .2s; }
 .top .menu .link:hover { background: var(--soft); color: var(--accent); }
 .top .menu .link.on, .mg-b.on { background: transparent; color: var(--accent); box-shadow: inset 0 -2px 0 var(--brass); font-weight: 700; }

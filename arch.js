@@ -302,8 +302,9 @@ function card(x, mini = false) {
   const n = x.pics.length, where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
   const ppm = x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : '';
   return `<article class="card${mini ? ' mc' : ''}${x.gone ? ' arch-gone' : ''}" data-t="${esc(x.t)}">
-    <a class="gal" href="#o=${esc(x.t)}" data-n="${n}"><div class="strip">${n ? `<div class="ph">${img(x.pics[0], 'loading="lazy"')}</div>` : '<div class="none">Нет фото</div>'}</div>
-      ${n > 1 ? `<span class="iv-count">${n} фото</span>` : ''}</a>
+    <a class="gal" href="#o=${esc(x.t)}" data-n="${n}"><div class="strip">${n ? x.pics.slice(0, 10).map(u => `<div class="ph">${img(u, 'loading="lazy"')}</div>`).join('') : '<div class="none">Нет фото</div>'}</div>
+      ${n > 1 ? `<button type="button" class="nav l" data-nav="-1" aria-label="Назад">‹</button><button type="button" class="nav r" data-nav="1" aria-label="Вперёд">›</button>
+      <div class="dots">${x.pics.slice(0, 10).map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}</a>
     <div class="body">
       <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${ppm}</small></div>
       ${x.complex ? `<div class="zk">${esc(zkName(x.complex))}</div>` : ''}
@@ -314,6 +315,27 @@ function card(x, mini = false) {
       <div class="arch-actwrap">${acts(x, mini)}</div>
       <div class="actions">${x.cont ? contHtml(x.cont) : `<button class="btn soft" data-cont>📞 ${mini ? 'Контакты' : 'Контакты и источник'}</button>`}<a class="btn ghost" href="#o=${esc(x.t)}">Открыть</a></div>
     </div></article>`;
+}
+// v5.20: фото в карточках листаются, как на главной: стрелки, точки, свайп; на компьютере — ведёшь мышкой по фото, ушёл — первое фото
+document.addEventListener('click', e => {
+  const b = e.target.closest('.gal [data-nav]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const s = b.closest('.gal').querySelector('.strip'); s.scrollBy({ left: s.clientWidth * +b.dataset.nav, behavior: 'smooth' });
+}, true);
+document.addEventListener('scroll', e => {
+  const s = e.target; if (!s.classList?.contains('strip')) return;
+  const k = Math.round(s.scrollLeft / s.clientWidth);
+  s.parentElement.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === k));
+}, true);
+if (matchMedia('(hover: hover)').matches) {
+  document.addEventListener('mousemove', e => {
+    const g = e.target.closest?.('.card .gal'), st = g?.querySelector('.strip'); if (!st || e.target.closest('[data-nav]')) return;
+    const n = st.children.length; if (n < 2) return;
+    const r = g.getBoundingClientRect(), k = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n)));
+    if (g.dataset.k == k) return;
+    g.dataset.k = k; st.scrollTo({ left: k * st.clientWidth, behavior: 'instant' });
+  });
+  document.addEventListener('mouseout', e => { const g = e.target.closest?.('.card .gal'); if (g && !g.contains(e.relatedTarget) && g.dataset.k) { g.dataset.k = 0; g.querySelector('.strip')?.scrollTo({ left: 0, behavior: 'instant' }); } });
 }
 // новый поиск отменяет запрос в пути: выдача не мигает (прежняя видна бледной до ответа) и не подменяется устаревшим ответом
 let sctl = null;
@@ -432,6 +454,14 @@ function itemPage(x, k) {
   const el = $('#ipage .itemv');
   el.querySelectorAll('.iv-main img, .iv-th img').forEach(im => im.complete ? fitCrop(im) : im.addEventListener('load', () => fitCrop(im), { once: true }));
   $('#ip-back').onclick = back;
+  // v5.20: свайп по большому фото — следующее / предыдущее
+  const main = el.querySelector('.iv-main');
+  if (n > 1 && main) {
+    let x0 = null;
+    main.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+    main.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) { const y = scrollY; itemPage(x, (+el.dataset.k + (dx < 0 ? 1 : -1) + n) % n); scrollTo(0, y); } });
+  }
   el.onclick = e => {
     const t = e.target, th = t.closest('[data-th]'), st = t.closest('[data-step]');
     if (th || st) { const y = scrollY; itemPage(x, th ? +th.dataset.th : (+el.dataset.k + +st.dataset.step + n) % n); scrollTo(0, y); return; }
@@ -497,9 +527,18 @@ function marker(p) {
 async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
-    map = L.map('map').setView([43.585, 39.723], 11);
+    map = L.map('map', { attributionControl: false }).setView([43.585, 39.723], 11);
     map.on('moveend', () => mapList());
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    // v5.20: подпись карты — «ⓘ», по нажатию «© OpenStreetMap» (как на главной; стиль .map-info — style.css)
+    const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
+      const d = L.DomUtil.create('div', 'map-info');
+      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+      L.DomEvent.disableClickPropagation(d);
+      d.querySelector('button').onclick = () => { const t = d.querySelector('span'); t.hidden = !t.hidden; };
+      return d;
+    } });
+    new Info().addTo(map);
   }
   [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
   const gen = ++mapGen;

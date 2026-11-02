@@ -14,6 +14,7 @@
   const ST = { draft: ['Черновик', 'warn'], active: ['В ленте', 'ok'], hidden: ['Снят с показа', 'muted'], sold: ['Продано', 'ok'], archived: ['В архиве', 'muted'] };
   const FN = Object.fromEntries(FIN);
   let caps = null, ref = null, items = [], canView = true, f = {}, sort = 'new', my = null, fopen = false;
+  let view = localStorage.getItem('excl_view') === 'map' ? 'map' : 'list';   // v5.20: «Список / Карта», как на главной
   try { const p = JSON.parse(localStorage.getItem('excl_f') || 'null'); if (p) { f = p.f ?? {}; sort = p.sort ?? 'new'; } } catch { /* нет */ }
   const keep = () => localStorage.setItem('excl_f', JSON.stringify({ f, sort }));
 
@@ -33,6 +34,46 @@
   const ago = s => { const d = Math.floor((Date.now() - Date.parse(s)) / 864e5); return d <= 0 ? 'сегодня' : d === 1 ? 'вчера' : `${d} дн. назад`; };
   const left = s => s ? Math.ceil((Date.parse(s) - Date.now()) / 864e5) : null;
   const isNew = x => Date.now() - Date.parse(x.created_at) < 3 * 864e5;
+  const mlnShort = v => !v ? '•' : v >= 1e6 ? `${(v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: v >= 1e8 ? 0 : 1 })} млн` : `${Math.round(v / 1e3)} тыс`;
+
+  // ---------- v5.20: фото листаются, как на карточках главной ----------
+  // лента кадров с прилипанием (свайп на телефоне), стрелки и точки; на компьютере — ведёшь мышкой по фото, кадры меняются; ушёл — первое фото
+  const gal = (ph, cls = '', none = '<span class="ex-noph">💎</span>') => `<div class="xg ${cls}" data-n="${ph.length}"><div class="xg-s">${ph.length ? ph.map(p => `<div class="xg-p"><img src="${esc(p)}" alt="" loading="lazy" referrerpolicy="no-referrer"></div>`).join('')
+      : none}</div>
+    ${ph.length > 1 ? `<button type="button" class="xg-nav l" data-xg="-1" aria-label="Предыдущее фото">‹</button><button type="button" class="xg-nav r" data-xg="1" aria-label="Следующее фото">›</button>
+      <div class="xg-dots">${ph.slice(0, 10).map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}</div>`;
+  const xgDots = (g, k) => { const n = +g.dataset.n, d = g.querySelectorAll('.xg-dots i'), j = n > d.length ? Math.round(k * (d.length - 1) / (n - 1)) : k;
+    d.forEach((el, i) => el.classList.toggle('on', i === j)); };
+  function xgGo(g, k, smooth = true) {
+    const st = g.querySelector('.xg-s'), n = +g.dataset.n; if (!st || n < 2) return;
+    k = (k + n) % n; g.dataset.k = k; st.scrollTo({ left: k * st.clientWidth, behavior: smooth ? 'smooth' : 'instant' }); xgDots(g, k);
+  }
+  const xgK = g => Math.round(g.querySelector('.xg-s').scrollLeft / Math.max(1, g.querySelector('.xg-s').clientWidth));
+  function xgClick(e) {
+    const b = e.target.closest('[data-xg]'); if (!b || e._xg) return false;
+    e._xg = 1; e.preventDefault(); e.stopPropagation();
+    const g = b.closest('.xg'); xgGo(g, xgK(g) + +b.dataset.xg); return true;
+  }
+  document.addEventListener('scroll', e => { const st = e.target; if (!st.classList?.contains('xg-s')) return; const g = st.parentElement, k = xgK(g); xgDots(g, k); g.dispatchEvent(new CustomEvent('xgk', { detail: k })); }, true);
+  if (matchMedia('(hover: hover)').matches) {
+    document.addEventListener('mousemove', e => {
+      const g = e.target.closest?.('.xg:not(.big)'); if (!g || +g.dataset.n < 2 || e.target.closest('[data-xg]')) return;
+      const r = g.getBoundingClientRect(), n = +g.dataset.n, k = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n)));
+      if (+g.dataset.k !== k) xgGo(g, k, false);
+    });
+    document.addEventListener('mouseout', e => { const g = e.target.closest?.('.xg:not(.big)'); if (g && !g.contains(e.relatedTarget) && +g.dataset.k) xgGo(g, 0, false); });
+  }
+  // объекты базы (действие web similar): фото — как на главной (свои 0–3 — основное хранилище, 4–9 — второе; старые — ссылки pics)
+  const ROOT = String(window.API || '').replace(/\/functions\/v1\/web$/, ''), PHW = `${ROOT}/storage/v1/object/public/photos/w`,
+    MEDIA = 'https://zpkqduhbymvadtwgcyhp.supabase.co/storage/v1/object/public/photos/w';
+  const basePhotos = x => Array.from({ length: Math.min(10, x.web_photos || x.pics?.length || 0) }, (_, k) => x.pics ? x.pics[k]
+    : x.web_photos_v === 3 ? `${MEDIA}/${x.num}/${k}.jpg` : k < 4 ? `${PHW}/${x.num}/${k}.jpg` : `${MEDIA}/${x.num}/${k}.webp`).filter(Boolean);
+  const baseWhat = x => [x.rooms === 0 ? 'Студия' : x.rooms ? `${x.rooms}-комн.` : (KINDS.find(k => k[0] === x.kind)?.[1] ?? ''), x.area ? `${String(x.area).replace('.', ',')} м²` : '',
+    x.floor ? `${x.floor}/${x.floors ?? '?'} эт.` : ''].filter(Boolean).join(' · ');
+  // мелкая карточка: окно точки на карте, «Ещё в этом ЖК» / «Похожие рядом»
+  const miniHtml = (x, base = false) => `<a class="ex-mini" href="${base ? `./#o=${x.num}` : `#o=${x.num}`}"${base ? '' : ` data-mini="${x.num}"`}>
+    ${gal(base ? basePhotos(x) : x.photos, 'sm', base ? '<span class="ex-noph ex-nophb">Фото нет</span>' : undefined)}<span class="ex-mb"><b>${esc(money(x.price))}</b><small>${esc(base ? baseWhat(x) : what(x))}</small>
+    <small class="muted">${esc(base ? x.zk || x.street || '' : place(x) || 'Сочи')}</small>${base ? '' : '<i class="ex-mtag">💎 Эксклюзив</i>'}</span></a>`;
 
   // ---------- старт ----------
   async function start() {
@@ -73,8 +114,9 @@
       el.innerHTML = `<div class="ex-feed${fopen ? ' fopen' : ''}">
         <aside class="filters ex-f" id="filters" aria-label="Фильтры">${filterHtml()}</aside>
         <section class="ex-list"><div class="ex-bar"><button type="button" class="btn soft ex-ftog" data-ftog>⚙ Фильтры <b class="fmore-n" id="ex-fn" hidden></b></button>
-          <span id="ex-count" class="muted"></span><label class="ex-sort">Сортировка <select id="ex-sort">${SORTS.map(([k, t]) => `<option value="${k}"${k === sort ? ' selected' : ''}>${t}</option>`).join('')}</select></label></div>
-          <div id="ex-lock"></div><div id="ex-grid" class="ex-grid"><p class="muted">Загрузка…</p></div></section></div>`;
+          <span id="ex-count" class="muted"></span><div class="views ex-views"><button type="button" class="seg" data-view="list">Список</button><button type="button" class="seg" data-view="map">Карта</button></div><label class="ex-sort"><span>Сортировка</span> <select id="ex-sort" aria-label="Сортировка">${SORTS.map(([k, t]) => `<option value="${k}"${k === sort ? ' selected' : ''}>${t}</option>`).join('')}</select></label></div>
+          <div id="ex-lock"></div><div id="ex-grid" class="ex-grid"><p class="muted">Загрузка…</p></div>
+          <div id="ex-map" class="map ex-map" hidden></div><section id="ex-ml" class="ex-ml" hidden><b id="ex-mlc"></b><div id="ex-mli" class="ex-grid"></div></section></section></div>`;
       wireFilter();
       window.FUI?.help();
     }
@@ -110,22 +152,92 @@
     const xs = filtered(), fav = $('.ex-feed')?.dataset.only === '1', n = nOn();
     $('#ex-count').textContent = `Найдено: ${xs.length}`;
     const fn = $('#ex-fn'); fn.hidden = !n; fn.textContent = n;
+    document.querySelectorAll('.ex-views .seg').forEach(b => { const on = b.dataset.view === view; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    $('#ex-grid').hidden = view === 'map'; $('#ex-map').hidden = $('#ex-ml').hidden = view !== 'map';
+    if (view === 'map' && xs.length) { drawMap(xs); return; }
+    if (view === 'map') { $('#ex-map').hidden = $('#ex-ml').hidden = true; $('#ex-grid').hidden = false; }
     $('#ex-grid').innerHTML = xs.map(cardHtml).join('') || `<div class="ex-empty"><p>${fav ? 'В избранном пока пусто — нажмите ☆ на фото объекта.' : items.length ? 'Ничего не нашлось — попробуйте изменить фильтр.' : 'Пока никто не разместил объекты. Будьте первым!'}</p>
       ${n ? '<button type="button" class="btn soft" data-reset>Сбросить фильтр</button>' : ''} <a class="btn primary" href="#new">＋ Разместить объект</a></div>`;
   }
   function cardHtml(x) {
-    const ph = x.photos[0], pc = comm(x);
+    const pc = comm(x);
     return `<article class="ex-card" data-num="${x.num}" tabindex="0" aria-label="${esc(title(x))}, ${esc(money(x.price))}">
-      <div class="ex-ph">${ph ? `<img src="${esc(ph)}" alt="" loading="lazy">` : '<span class="ex-noph">💎</span>'}
+      <div class="ex-ph">${gal(x.photos)}
         <span class="ex-badges">${isNew(x) ? '<i class="b-new">Новое</i>' : ''}${x.price_prev ? '<i class="b-drop">Цена снижена</i>' : ''}${x.mine ? '<i class="b-mine">Ваш</i>' : ''}</span>
         ${pc ? `<span class="ex-comm" title="Комиссия коллеге">🤝 ${esc(pc)}</span>` : ''}
-        ${x.photos.length > 1 ? `<span class="ex-n">📷 ${x.photos.length}</span>` : ''}
         <button type="button" class="ex-fav${x.fav ? ' on' : ''}" data-fav="${x.id}" aria-label="${x.fav ? 'Убрать из избранного' : 'В избранное'}" aria-pressed="${!!x.fav}">${x.fav ? '★' : '☆'}</button></div>
       <div class="ex-cb"><b class="ex-price">${esc(money(x.price))}${x.price_prev ? ` <s>${esc(dots(x.price_prev))}</s>` : ''}</b>
         ${x.area && x.price ? `<small class="muted">${esc(dots(Math.round(x.price / x.area)))} ₽/м²</small>` : ''}
         <span class="ex-what">${esc(what(x))}</span><span class="ex-place muted">${esc(place(x) || 'Сочи')}</span>
         <span class="ex-meta muted">${x.sea_m ? `🌊 ${esc(sea(x.sea_m))} · ` : ''}${x.finish ? `${esc(FN[x.finish] ?? '')} · ` : ''}${esc(ago(x.at))}</span>
         ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : ''}</div></article>`;
+  }
+
+  // ---------- v5.20: карта, как в основном поиске: метки с ценой, группы «N · от X млн», окно точки, список видимой области под картой ----------
+  let map = null, layer = null, mapXs = [], mlT = null, fitKey = '';
+  const attrib = () => new (L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
+    const d = L.DomUtil.create('div', 'ex-attr');   // подпись карты (лицензия OpenStreetMap) — маленьким «ⓘ», полностью — по нажатию
+    d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+    L.DomEvent.disableClickPropagation(d); d.querySelector('button').onclick = () => { const sp = d.querySelector('span'); sp.hidden = !sp.hidden; };
+    return d; } }))();
+  function popup(ll, xs) {
+    xs = xs.slice().sort((a, b) => (a.price || 9e15) - (b.price || 9e15));
+    L.popup({ minWidth: 264, maxWidth: 264, className: 'mkpop ex-popw', autoPanPadding: [16, 16] }).setLatLng(ll)
+      .setContent(`<div class="ex-pop${xs.length > 1 ? ' many' : ''}">${xs.length > 1 ? `<b class="ex-poph">${xs.length} ${xs.length < 5 ? 'объекта' : 'объектов'} здесь</b>` : ''}${xs.map(x => miniHtml(x)).join('')}</div>`).openOn(map);
+  }
+  // Leaflet — только когда открыли карту (медленный CDN не задерживает ленту)
+  let lp = null;
+  const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
+  const js = src => new Promise((ok, no) => { const t = document.createElement('script'); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
+  const css = href => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
+  const needL = () => lp ??= (css(CDN + 'leaflet/1.9.4/leaflet.min.css'), css(CDN + 'leaflet.markercluster/1.5.3/MarkerCluster.min.css'),
+    js(CDN + 'leaflet/1.9.4/leaflet.min.js').then(() => js(CDN + 'leaflet.markercluster/1.5.3/leaflet.markercluster.min.js').catch(() => null)).catch(e => { lp = null; throw e; }));
+  function drawMap(xs) {
+    const el = $('#ex-map');
+    if (!window.L) { el.innerHTML = '<p class="muted ex-mapw">Загружаю карту…</p>';
+      needL().then(() => { if (!map) el.innerHTML = ''; if (view === 'map') draw(); }, () => { el.innerHTML = '<p class="err ex-mapw">Карта не загрузилась — проверьте интернет и нажмите «Карта» ещё раз.</p>'; }); return; }
+    // экран перерисован («Мои», «Разместить», «Сбросить фильтр») — старая карта осталась в прежнем блоке: создаём заново
+    if (map && map.getContainer() !== el) { map.remove(); map = null; layer = null; fitKey = ''; }
+    if (!map) {
+      el.innerHTML = '';
+      map = L.map(el, { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      attrib().addTo(map);
+      map.on('moveend', () => { clearTimeout(mlT); $('#ex-mli').classList.add('wait'); mlT = setTimeout(mapList, 700); })
+        .on('popupopen', e => { const p = e.popup.getElement(); if (p && !p._ex) { p._ex = 1; p.addEventListener('click', onPop); } });
+    }
+    [50, 400].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
+    layer?.remove();
+    mapXs = xs.filter(x => x.lat && x.lng);
+    const mk = x => { const m = L.marker([x.lat, x.lng], { icon: L.divIcon({ className: 'mk-p', html: `<span>${esc(mlnShort(x.price))}</span>`, iconSize: null }) });
+      m.x = x; m.on('click', () => popup(m.getLatLng(), [x])); return m; };
+    if (L.markerClusterGroup) {
+      layer = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: z => z >= 15 ? 40 : z >= 13 ? 60 : 80, animate: false, zoomToBoundsOnClick: false, spiderfyOnMaxZoom: false,
+        iconCreateFunction: c => { const ps = c.getAllChildMarkers().map(m => m.x.price).filter(Boolean), min = ps.length ? Math.min(...ps) : 0;
+          return L.divIcon({ className: 'mk-c', html: `<span><b>${c.getChildCount()}</b>${min ? ` · от ${esc(mlnShort(min))}` : ''}</span>`, iconSize: null }); } });
+      layer.on('clusterclick', e => { const b = e.layer.getBounds();
+        if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
+        popup(e.layer.getLatLng(), e.layer.getAllChildMarkers().map(m => m.x)); });
+      layer.addLayers(mapXs.map(mk));
+    } else layer = L.layerGroup(mapXs.map(mk));
+    map.addLayer(layer);
+    const key = mapXs.map(x => x.num).join(',');
+    if (mapXs.length && key !== fitKey) map.fitBounds(L.latLngBounds(mapXs.map(x => [x.lat, x.lng])), { maxZoom: 15, padding: [24, 24], animate: false });
+    fitKey = key;
+    const no = xs.length - mapXs.length;
+    $('#ex-count').textContent = `Найдено: ${xs.length}${no ? ` · на карте ${mapXs.length} (у ${no} нет точки)` : ''}`;
+    mapList();
+  }
+  function mapList() {
+    if (!map || view !== 'map') return;
+    const b = map.getBounds(), v = mapXs.filter(x => b.contains([x.lat, x.lng]));
+    $('#ex-mlc').textContent = `В области карты: ${v.length}`;
+    $('#ex-mli').innerHTML = v.slice(0, 60).map(cardHtml).join('') || '<p class="muted">В этой части карты объектов нет — отдалите карту.</p>';
+    $('#ex-mli').classList.remove('wait');
+  }
+  function onPop(e) {
+    if (xgClick(e)) return;
+    const m = e.target.closest('[data-mini]'); if (m) { e.preventDefault(); map.closePopup(); card(+m.dataset.mini); }
   }
 
   // ---------- фильтр (как на главной: те же поля, подписи и подсказки «?») ----------
@@ -137,12 +249,12 @@
       <div class="fcell w2"><div class="fl" data-h="kind">Тип недвижимости</div><div class="chips">${chips('k', KINDS)}</div></div>
       <div class="fcell w2"><div class="fl" data-h="rooms">Комнаты</div><div class="chips">${chips('r', ROOMS)}</div></div>
       <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div><div class="pair"><input id="amin" type="number" min="0" placeholder="от" inputmode="numeric" value="${esc(f.amin ?? '')}"><span>—</span><input id="amax" type="number" min="0" placeholder="до" inputmode="numeric" value="${esc(f.amax ?? '')}"></div></div>
-      <div class="fcell"><div class="fl" data-h="price">Цена, ₽</div><div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off" value="${f.pmin ? dots(f.pmin) : ''}"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off" value="${f.pmax ? dots(f.pmax) : ''}"></div></div>
-      <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div><div class="chips"><button type="button" class="chip pick-btn${(f.d ?? []).length ? ' on' : ''}" id="ex-areas">${esc(areaLabel())}</button></div>
-        <input id="zk" type="search" placeholder="ЖК — название" list="ex-zk" value="${esc(f.zk ?? '')}" autocomplete="off"><datalist id="ex-zk">${(ref?.complexes ?? []).map(z => `<option value="${esc(z)}">`).join('')}</datalist></div>
+      <div class="fcell"><div class="fl" data-h="floor">Этаж</div><div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric" value="${esc(f.fmin ?? '')}"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric" value="${esc(f.fmax ?? '')}"></div></div>
+      <div class="fcell w2"><div class="checks"><label><input type="checkbox" id="nf"${f.nf ? ' checked' : ''}> не первый</label><label><input type="checkbox" id="nl"${f.nl ? ' checked' : ''}> не последний</label></div></div>
+      <div class="fcell w2"><div class="fl" data-h="price">Цена, ₽</div><div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off" value="${f.pmin ? dots(f.pmin) : ''}"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off" value="${f.pmax ? dots(f.pmax) : ''}"></div></div>
+      <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div><div class="chips"><button type="button" class="chip pick-btn${(f.d ?? []).length ? ' on' : ''}" id="ex-areas">${esc(areaLabel())}</button></div></div>
       <div class="fcell"><div class="fl" data-h="sea">До моря</div><select id="sea" aria-label="Расстояние до моря">${SEA.map(([v, t]) => `<option value="${v}"${String(f.sea ?? '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
-      <div class="fcell w2"><div class="fl" data-h="floor">Этаж</div><div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric" value="${esc(f.fmin ?? '')}"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric" value="${esc(f.fmax ?? '')}"></div>
-        <div class="checks"><label><input type="checkbox" id="nf"${f.nf ? ' checked' : ''}> не первый</label><label><input type="checkbox" id="nl"${f.nl ? ' checked' : ''}> не последний</label></div></div>
+      <div class="fcell w2"><input id="zk" type="search" placeholder="ЖК — название" list="ex-zk" value="${esc(f.zk ?? '')}" autocomplete="off"><datalist id="ex-zk">${(ref?.complexes ?? []).map(z => `<option value="${esc(z)}">`).join('')}</datalist></div>
       <div class="fcell w2"><div class="fl" data-h="fin">Отделка</div><div class="chips">${chips('fin', FIN)}</div></div>
       <div class="fcell w2"><div class="fl">Комиссия и размещение</div><div class="chips">${chips('x', EXTRA)}</div></div>
       </div>
@@ -218,9 +330,7 @@
       ['Район', [x.district, x.sub].filter(Boolean).join(', ')], ['ЖК', x.complex ?? ''], ['До моря', sea(x.sea_m).replace(' до моря', '')], ['Отделка', FN[x.finish] ?? ''],
       ['Цена за м²', x.area && x.price ? `${dots(Math.round(x.price / x.area))} ₽` : ''], ['Размещено', new Date(x.created_at).toLocaleDateString('ru-RU')], ['Просмотров', x.views ? String(x.views) : '']].filter(r => r[1]);
     const s = sheet(`№ ${x.num} · ${title(x)}`, `<div class="ex-card-v">
-      <div class="ex-gal">${x.photos.length ? `<div class="ex-gal-main"><img id="ex-gimg" src="${esc(x.photos[0])}" alt="Фото объекта">
-        ${x.photos.length > 1 ? '<button type="button" class="ex-gnav prev" data-g="-1" aria-label="Предыдущее фото">‹</button><button type="button" class="ex-gnav next" data-g="1" aria-label="Следующее фото">›</button>' : ''}
-        <span class="ex-gn" id="ex-gn">1 / ${x.photos.length}</span></div>
+      <div class="ex-gal">${x.photos.length ? `<div class="ex-gal-main">${gal(x.photos, 'big')}<span class="ex-gn" id="ex-gn">1 / ${x.photos.length}</span></div>
         ${x.photos.length > 1 ? `<div class="ex-thumbs">${x.photos.map((p, i) => `<button type="button" class="${i ? '' : 'on'}" data-gi="${i}" aria-label="Фото ${i + 1}"><img src="${esc(p)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}`
         : '<div class="ex-gal-main ex-noph">💎<small>Фото не добавлены</small></div>'}</div>
       <div class="ex-info">
@@ -239,24 +349,54 @@
           <button type="button" class="btn soft" data-fav="${x.id}" aria-pressed="${!!x.fav}">${x.fav ? '★ В избранном' : '☆ В избранное'}</button>
           <button type="button" class="btn soft" data-share>🔗 Ссылка</button>
           ${x.mine ? `<a class="btn soft" href="#edit=${x.id}">✏️ Изменить</a>` : `<a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a>`}
-        </div><p class="hint">Контакты собственника не публикуются — только контакт агента, разместившего объект.</p></div></div>`, '', true);
+        </div><p class="hint">Контакты собственника не публикуются — только контакт агента, разместившего объект.</p></div></div>
+      <section class="ex-sim" id="ex-sim" aria-live="polite"><p class="muted">Подбираю похожие объекты…</p></section>`, '', true);
     s.dataset.back = back;
-    const show = i => { k = (i + x.photos.length) % x.photos.length; s.querySelector('#ex-gimg').src = x.photos[k]; s.querySelector('#ex-gn').textContent = `${k + 1} / ${x.photos.length}`;
-      s.querySelectorAll('[data-gi]').forEach(b => b.classList.toggle('on', +b.dataset.gi === k)); };
+    const G = s.querySelector('.xg.big');
+    const mark = i => { k = i; const n = s.querySelector('#ex-gn'); if (n) n.textContent = `${k + 1} / ${x.photos.length}`;
+      s.querySelectorAll('[data-gi]').forEach(b => b.classList.toggle('on', +b.dataset.gi === k)); s.querySelector(`[data-gi="${k}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); };
+    G?.addEventListener('xgk', e => { if (e.detail !== k) mark(e.detail); });
     s.addEventListener('click', e => {
-      const g = e.target.closest('[data-g]'); if (g) show(k + +g.dataset.g);
-      const gi = e.target.closest('[data-gi]'); if (gi) show(+gi.dataset.gi);
+      if (xgClick(e)) return;
+      const m = e.target.closest('[data-mini]'); if (m) { e.preventDefault(); card(+m.dataset.mini); return; }
+      const gi = e.target.closest('[data-gi]'); if (gi && G) { xgGo(G, +gi.dataset.gi); mark(+gi.dataset.gi); }
       if (e.target.closest('[data-share]')) H.copy(`${location.origin}${location.pathname}#o=${x.num}`, 'Ссылка скопирована — откроется у агентов сервиса');
     });
-    let sx = null; const im = s.querySelector('.ex-gal-main');
-    im?.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-    im?.addEventListener('touchend', e => { if (sx == null || x.photos.length < 2) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 40) show(k + (dx < 0 ? 1 : -1)); sx = null; });
+    s.addEventListener('keydown', e => { if (G && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.target.closest('input, textarea')) xgGo(G, k + (e.key === 'ArrowRight' ? 1 : -1)); });
+    similar(x, s.querySelector('#ex-sim'));
     if (!location.hash.startsWith('#o=')) history.replaceState(null, '', `#o=${x.num}`);
     const it = items.find(i => i.num === n); if (it) it.views = x.views;
   }
 
+  // v5.20: под объектом — «Ещё в этом ЖК» (эксклюзивы коллег и объекты базы), если нет — «Похожие рядом» (±20 % площади, ±25 % цены), до 10 мелких карточек
+  async function similar(x, box) {
+    const low = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е');
+    const zkOwn = x.complex ? items.filter(i => i.num !== x.num && low(i.complex) === low(x.complex)) : [];
+    let base = { mode: 'none', items: [] };
+    if (x.lat && x.lng) try { base = await H.web('similar', { lat: x.lat, lng: x.lng, kind: x.kind, rooms: x.rooms, area: x.area, price: x.price, floor: x.floor, zk: x.zk_id ? [x.zk_id] : [] }); } catch { /* без базы — только эксклюзивы */ }
+    if (!box.isConnected) return;
+    const zkBase = base.mode === 'zk' || base.mode === 'house' ? base.items : [];
+    let head, sub = '', list;
+    if (zkOwn.length || zkBase.length) {
+      head = base.mode === 'house' && !zkOwn.length ? 'Ещё в этом доме' : `Ещё в ${x.complex ? `ЖК «${esc(x.complex)}»` : 'этом ЖК'}`;
+      list = [...zkOwn.map(i => miniHtml(i)), ...zkBase.map(i => miniHtml(i, true))];
+    } else {
+      const near = items.filter(i => i.num !== x.num && i.kind === x.kind && (x.sub ? i.sub === x.sub : i.district === x.district)
+        && (!x.area || (i.area >= x.area * 0.8 && i.area <= x.area * 1.2)) && (!x.price || (i.price >= x.price * 0.75 && i.price <= x.price * 1.25)));
+      head = 'Похожие рядом'; sub = 'площадь ±20 %, цена ±25 %';
+      list = [...near.map(i => miniHtml(i)), ...(base.mode === 'near' ? base.items : []).map(i => miniHtml(i, true))];
+    }
+    list = list.slice(0, 10);
+    box.innerHTML = list.length ? `<h4>${head}${sub ? ` <small class="muted">${sub}</small>` : ''}</h4><div class="ex-sim-row">${list.join('')}</div>`
+      : `<p class="muted">${x.lat ? 'Похожих объектов рядом пока нет.' : 'Похожие объекты подберём, когда у объекта будет точка на карте (адрес, ЖК или микрорайон).'}</p>`;
+  }
+
   // избранное — с ленты и из карточки
   document.addEventListener('click', async e => {
+    if (e._xg || xgClick(e)) return;
+    const vw = e.target.closest('.ex-views [data-view]');
+    if (vw) { view = vw.dataset.view; localStorage.setItem('excl_view', view); draw(); return; }
+    const mi = e.target.closest('#ex-mli [data-mini], .ex-grid [data-mini]'); if (mi) { e.preventDefault(); card(+mi.dataset.mini); return; }
     const b = e.target.closest('[data-fav]');
     if (b) {
       e.stopPropagation();
@@ -336,7 +476,8 @@
           <label class="field">Микрорайон<select name="sub" id="ex-sub"></select></label>
           <label class="field">ЖК<input name="complex" list="ex-zk2" maxlength="80" value="${esc(x.complex ?? '')}" autocomplete="off"><datalist id="ex-zk2">${(ref?.complexes ?? []).map(z => `<option value="${esc(z)}">`).join('')}</datalist></label>
           <label class="field">До моря, м<input name="sea_m" type="number" min="0" step="10" inputmode="numeric" value="${esc(x.sea_m ?? '')}" placeholder="например, 800"></label>
-        </div><p class="hint">Точный адрес коллегам не показываем — только район, микрорайон и ЖК.</p></section>
+          <label class="field ex-w2">Адрес — для точки на карте<input name="address" maxlength="200" value="${esc(x.address ?? '')}" placeholder="Улица, дом — например: Парковая, 34" autocomplete="off"></label>
+        </div><p class="hint">Точный адрес коллегам не показываем — на карте точка примерно (±100 м), в карточке — район, микрорайон и ЖК.</p></section>
       <section class="ex-fs"><h4>Цена и комиссия</h4><div class="ex-g">
           <label class="field">Цена, ₽ *<input name="price" inputmode="numeric" autocomplete="off" value="${x.price ? dots(x.price) : ''}" placeholder="12 500 000"></label>
           <label class="field">Комиссия коллеге<span class="ex-comm-in"><input name="comm_v" inputmode="decimal" value="${esc(x.comm_pct ?? (x.comm_rub ? dots(x.comm_rub) : ''))}" placeholder="2">
@@ -364,7 +505,7 @@
     const data = () => {
       const cv = String(fm.comm_v.value).replace(/\s/g, '').replace(',', '.'), pct = fm.comm_t.value === 'pct';
       return { id: x.id, kind: x.kind, rooms: fm.rooms.closest('label').hidden ? null : fm.rooms.value, area: fm.area.value, floor: fm.floor.value, floors: fm.floors.value,
-        land: fm.land.closest('label').hidden ? null : fm.land.value, finish: fm.finish.value, district: fm.district.value, sub: fm.sub.value, complex: fm.complex.value,
+        land: fm.land.closest('label').hidden ? null : fm.land.value, finish: fm.finish.value, district: fm.district.value, sub: fm.sub.value, complex: fm.complex.value, address: fm.address.value,
         sea_m: fm.sea_m.value, price: rubOf(fm.price.value), comm_pct: pct ? cv : null, comm_rub: pct ? null : cv.replace(/\D/g, ''), comm_note: fm.comm_note.value,
         descr: fm.descr.value, agent_show: fm.agent_show.checked };
     };

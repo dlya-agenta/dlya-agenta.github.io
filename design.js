@@ -4,7 +4,7 @@
 // (админка → «🎨 Стиль сайта», app_settings.design {default, logo, icons}; без входа — hub design_public, кэш в localStorage design_def / logo_def / icons_def).
 // Кнопка «Стиль» ([data-style]) переключает стиль по кругу; личный выбор — localStorage design / logo / icons. ?design= ?logo= ?icons= — примерить.
 (() => {
-  const V = '5.17.2', IDS = ['classic', 'residence', 'premium'], NAMES = { classic: 'Классика', residence: 'Резиденция', premium: 'Премиум' };
+  const V = '5.20', IDS = ['classic', 'residence', 'premium'], NAMES = { classic: 'Классика', residence: 'Резиденция', premium: 'Премиум' };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
   const LOGOS = {
     keyhole: { name: 'Дом-замок', text: 'Крыша и дом, вместо двери — замочная скважина: «ключи от объекта у агента».',

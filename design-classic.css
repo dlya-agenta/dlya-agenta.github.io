@@ -51,12 +51,12 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, 
 .top .brand small { color: #8fb4ff; font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; margin-top: 1px; }
 .top .logo svg { border-radius: 11px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 6px 16px rgba(37, 99, 235, .35); }
 .gbrand small { color: var(--link); }
-.top > .who .who-t { color: #fff; }
-.top > a.who:hover, .top > button.who:hover { background: rgba(255, 255, 255, .08); }
-.top .menu .link, .top > button.who, .top .who #who { color: var(--head-text); }
+.top .who .who-t { color: #fff; }
+.top a.who:hover, .top button.who:hover { background: rgba(255, 255, 255, .08); }
+.top .menu .link, .top button.who, .top .who #who { color: var(--head-text); }
 .top .who small { color: var(--head-muted); }
 .top .who small.warn, .top .who #quota.warn { color: #ffb4a8; }
-.top .menu .link:hover, .top > button.who:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.top .menu .link:hover, .top button.who:hover { background: rgba(255, 255, 255, .08); color: #fff; }
 .top .menu .link.on, .top .mg-b.on { background: #3b82f6; color: #fff; box-shadow: none; font-weight: 600; }
 .burger { background: rgba(255, 255, 255, .08) !important; color: #fff !important; border-color: rgba(255, 255, 255, .2) !important; }
 /* выпадающие группы меню на компьютере — белая панель, как карточка */

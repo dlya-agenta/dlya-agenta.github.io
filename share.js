@@ -55,7 +55,10 @@ window.SHARE = (() => {
 
   // «Мои подборки»: строка ссылки
   const row = s => s.link ? `<br><small class="muted">🔗 ${s.live ? `ссылка до ${day(s.link_until)}` : 'срок ссылки закончился'} · просмотров клиента: ${s.views ?? 0}${s.yes || s.no ? ` · ✓ ${s.yes} · ✗ ${s.no}` : ''}${s.comments ? ` · комментариев: ${s.comments}` : ''}</small>` : '';
-  const btns = s => s.link && s.live ? `<button class="btn soft" data-copy="${esc(s.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>` : ''}` : '';
+  // v5.20: «👤 Собственникам» — страница агента s.html#<токен>&a=1 (подборка без ссылки — #id=<номер>&a=1): написать всем через Telegram / WhatsApp / MAX или позвонить
+  const agentLink = s => s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`;
+  const btns = s => `${s.link && s.live ? `<button class="btn soft" data-copy="${esc(s.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>` : ''}` : ''}`
+    + (s.id ? `<a class="btn soft" href="${esc(agentLink(s))}" title="Написать всем собственникам подборки или позвонить">👤 Собственникам</a>` : '');
 
   return { formatHtml, format, mount, resultHtml, bind, row, btns, copy };
 })();

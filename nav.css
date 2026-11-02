@@ -29,3 +29,25 @@ nav[data-nav] { align-items: center; }
   .mg-p::before { display: none; }
   nav[data-nav] .who { order: -1; padding: 6px 12px; }
 }
+
+/* v5.20: «Профиль» с меню «Стиль» и «Выйти» (nav.js tools) — строка разделов в одну линию на любом окне от 761 px */
+@media (min-width: 761px) {
+  .top > .whomg { grid-column: 3; grid-row: 1; justify-self: end; align-items: center; gap: 0; }
+  .whomg > .who { display: inline-flex; flex-direction: column; align-items: center; text-align: center; }
+  .top .whomg .who-more { background: none !important; box-shadow: none; min-height: 0; border: 0; color: inherit; cursor: pointer; padding: 6px 4px; border-radius: 8px; font: inherit; }
+  .top .whomg .who-more:hover, .top .whomg.open .who-more { background: rgba(127, 127, 127, .16) !important; }
+  .whomg .who-more .mg-a { opacity: .8; font-size: 12px; }
+  .whomg .mg-p { left: auto; right: 0; min-width: 190px; }
+  .whomg .mg-p .link { display: flex; align-items: center; width: 100%; background: none; border: 0; font: inherit; font-size: 14.5px; color: var(--text); cursor: pointer; margin: 0 !important; }
+  .whomg .mg-p .link[hidden] { display: none; }
+  .top .menu { flex-wrap: nowrap; min-width: 0; white-space: nowrap; }
+  .top .menu .mg-b, .top .menu > .link { white-space: nowrap; }
+}
+@media (min-width: 761px) and (max-width: 1099px) {
+  .top .menu > .link, .top .menu .mg-b { font-size: 13.5px !important; padding: 9px 6px !important; }
+  .top .menu .mg-a { display: none; }
+}
+@media (min-width: 761px) and (max-width: 939px) {
+  .top .menu > .link, .top .menu .mg-b { font-size: 12.5px !important; padding: 9px 4px !important; }
+  .top .menu .mi { margin-right: 3px !important; }
+}

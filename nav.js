@@ -18,7 +18,7 @@ window.NAV = (() => {
   let iconTimer = 0;
   function iconize() {
     cancelAnimationFrame(iconTimer);
-    iconTimer = requestAnimationFrame(() => document.querySelectorAll('.top .menu .link').forEach(el => window.DESIGN?.iconizeEl(el)));
+    iconTimer = requestAnimationFrame(() => document.querySelectorAll('.top .menu .link, .top .whomg .mg-p .link').forEach(el => window.DESIGN?.iconizeEl(el)));
   }
   // справа в шапке — «Профиль», под ним подписка (имя — в подсказке); на страницах, где профиля в шапке не было, — ссылка на профиль главной
   function profile() {
@@ -40,6 +40,36 @@ window.NAV = (() => {
     const nm = w.querySelector('#who');
     if (nm) { const t = () => { if (nm.textContent.trim()) w.title = `Профиль: ${nm.textContent.trim()} — тариф, номера, контакты, устройства`; }; t(); new MutationObserver(t).observe(nm, { childList: true, characterData: true, subtree: true }); }
   }
+  // v5.20: «Стиль» и «Выйти» — в меню под «Профилем» (компьютер; наведение или ▾): строка разделов всегда в одну линию (раньше «Выйти» уходил на 2–3-ю строку).
+  // Телефон — как раньше, в «☰ Меню». Кнопки переносятся сами (обработчики app.js и design.js остаются на них)
+  const wide = matchMedia('(min-width: 761px)');
+  let placing = false;
+  function tools() {
+    const top = document.querySelector('.top');
+    if (!top || placing || document.body.classList.contains('adm2')) return;
+    const menu = top.querySelector('.menu');
+    let box = top.querySelector(':scope > .whomg');
+    const who = box ? box.querySelector(':scope > .who') : top.querySelector(':scope > .who');
+    if (!menu || !who) return;
+    placing = true;
+    try {
+      if (wide.matches) {
+        if (!box) {
+          box = document.createElement('div'); box.className = 'mg whomg'; box.dataset.g = 'prof';
+          top.insertBefore(box, who); box.appendChild(who);
+          box.insertAdjacentHTML('beforeend', '<button type="button" class="mg-b who-more" aria-expanded="false" aria-haspopup="true" title="Стиль, выход"><span class="mg-a" aria-hidden="true">▾</span></button><div class="mg-p" role="menu"></div>');
+          wire(top);
+        }
+        const p = box.querySelector('.mg-p');
+        menu.querySelectorAll(':scope [data-style], :scope #logout, :scope [data-logout]').forEach(b => { b.classList.add('link'); p.appendChild(b); });
+      } else if (box) {
+        box.querySelectorAll('.mg-p > *').forEach(b => menu.appendChild(b));
+        top.insertBefore(who, box); box.remove();
+      }
+    } finally { placing = false; }
+  }
+  wide.addEventListener?.('change', tools);
+
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hoverable = () => matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches;
   // v5.19: пункт без подменю (строка G с href вместо списка) — просто ссылка в шапке, например «💎 Эксклюзивы»
@@ -118,14 +148,14 @@ window.NAV = (() => {
   }
   // значки и профиль — на всех страницах с меню (на главной разметка своя, build её не трогает)
   function dress() {
-    window.DESIGN?.sprite(); profile(); iconize();
+    window.DESIGN?.sprite(); profile(); iconize(); tools();
     const top = document.querySelector('.top');
-    if (top && !top.dataset.ic) { top.dataset.ic = 1; new MutationObserver(iconize).observe(top, { childList: true, subtree: true, characterData: true }); }
+    if (top && !top.dataset.ic) { top.dataset.ic = 1; new MutationObserver(() => { iconize(); tools(); }).observe(top, { childList: true, subtree: true, characterData: true }); }
   }
 
   document.addEventListener('click', e => { if (!e.target.closest('.mg')) close(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   const start = () => { build(); wire(); dress(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  return { close, open, sync, wire, iconize, groups: G };
+  return { close, open, sync, wire, iconize, tools, groups: G };
 })();

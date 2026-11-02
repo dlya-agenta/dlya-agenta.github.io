@@ -40,7 +40,7 @@ body.adm2 { background: var(--bg) !important; }
 .gbrand b { font-size: 38px; }
 .gbrand small { color: var(--accent); }
 .brand small { color: var(--accent) !important; letter-spacing: .06em; text-transform: uppercase; font-size: 11px !important; }
-.top .menu .link, .top > button.who, .top .who #who { color: color-mix(in srgb, var(--text) 86%, transparent); }
+.top .menu .link, .top button.who, .top .who #who { color: color-mix(in srgb, var(--text) 86%, transparent); }
 .top .who small { color: var(--muted); }
 .menu .link { letter-spacing: .01em; transition: color .2s, background .2s; }
 .top .menu .link:hover { background: rgba(214, 178, 94, .08); color: var(--link); }

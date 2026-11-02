@@ -520,7 +520,7 @@ a.mcard { color: inherit; text-decoration: none; }
 .mlist.many .card.mc { flex-direction: row; gap: 10px; border-top: 1px solid var(--line); border-radius: 0; padding-top: 8px; overflow: visible; }
 .mlist.many .card.mc .gal { width: 104px; flex: none; aspect-ratio: 4 / 3; align-self: flex-start; border-radius: 8px; overflow: hidden; }
 .mlist.many .card.mc .body { padding: 0; min-width: 0; }
-.mlist.many .card.mc :is(.pick, .deal, .dots, .nav, .tags, .newmark) { display: none; }
+.mlist.many .card.mc :is(.pick, .deal, .nav, .tags, .newmark) { display: none; }
 .mlist.many .card.mc .fav { width: 26px; height: 26px; font-size: 13px; line-height: 26px; top: 4px; right: 4px; }
 .mlist.many .card.mc .price b { font-size: 16px; }
 .mlist.many .card.mc .price small { display: none; }
@@ -599,7 +599,7 @@ button.who:hover, button.who.on { background: var(--soft); }
   .logo svg { width: 34px; height: 34px; }
   .burger { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-weight: 600; cursor: pointer; }
   .top.open .burger { background: var(--soft); color: var(--link); border-color: transparent; }
-  .top > button.who { max-width: 46vw; padding: 4px 6px; }
+  .top button.who { max-width: 46vw; padding: 4px 6px; }
   #until:not(.warn) { display: none; }
   .top .menu { display: none; order: 10; width: 100%; flex-direction: column; align-items: stretch; gap: 2px; padding: 6px 0 4px; border-top: 1px solid var(--line); max-height: calc(100vh - 70px); overflow-y: auto; }
   .top.open .menu { display: flex; }
@@ -640,7 +640,7 @@ button.who:hover, button.who.on { background: var(--soft); }
 @media (min-width: 761px) {
   .top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 12px; padding: 8px 16px 0; }
   .top .brand { grid-column: 1; grid-row: 1; }
-  .top > button.who { grid-column: 3; grid-row: 1; }
+  .top button.who { grid-column: 3; grid-row: 1; }
   .top .menu { grid-column: 1 / -1; grid-row: 2; margin: 0 -8px; justify-content: flex-start; }
   .top .menu .link { padding: 9px 10px; border-radius: 8px 8px 0 0; }
   .top .menu #logout { margin-left: auto; }
@@ -792,20 +792,20 @@ html[data-icons=emoji] .mi svg { display: none; }
 html[data-icons=emoji] .mi::before { content: attr(data-e); font-size: 1em; line-height: 1; }
 html[data-icons=emoji] .mi { margin-right: 5px; vertical-align: 0; }
 /* «Профиль»: вместо имени — слово «Профиль», под ним подписка и лимит номеров, всё по центру */
-.top > .who { display: inline-flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; text-decoration: none; color: inherit; border-radius: 10px; padding: 4px 12px; }
-.top > a.who:hover { background: var(--soft); }
+.top .who { display: inline-flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; text-decoration: none; color: inherit; border-radius: 10px; padding: 4px 12px; }
+.top a.who:hover { background: var(--soft); }
 .who .who-t { font-size: 15px; font-weight: 700; letter-spacing: .01em; display: inline-flex; align-items: center; }
 .who .who-t .mi { margin-right: 5px; vertical-align: 0; }
 .who #who { display: none; }
 .who small { font-size: 12px; }
 body.client .agent-only.client-ok:not([hidden]) { display: revert !important; }
 @media (min-width: 761px) {
-  .top > .who { grid-column: 3; grid-row: 1; }
+  .top .who { grid-column: 3; grid-row: 1; }
   .top .menu [data-style] { margin-left: auto; }
   .top .menu [data-style] ~ #logout { margin-left: 0; }
 }
 @media (max-width: 760px) {
-  .top > .who { padding: 2px 6px; max-width: 46vw; }
+  .top .who { padding: 2px 6px; max-width: 46vw; }
   .who .who-t { font-size: 14px; }
 }
 /* v5.17.2: значки в заголовках разделов и окон — в цвет акцента, по размеру текста; боковое меню админки — как пункты меню */
@@ -855,3 +855,33 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 .list.l6 .mailb, .card.mc .mailb { width: 30px; height: 30px; font-size: 14px; line-height: 30px; top: 6px; right: 74px; }
 .mlist.many .card.mc .mailb, .map-sheet .card.mc .mailb { display: none; }
 @media (max-width: 720px) { .list.l6 .mailb { width: 30px; height: 30px; font-size: 14px; line-height: 30px; top: 6px; right: 74px; } }
+/* v5.20: подпись карты — «ⓘ» в углу, по нажатию «© OpenStreetMap» (app.js loadMap) */
+.map-info { display: flex; align-items: center; gap: 6px; margin: 0 0 6px 6px !important; font-size: 11px; color: #334; }
+.map-info button { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .8); color: #445; font-size: 13px; line-height: 20px; cursor: pointer; opacity: .75; }
+.map-info button:hover { opacity: 1; }
+.map-info span { background: rgba(255, 255, 255, .85); padding: 1px 6px; border-radius: 6px; }
+.map-info a { color: #1453d8; }
+/* v5.20: «Ещё в этом ЖК» / «Похожие рядом» под объявлением — мелкие карточки в одну строку, листаются (на телефоне — свайп) */
+.sim { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; min-width: 0; }
+.sim-h { font-weight: 700; font-size: 16px; margin: 0 0 10px; }
+.sim-row { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 10px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.sim-row > .card.mc { flex: 0 0 216px; scroll-snap-align: start; cursor: pointer; border: 1px solid var(--line); }
+.sim-row .card.mc .body { padding: 8px 10px 10px; }
+.sim-row .card.mc .actions, .sim-row .card.mc .meta, .sim-row .card.mc .mailb, .sim-row .card.mc .deal, .sim-row .card.mc .newmark, .sim-row .card.mc .seenmark { display: none; }
+.sim-row .card.mc .price b { font-size: 16px; }
+.sim-row .card.mc .price small { display: none; }
+.sim-row .card.mc .title { font-size: 13px; }
+@media (max-width: 760px) { .sim-row > .card.mc { flex-basis: 64vw; } }
+/* в окне точки с несколькими объявлениями — тонкие полоски фото тоже видны (листание пальцем и мышью) */
+.mlist.many .card.mc .gal .dots { display: flex; bottom: 0; gap: 2px; padding: 0 4px 4px; }
+.mlist.many .card.mc .gal .dots i { flex: 1; height: 2px; width: auto; border-radius: 1px; }
+/* v5.20: «Мои подборки» — карточка: сведения сверху на всю ширину, кнопки ниже с переносом, без обрезки (и на 390 px) */
+.selrow { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 2px; border-bottom: 1px solid var(--line); }
+.selrow .sel-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; line-height: 1.4; }
+.selrow .sel-t { font-size: 16px; overflow-wrap: anywhere; }
+.selrow .sel-info small { display: block; overflow-wrap: anywhere; }
+.selrow .sel-info br { display: none; }
+.selrow .sel-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.selrow .sel-acts .btn { flex: 0 0 auto; white-space: nowrap; width: auto; min-width: 0; max-width: none; padding: 8px 12px; font-size: 14px; overflow: visible; text-overflow: clip; }
+@media (max-width: 480px) { .selrow .sel-acts .btn { flex: 1 1 calc(50% - 8px); } }
+.selrow .sel-acts a.btn { text-decoration: none; text-align: center; justify-content: center; }

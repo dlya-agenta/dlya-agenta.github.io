@@ -14,7 +14,8 @@ const MSG = 'Здравствуйте! Ваше предложение по пр
 const KINDS = [['квартира', 'Квартиры'], ['апартаменты', 'Апартаменты'], ['дом', 'Дома'], ['коммерция', 'Коммерция'], ['участок', 'Участки']];
 const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // «С ремонтом» = дизайнерский + евроремонт + современный (одним видом); white box в фильтре нет, в данных — остаётся
-const FIN = [['repair', 'С ремонтом'], ['clean', 'Чистовая'], ['rough', 'Черновая']];
+// v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
+const FIN = [['clean', 'Чистовая'], ['rough', 'Черновая']];
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 10;   // объектов в одной подборке PDF
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
@@ -66,7 +67,7 @@ async function call(action, extra = {}, signal) {   // signal — отменит
   for (let i = 0; ; i++) {
     try {
       r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
-      if (![502, 503, 504, 546].includes(r.status) || i >= 2 || NO_RETRY.has(action)) break;
+      if (![502, 503, 504, 546].includes(r.status) || i >= 2 || NO_RETRY.has(action)) break;   // v5.20: «база занята» (busy) сервер уже повторил — приходит 500, не повторяем
     } catch (e) {
       if (signal?.aborted || e.name === 'AbortError') throw e;
       if (i >= 2 || NO_RETRY.has(action)) throw Object.assign(new Error(NET_MSG), { net: true });
@@ -256,7 +257,7 @@ function renderFilters() {
   chipRow($('#f-kind'), KINDS, 'k');
   chipRow($('#f-rooms'), ROOMS, 'r', v => land || (v === 0 && !c.studio ? 'Студии бывают только у квартир и апартаментов' : ''));
   chipRow($('#f-fin'), FIN, 'fin', () => land);
-  $('#f-fin [data-v="repair"]').classList.add('yel');   // включённый «С ремонтом» — жёлтый: функция пробная
+  $('#f-fin [data-v="repair"]')?.classList.add('yel');   // включённый «С ремонтом» — жёлтый: функция пробная
   // «Дизайнерский» — по фото (пока «скоро»: включается в админке, когда база проверена)
   const modernOn = meta.features.modern_filter;
   $('#f-fin').insertAdjacentHTML('beforeend', `<button type="button" class="chip${f.m ? ' on' : ''}" data-k="m" ${modernOn && !land ? '' : `disabled title="${modernOn ? land : 'Скоро: дизайнерский ремонт будет определяться по фото'}"`}>Дизайнерский${modernOn ? '' : '<small>скоро</small>'}</button>`);
@@ -604,7 +605,7 @@ if (matchMedia('(hover: hover)').matches) {
     g.dataset.k = k; st.scrollTo({ left: k * st.clientWidth, behavior: 'instant' });
     g.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === k));
   };
-  for (const box of ['#list', '#ml-items']) {
+  for (const box of ['#list', '#ml-items', '#map', '#sheet-body']) {   // v5.20: и в окне точки на карте, и в «Похожих»
     $(box).addEventListener('mousemove', scrub);
     $(box).addEventListener('mouseout', e => { const g = e.target.closest('.gal'); if (g && !g.contains(e.relatedTarget)) { g.dataset.k = 0; g.querySelector('.strip')?.scrollTo({ left: 0, behavior: 'instant' }); g.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === 0)); } });
   }
@@ -712,8 +713,38 @@ async function openItem(num, k = 0) {
     if (t.matches('[data-big]')) { openViewer(Array.from({ length: n }, (_, i) => photoUrl(x, i)), +el.dataset.k); return; }
     onCard(e, el);
   });
+  // v5.20: листание фото пальцем в окне объявления (на компьютере — стрелки, миниатюры и ← →)
+  const main = el.querySelector('.iv-main');
+  if (main && nPhotos(x) > 1) {
+    let sx = 0, sy = 0;
+    main.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    main.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy, n = nPhotos(x);
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) ivShow(el, x, (+el.dataset.k + (dx < 0 ? 1 : -1) + n) % n);
+    }, { passive: true });
+  }
+  $('#sheet-body').scrollTop = 0;
+  simLoad(num);
   const inList = document.querySelector(`#list .card[data-num="${num}"]`);
   if (inList) markSeen(inList, num);
+}
+// v5.20: под объявлением — «Ещё в этом ЖК» / «В этом доме» / «Похожие рядом» (до 10 мелких карточек в строку; сервер — действие similar).
+// Грузится после открытия окна, окно не ждёт
+const SIM_H = { zk: 'Ещё в этом ЖК', house: 'Ещё в этом доме', near: 'Похожие рядом — площадь и цена ±20–25 %' };
+async function simLoad(num) {
+  const body = $('#sheet-body');
+  body.insertAdjacentHTML('beforeend', `<section class="sim" data-for="${num}"><div class="sim-h">Похожие объекты</div><div class="sim-row"><p class="muted">Подбираю похожие…</p></div></section>`);
+  const box = body.querySelector(`.sim[data-for="${num}"]`);
+  box.addEventListener('click', e => { const c = e.target.closest('.card'); if (c) onCard(e, c); });
+  try {
+    const r = await call('similar', { num });
+    if (!box.isConnected) return;
+    const list = (r.items ?? []).filter(y => y.num !== num).slice(0, 10);
+    if (!list.length) { box.remove(); return; }
+    list.forEach(y => { if (!items.has(y.num)) items.set(y.num, y); });
+    box.querySelector('.sim-h').textContent = SIM_H[r.mode] ?? 'Похожие объекты';
+    box.querySelector('.sim-row').innerHTML = list.map(y => card(items.get(y.num) ?? y, true)).join('');
+  } catch (e) { if (box.isConnected) box.remove(); }
 }
 function itemView(x, k) {
   const n = nPhotos(x), price = x.price ? priceOf(x.price) : 0;
@@ -803,7 +834,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { $('#viewer').hidden ? closeSheet() : closeViewer(); }
   if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
   if (!$('#viewer').hidden) return viewerStep(e.key === 'ArrowRight' ? 1 : -1);
-  const iv = !$('#sheet').hidden && !e.target.closest?.('input, textarea') && $('#sheet-body .itemv [data-step]');
+  const iv = !$('#sheet').hidden && !e.target.closest?.('input, textarea, select') && $('#sheet-body .itemv [data-step]');
   if (iv) iv.parentElement.querySelector(`[data-step="${e.key === 'ArrowRight' ? 1 : -1}"]`).click();
 });
 
@@ -899,13 +930,14 @@ async function showSelections() {
   sheet('Мои подборки', '<p class="muted">Загрузка…</p>');
   try {
     const r = await call('sel_list');
-    $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="opt selrow" style="cursor:default"><span><b>${esc(s.title)}</b><br>
-      <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU')} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}
-      ${s.url ? `<br>PDF удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}` : ''}</small>${SHARE.row(s)}</span>
-      ${SHARE.btns(s)}
+    // v5.20: карточка подборки — название и сведения на всю ширину, кнопки ниже рядами с переносом (раньше текст сжимался в узкую колонку, кнопки обрезались)
+    $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="selrow"><div class="sel-info"><b class="sel-t">${esc(s.title)}</b>
+      <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}
+      ${s.url ? ` · PDF удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}` : ''}</small>${SHARE.row(s)}</div>
+      <div class="sel-acts">${SHARE.btns(s)}
       ${s.url ? `<a class="btn soft" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">${s.url_agent ? 'Клиенту' : 'PDF'}</a>` : ''}
       ${s.url_agent ? `<a class="btn soft" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}">Агенту</a>` : ''}
-      <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button><button class="btn ghost agent-only" data-rk="${s.nums.join(',')}">📣 В рекламу</button><button class="btn ghost agent-only" data-video="${s.nums.slice(0, 6).join(',')}">🎬 Ролик</button></div>`).join('')
+      <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button><button class="btn ghost agent-only" data-rk="${s.nums.join(',')}">📣 В рекламу</button><button class="btn ghost agent-only" data-video="${s.nums.slice(0, 6).join(',')}">🎬 Ролик</button></div></div>`).join('')
       : '<p class="muted">Подборок пока нет: PDF хранятся 7 дней, ссылки — 30. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать подборку».</p>';
     SHARE.bind($('#sheet-body'), toast);
     $('#sheet-body').onclick = e => {
@@ -992,7 +1024,16 @@ async function loadItems(nums) {
 async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
-    map = L.map('map', { zoomControl: true }).setView([43.585, 39.723], 11);
+    map = L.map('map', { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
+    // v5.20: вместо строки «Leaflet | © OpenStreetMap» — маленький «ⓘ»; нажатие показывает подпись (лицензия OpenStreetMap требует, чтобы она была доступна)
+    const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
+      const d = L.DomUtil.create('div', 'map-info');
+      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+      L.DomEvent.disableClickPropagation(d);
+      d.querySelector('button').onclick = () => { const t = d.querySelector('span'); t.hidden = !t.hidden; };
+      return d;
+    } });
+    new Info().addTo(map);
     // v5.16: список под картой обновляется через 3 с после остановки (пока двигают — не перерисовываем)
     map.on('movestart', () => { clearTimeout(mapList.wait); $('#ml-items').classList.add('wait'); })
       .on('moveend', () => { clearTimeout(mapList.wait); mapList.wait = setTimeout(() => mapList(), 3000); })
@@ -1002,7 +1043,7 @@ async function loadMap() {
       .on('popupclose', e => { popRO?.disconnect(); if (openPop === e.popup) openPop = null; })
       .on('zoomend', () => { if (openPop) placePop(openPop, true); })
       .on('click', () => { const s = $('#map-sheet'); if (s) s.hidden = true; });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
   }
   [50, 400, 1200].forEach(ms => setTimeout(() => map.invalidateSize(), ms));   // раскладка «список слева, карта справа» меняет размер после показа
   mctl?.abort();
@@ -1119,7 +1160,7 @@ $('#burger').onclick = () => menuOpen(!$('.top').classList.contains('open'));
 function mgClose(except) { window.NAV?.close(except); }
 // группа видна, если в ней есть видимый пункт; подсвечена, если открыт её пункт
 function mgSync() {
-  document.querySelectorAll('.mg').forEach(g => {
+  document.querySelectorAll('.menu .mg').forEach(g => {   // v5.20: меню «Профиля» (.whomg, nav.js) — не трогаем
     const items = [...g.querySelectorAll('.mg-p > [data-go], .mg-p > a')];
     g.hidden = !items.some(i => !i.hidden && !(document.body.classList.contains('client') && i.classList.contains('agent-only') && !i.classList.contains('client-ok')));
     g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
