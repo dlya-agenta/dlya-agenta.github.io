@@ -202,7 +202,7 @@
     if (!map) {
       el.innerHTML = '';
       map = L.map(el, { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })   /* OpenStreetMap — самая подробная бесплатная карта Сочи; источник — свёрнутым «ⓘ» (v5.22.3) */.addTo(map);
+      (window.MAPBASE ? MAPBASE.add(map) : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map));   // v5.23: Яндекс по ключу из админки, иначе OpenStreetMap; источник — свёрнутым «ⓘ»
       attrib().addTo(map);
       map.on('moveend', () => { clearTimeout(mlT); $('#ex-mli').classList.add('wait'); mlT = setTimeout(mapList, 700); })
         .on('popupopen', e => { const p = e.popup.getElement(); if (p && !p._ex) { p._ex = 1; p.addEventListener('click', onPop); } });

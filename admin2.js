@@ -195,7 +195,17 @@
         <p><button class="btn primary" data-save-routes>Сохранить маршруты</button></p></section>
       <section class="hub-sec"><h3>Ключи сервисов и API</h3><p class="hint">Меняются здесь, без программиста. Значения не показываются — только «задан» или нет. Остальные секреты (вход в источник, токен бота, CryptoBot) — в своих разделах: бот — «Участники и настройки», CryptoBot — «Продажи и оплаты».</p>
         ${r.secrets.filter(x => !x.name.startsWith('ai_key')).map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
-          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button></div>`).join('')}</section>`);
+          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button></div>`).join('')}</section>`
+      + `<section class="hub-sec"><h3>Карта Яндекса</h3><p class="hint">Ключ «JavaScript API и HTTP Геокодер» из кабинета разработчика Яндекса (developer.tech.yandex.ru). С ключом все карты сайта — Яндекс, без ключа — OpenStreetMap.
+        Ключ браузерный: его видно в коде страницы, это нормально. В кабинете Яндекса ограничьте его адресом dlya-agenta.github.io.</p>
+        <div class="adm-key"><input id="ymap-key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"><button class="btn soft" id="ymap-save">Сохранить</button><button class="btn ghost" id="ymap-off">Убрать (OpenStreetMap)</button></div></section>`);
+    const ymap = async v => { try {
+        const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin_settings', map: { yandex: v }, auth: { token: JSON.parse(localStorage.getItem('token')) } }) });
+        const d = await r.json(); if (!r.ok || d.error) throw new Error(d.message || d.error); H.toast(v ? 'Ключ сохранён — карты станут Яндекса (обновите страницу)' : 'Карты — снова OpenStreetMap');
+      } catch (er) { H.toast(er.message, 6000); } };
+    fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public' }) }).then(r => r.json()).then(d => { if (d.map?.yandex) $('#ymap-key').value = d.map.yandex; }).catch(() => {});
+    $('#ymap-save').onclick = () => ymap($('#ymap-key').value.trim());
+    $('#ymap-off').onclick = () => { $('#ymap-key').value = ''; ymap(''); };
     $('#adm-body').onclick = async e => {
       const sk = e.target.closest('[data-save-key]');
       if (sk) { const k = sk.dataset.saveKey, v = $(`[data-key="${k}"]`).value.trim(); if (!v && !confirm('Пустое значение удалит ключ. Удалить?')) return;
