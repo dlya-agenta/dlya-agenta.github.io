@@ -905,3 +905,39 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 .lay-ic { width: 26px; height: 18px; display: block; }
 .lay-ic rect { fill: currentColor; opacity: .85; }
 .lay-ic rect.o { fill: none; stroke: currentColor; stroke-width: 1; opacity: .9; }
+
+/* ---------- v5.24a: карточки — «Выбрать», выбранная рамкой; внутри объявления — «Контакт», «В рассылку», жалоба, модерация; «Сброс» и полоска «›» фильтра ---------- */
+.pick { gap: 7px; padding: 5px 10px 5px 6px; border-radius: 9px; background: rgba(15,18,24,.66); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.pick input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.pick .pk-box { width: 20px; height: 20px; flex: none; border-radius: 5px; border: 2px solid #fff; background: rgba(255,255,255,.12); display: grid; place-items: center; transition: background .15s; }
+.pick .pk-box::after { content: ''; width: 5px; height: 10px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); opacity: 0; }
+.pick:has(input:checked), .card.picked .pick { background: var(--accent); }
+.pick input:checked + .pk-box { background: #fff; border-color: #fff; }
+.pick input:checked + .pk-box::after { border-color: var(--accent); opacity: 1; }
+.pick input:focus-visible + .pk-box { outline: 2px solid #fff; outline-offset: 2px; }
+.card.picked { box-shadow: 0 0 0 3px var(--accent), var(--shadow); }
+.list.l6 .pick { padding: 3px 7px 3px 4px; gap: 5px; } .list.l6 .pick .pk-box, .card.mc .pick .pk-box { width: 16px; height: 16px; border-width: 1.5px; }
+.list.l6 .pick .pk-box::after, .card.mc .pick .pk-box::after { width: 4px; height: 8px; border-width: 0 2px 2px 0; }
+.hidmark { position: absolute; right: 8px; bottom: 18px; z-index: 3; padding: 3px 9px; border-radius: 12px; background: rgba(15,18,24,.7); color: #fff; font-size: 12.5px; font-weight: 600; }
+.iv-tools { margin: 12px 0 4px; padding: 10px 0 2px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.iv-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.iv-tools .ivdeal.on { border-color: var(--ok); color: var(--ok); }
+.iv-tools .ivdeal u { text-underline-offset: 2px; font-weight: 500; }
+.iv-tools .iv-cmp { color: var(--muted); }
+.iv-tools .iv-cmp:hover { color: var(--bad); border-color: var(--bad); }
+.iv-cmpf { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); display: grid; gap: 8px; }
+.iv-cmpf textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.iv-cmpf .hint { margin: 0; font-size: 12.5px; color: var(--muted); }
+.iv-thanks { margin: 0; font-weight: 600; color: var(--ok); }
+.iv-lk:empty { display: none; }
+.iv-mod { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; border: 1px dashed var(--line); }
+.iv-mod b { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 4px; }
+.iv-mod .bad:hover { color: #fff; background: var(--bad); border-color: var(--bad); }
+.fh-reset { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-right: 4px; }
+.fh-reset:hover { border-color: var(--bad); color: var(--bad); }
+.ftab { display: none; }
+@media (min-width: 761px) {
+  body.fside:not(.fshown) .ftab { display: flex; align-items: center; justify-content: center; position: fixed; left: 0; top: 50%; z-index: 40; width: 22px; height: 72px; margin-top: -36px; padding: 0;
+    border: 1px solid var(--line); border-left: 0; border-radius: 0 12px 12px 0; background: var(--card); color: var(--accent); font-size: 22px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); }
+  body.fside:not(.fshown) .ftab:hover { width: 28px; background: var(--soft); }
+}

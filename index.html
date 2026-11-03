@@ -10,13 +10,14 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.23">
+<link rel="stylesheet" href="style.css?v=5.24a1">
 <link rel="stylesheet" href="nav.css?v=5.23e1">
 <script src="design.js?v=5.23c1"></script>
 <link rel="stylesheet" href="offer.css?v=5.23">
 <link rel="stylesheet" href="notify.css?v=5.23">
 <link rel="stylesheet" href="crm.css?v=5.23">
-<link rel="stylesheet" href="links.css?v=5.23e2">
+<link rel="stylesheet" href="links.css?v=5.24a1">
+<link rel="stylesheet" href="map.css?v=5.24a1">
 <link rel="stylesheet" href="reklama/rk.css?v=5.23">
 <link rel="stylesheet" href="support.css?v=5.23">
 <link rel="manifest" href="manifest.json">
@@ -102,8 +103,9 @@
     </form>
     <div class="chips q-place" id="q-place"></div>
 
+    <button type="button" class="ftab" id="f-tab" aria-label="Показать фильтр" title="Показать фильтр">›</button>
     <section id="filters" class="filters closed" aria-label="Фильтры">
-      <div class="fhead"><b>Фильтры</b><span class="fhead-r"><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇧ Сверху</button><button type="button" class="x" id="f-close" aria-label="Скрыть фильтры" title="Скрыть фильтр">⟨</button></span></div>
+      <div class="fhead"><b>Фильтры</b><span class="fhead-r"><button type="button" class="fh-reset" id="f-reset" hidden title="Сбросить все фильтры">Сброс</button><button type="button" class="link" id="f-side" title="Где показывать фильтр: колонкой слева или блоком сверху">⇧ Сверху</button><button type="button" class="x" id="f-close" aria-label="Скрыть фильтры" title="Скрыть фильтр">⟨</button></span></div>
       <div class="fgrid">
         <div class="fcell w2"><div class="fl" data-h="kind">Тип недвижимости</div><div class="chips" id="f-kind"></div></div>
         <div class="fcell w2"><div class="fl" data-h="rooms">Комнаты</div><div class="chips" id="f-rooms"></div></div>
@@ -168,9 +170,10 @@
   <div id="selbar" class="selbar" hidden>
     <span id="selcount"></span>
     <button class="btn ghost" id="sel-clear">Очистить</button>
-    <button class="btn soft agent-only" id="sel-rk">📣 Отправить в рекламу</button>
+    <button class="btn primary" id="sel-make" title="Подборка клиенту: ссылкой до 20 объектов, PDF до 10">📄 В подборку</button>
+    <button class="btn soft agent-only" id="sel-rk" title="Черновики объявлений для рекламы на площадках">📣 В рекламу</button>
+    <button class="btn soft agent-only" id="sel-mail" title="Выбранные объявления — в «Список рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>
     <button class="btn soft agent-only" id="sel-video" title="Видеообзор 10 с из фото отмеченных объектов (тариф MAX)">🎬 Ролик</button>
-    <button class="btn primary" id="sel-make">Сформировать подборку</button>
   </div>
 </div>
 
@@ -202,11 +205,11 @@
 <script src="notify.js?v=5.23" defer></script>
 <script src="share.js?v=5.23e1" defer></script>
 <script src="crm.js?v=5.23e1" defer></script>
-<script src="links.js?v=5.23e1" defer></script>
+<script src="links.js?v=5.24a1" defer></script>
 <script src="reklama/rk.js?v=5.23" defer></script>
 <script src="hub.js?v=5.23" defer></script>
 <script src="nav.js?v=5.23c1" defer></script>
-<script src="app.js?v=5.23e2" defer></script>
+<script src="app.js?v=5.24a1" defer></script>
 <script src="support.js?v=5.23" defer></script>
 </body>
 </html>

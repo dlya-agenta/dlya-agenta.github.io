@@ -148,6 +148,7 @@ function renderFilters() {
   if ((af.st || af.geo) && (names.length || oldD)) $('#open-areas').textContent += ' (не учитывается)';
   const n = Object.keys(af).filter(k => !['dl', 'stl', 'house'].includes(k) && af[k] !== undefined && !(Array.isArray(af[k]) && !af[k].length)).length;
   $('#fcount').textContent = n ? `(${n})` : '';
+  $('#f-reset').hidden = !n && !text;   // v5.24a: «Сброс» в заголовке фильтра
 }
 function readInputs() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) { const v = +$('#' + k).value; if (v > 0) af[k] = v; else delete af[k]; }
@@ -196,6 +197,8 @@ function later(ms = 500) { clearTimeout(later.t); later.t = setTimeout(changed, 
 function fchg() { renderFilters(); later(); }
 const flush = () => { if (later.t) changed(); };
 $('#f-close').onclick = () => { readInputs(); flush(); openF(false); };
+$('#f-reset').onclick = () => $('#reset').click();
+$('#f-tab').onclick = () => openF(true);   // v5.24a: фильтр слева закрыт — полоска «›» на его месте
 $('#apply').onclick = () => { readInputs(); flush(); openF(false); };
 $('#reset').onclick = () => { af = {}; text = ''; $('#q').value = ''; renderFilters(); changed(); };
 // «Ничего не нашлось»: «Сбросить его» — фильтр, который больше всего мешает; «Сбросить все» — все фильтры (текст запроса остаётся)
@@ -258,9 +261,10 @@ const MAXSEL = 10;   // объектов в одной подборке PDF (к�
 const selSet = () => new Set(store.get('sel', []));
 function selbar() { const n = selSet().size; $('#selbar').hidden = !n || feat.selections === false; $('#selcount').textContent = `В подборке: ${n}`; }
 // mini — в карточке на карте только «Избранное» (остальное — на странице объявления)
-const acts = (x, mini = false) => `<div class="arch-acts">
+// v5.24a: «🤝 Контакт» — только на странице объявления (page), не на карточке
+const acts = (x, mini = false, page = false) => `<div class="arch-acts">
   ${feat.favorites !== false ? `<button type="button" class="chip${x.fav ? ' on' : ''}" data-act="fav">${x.fav ? '★' : '☆'} Избранное</button>` : ''}
-  ${!mini && feat.deals !== false ? `<button type="button" class="chip${x.deal ? ' on' : ''}" data-act="deal">🤝 Контакт</button>` : ''}
+  ${page && feat.deals !== false ? `<button type="button" class="chip${x.deal ? ' on' : ''}" data-act="deal">${x.deal ? '✓ В «Контакте» · убрать' : '🤝 В контакт'}</button>` : ''}
   ${!mini && feat.selections !== false ? `<button type="button" class="chip${x.num && selSet().has(x.num) ? ' on' : ''}" data-act="sel">${x.num && selSet().has(x.num) ? '✓ В подборке' : '＋ В подборку'}</button>` : ''}
   ${!mini && feat.notes !== false ? `<button type="button" class="chip" data-act="note">📝 Заметка</button>` : ''}
   ${!mini && feat.crm && window.CRM ? '<button type="button" class="chip" data-act="crm">👥 Клиенту</button>' : ''}</div>
@@ -293,7 +297,7 @@ async function act(x, a, box) {
   } catch (e) { toast(e.message, 4000); }
   finally {
     const wrap = box.closest('.arch-actwrap');
-    if (wrap) wrap.innerHTML = acts(x, !!wrap.closest('.mc'));
+    if (wrap) wrap.innerHTML = acts(x, !!wrap.closest('.mc'), !!wrap.closest('#ipage'));
     box.closest('.card')?.querySelector('.meta')?.replaceWith(Object.assign(document.createElement('div'), { className: 'meta', innerHTML: metaLine(x, !$('#ipage').hidden) }));
   }
 }
@@ -451,7 +455,7 @@ function itemPage(x, k) {
       <div class="iv-addr">${esc(where)}</div>
       <div class="tags">${statusTag(x)}</div>
       <div class="meta">${metaLine(x, true)}</div>
-      <div class="arch-actwrap">${acts(x)}</div>
+      <div class="arch-actwrap">${acts(x, false, true)}</div>
       <div class="actions">${x.cont ? contHtml(x.cont) : '<button class="btn soft" data-cont>📞 Контакты и источник</button>'}</div>
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${descrHtml(x.descr)}</p></div>` : ''}
     </div></article>`;

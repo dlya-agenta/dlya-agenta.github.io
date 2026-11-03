@@ -20,10 +20,10 @@
     ADMIN.use({ call: H.web, sheet: (t, html) => { $('#adm-body').innerHTML = `<div id="sheet-body" class="adm-panel">${html}</div>`; }, closeSheet: () => {}, toast: H.toast, saved: () => {} });
     $('#gate').hidden = true; $('#app').hidden = false;
     $('#adm-burger').onclick = () => $('#adm-side').classList.toggle('open');
-    addEventListener('hashchange', route); route();
+    addEventListener('hashchange', route); route(); window.CMPADM?.count();   // v5.24a: счётчик новых жалоб у «Модерации»
   }
   function route() {
-    const s = (location.hash.slice(1) || 'dash').split('=')[0];
+    const s = ((location.hash.slice(1) || 'dash').split('=')[0]).replace(/^complaints$/, 'mod');   // v5.24a: ссылка из бота admin.html#complaints
     document.querySelectorAll('.adm-side [data-s]').forEach(a => a.classList.toggle('on', a.dataset.s === s));
     $('#adm-title').textContent = TITLES[s] ?? 'Сводка';
     $('#adm-at').textContent = S?.at ? `данные на ${H.when(S.at)}` : '';
@@ -109,10 +109,10 @@
       <section class="hub-sec"><h3>Топ партнёров</h3>${r.top.length ? `<ol>${r.top.map(([l, s, c]) => `<li>${esc(l)} — ${usd(s)}, приглашено ${c}</li>`).join('')}</ol>` : '<p class="muted">Пока нет</p>'}</section>
       <p><a class="btn primary" href="partner.html#admin">Заявки на выплату и настройки</a></p>`);
   }
-  function mod() { body(`<section class="hub-sec"><h3>📨 Объявления из Telegram</h3><div id="tz">Загрузка…</div></section>
+  function mod() { body(`<section class="hub-sec" id="complaints"><h3>⚠ Жалобы на объявления</h3><div id="cmp">Загрузка…</div></section><section class="hub-sec"><h3>📨 Объявления из Telegram</h3><div id="tz">Загрузка…</div></section>
     <section class="hub-sec"><h3>Чат подписчиков</h3><p>Жалобы, замечания и баны.</p><p><a class="btn primary" href="hub.html#chat">Открыть чат и модерацию</a></p></section>
     <section class="hub-sec"><h3>Эксклюзивы</h3><p>Подписчики размещают свою вторичку без документов (v5.19); срок размещения 30 дней с продлением.</p><p><a class="btn soft" href="excl.html">Открыть эксклюзивы</a></p></section>`);
-    window.TGZKADM?.render($('#tz')); }
+    window.CMPADM?.render($('#cmp')); window.TGZKADM?.render($('#tz')); }   // v5.24a: жалобы (complaints.admin.js)
   function content() { body(`<section class="hub-sec"><h3>Новостройки</h3><p>Карточки ЖК: телефон отдела продаж, правила фиксации, кабинет партнёра, официальные фото, новости.</p><p><a class="btn primary" href="hub.html#newb">Открыть новостройки</a></p></section>
     <section class="hub-sec"><h3>Тарифы, цены и тексты</h3><p>Тарифы и что в них входит — в «Участники и настройки» (блок «Тарифы»). Документы: <a href="prices.html" target="_blank">тарифы</a>, <a href="oferta.html" target="_blank">оферта</a>, <a href="rules.html" target="_blank">правила</a>, <a href="privacy.html" target="_blank">политика</a>.</p></section>`); }
   // ---------- Стиль сайта (v5.16; v5.17 — логотип и значки меню; v5.21 — «Небо» и «Дюна» вместо «Резиденции»): выбор админа — по умолчанию для всех;

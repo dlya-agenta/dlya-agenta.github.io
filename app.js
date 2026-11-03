@@ -301,6 +301,7 @@ function renderFilters() {
   $('#f-more-n').textContent = nm; $('#f-more-n').hidden = !nm;
   if (nm && !renderFilters.opened) { $('#f-more').open = true; renderFilters.opened = true; }
   $('#bar-fn').textContent = n; $('#bar-fn').hidden = !n;
+  $('#f-reset').hidden = !n && !text;   // v5.24a: маленькая «Сброс» между «Фильтры» и «Сверху» — когда что-то выбрано
   fitF();
 }
 // цена в рублях с точками: 12.000.000; число меньше 1000 — миллионы («12» → 12.000.000). В фильтре цена хранится в миллионах.
@@ -355,6 +356,8 @@ $('#f-more').addEventListener('toggle', () => { store.set('fmore', $('#f-more').
 if (store.get('fmore', false)) $('#f-more').open = true;
 $('#bar-f').onclick = () => { openF(true); fclosed = false; if (!mobile()) savePrefs(); };
 $('#bar-reset').onclick = () => $('#reset').click();
+$('#f-reset').onclick = () => $('#reset').click();
+$('#f-tab').onclick = () => $('#bar-f').click();   // v5.24a: фильтр спрятан влево — полоска «›» на его месте достаёт его обратно
 $('#toggle-f').onclick = () => { const on = $('#filters').classList.contains('closed'); openF(on); fclosed = !on; if (!mobile()) savePrefs(); };
 // фильтр колонкой слева или блоком сверху (на компьютере; на телефоне — всегда окно на весь экран)
 function sideUi() {
@@ -528,8 +531,8 @@ async function search(more = false) {
 // «Ничего не нашлось»: что мешает (сервер прислал drop) — в выдаче и в окне фильтра на телефоне; в пустом «Избранном» — как туда добавить
 function noneBox(r) {
   const own = favMode && Object.keys(f).length === 1;
-  const html = !r ? '' : own && favMode === 'hidden' ? `<p>${f.hid === 'del' ? 'Удалённых объявлений нет.' : 'Скрытых объявлений нет — нажмите 👁 на фото объявления, чтобы убрать его из поиска у всех.'}</p>`
-    : own ? `<p>${favMode === 'favs' ? 'В «Избранном» пока ничего нет — нажмите ☆ на фото объявления.' : 'В разделе «Контакт» пока ничего нет — нажмите 🤝 на фото объявления.'}</p>`
+  const html = !r ? '' : own && favMode === 'hidden' ? `<p>${f.hid === 'del' ? 'Удалённых объявлений нет.' : 'Скрытых объявлений нет — откройте объявление и нажмите «🙈 Скрыть» в строке «Модерация».'}</p>`
+    : own ? `<p>${favMode === 'favs' ? 'В «Избранном» пока ничего нет — нажмите ☆ на фото объявления.' : 'В разделе «Контакт» пока ничего нет — объект попадёт сюда сам, когда собственник ответит «актуально», или откройте объявление и нажмите «🤝 В контакт».'}</p>`
     : FUI.empty(r, Object.keys(f).some(k => !(favMode && k === LISTS[favMode][0])));
   if (r) $('#list').innerHTML = `<div class="empty">${html}</div>`;
   $('#f-drop').innerHTML = own ? '' : html; $('#f-drop').hidden = !html || own;
@@ -544,14 +547,22 @@ function gallery(x) {
       : x.source === 'tg' ? '<div class="none closed"><b>Закрытая продажа</b><br>уточняйте детали у собственника</div>' : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}</div>
     ${n > 1 ? `<button class="nav l" data-nav="-1" aria-label="Назад">‹</button><button class="nav r" data-nav="1" aria-label="Вперёд">›</button>
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
-    ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
+    ${meta.features.selections ? pickHtml(x) : ''}
     ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
-    ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
-    ${meta.features.mail ? `<button class="mailb agent-only" data-mail="${x.num}" aria-label="В рассылку" title="В рассылку — объявление появится в «Списке рассылки»">✉️</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
-    ${me?.role === 'admin' ? `<span class="admb">${x.hidden_kind ? `<button type="button" data-adm="back" title="Вернуть в поиск">↩ Вернуть</button>`
-      : '<button type="button" data-adm="hide" title="Скрыть объявление (раздел «Скрытые»)" aria-label="Скрыть">👁</button><button type="button" data-adm="del" title="Удалить объявление" aria-label="Удалить">🗑</button>'}</span>` : ''}
+    ${me?.role === 'admin' && x.hidden_kind ? `<span class="hidmark">${x.hidden_kind === 'del' ? '🗑 Удалено' : '🙈 Скрыто'}</span>` : ''}
   </div>`;
+}
+// v5.24a: «Выбрать» — заметный квадрат с галочкой и подписью (как у Авито), выбранная карточка — рамкой (.card.picked).
+// 🤝 «Контакт», ✉️ «В рассылку», 👁/🗑 админа — больше не на фото, а внутри объявления (ivTools)
+const pickHtml = x => `<label class="pick" title="Выбрать для подборки, рекламы или рассылки"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}><i class="pk-box" aria-hidden="true"></i><span class="pk-t">${sel.has(x.num) ? 'Выбрано' : 'Выбрать'}</span></label>`;
+function pickSync(num) {   // галочка, подпись и рамка у всех копий карточки (выдача, карта, окно объявления)
+  const on = sel.has(num);
+  document.querySelectorAll(`.card[data-num="${num}"]`).forEach(el => {
+    el.classList.toggle('picked', on);
+    const c = el.querySelector('[data-sel]'); if (c) c.checked = on;
+    const t = el.querySelector('.pick .pk-t'); if (t) t.textContent = on ? 'Выбрано' : 'Выбрать';
+  });
 }
 // вертикальное фото — целиком на размытом фоне, горизонтальное — на всю рамку 4:3 (низ с водяными знаками обрезается)
 document.addEventListener('load', e => {
@@ -563,7 +574,7 @@ function tags(x) {
   return [...[...new Set((x.finish || []).map(t => FINL[t] ?? t))].map(t => `<span class="tag">${esc(t)}</span>`),
     x.fz214 ? '<span class="tag">ФЗ-214</span>' : '', x.pool ? '<span class="tag">Бассейн</span>' : '',
     x.sea_m != null && x.sea_m <= 5000 ? `<span class="tag sea" title="По прямой до берега">≈ ${seaTxt(x.sea_m)} до моря</span>` : '',
-    x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : x.ad_state === 'ads' ? '<span class="tag grey agent-only">Есть в рекламе</span>' : ''].join('');
+    x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
 }
 // микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
 const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
@@ -575,7 +586,7 @@ function card(x, mini = false) {
   const zk = x.zk ?? zkName(x.complex);   // заголовок — название ЖК, если известно (по объявлению или по адресу дома)
   const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
   const date = x.lite ? '…' : x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
-  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}" data-num="${x.num}">
+  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
       <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
@@ -634,7 +645,7 @@ async function onCard(e, cardEl) {
   if (t.closest('[data-sel]')) {
     const c = t.closest('[data-sel]');
     if (c.checked && sel.size >= MAXSEL) { c.checked = false; toast(`В одной подборке до ${MAXSEL} объектов ссылкой (PDF — до ${MAXPDF}) — сформируйте её и начните новую`); return; }
-    c.checked ? sel.add(num) : sel.delete(num); store.set('sel', [...sel]); selbar(); return;
+    c.checked ? sel.add(num) : sel.delete(num); store.set('sel', [...sel]); selbar(); pickSync(num); return;
   }
   if (t.closest('[data-more]')) {
     const d = t.closest('.descr'), open = d.classList.toggle('open');
@@ -649,12 +660,13 @@ async function onCard(e, cardEl) {
     call('fav', { num, on }).catch(err => toast(err.message));
     return;
   }
-  if (t.closest('[data-deal]')) {   // «Контакт»: с собственником договорились — объект в своём разделе
+  if (t.closest('[data-deal]')) {   // «Контакт»: с собственником договорились — объект в своём разделе (v5.24a: кнопка внутри объявления; само — когда собственник ответил «актуально»)
     const b = t.closest('[data-deal]'), on = !b.classList.contains('on');
-    b.classList.toggle('on', on); if (x) x.deal = on;
-    call('deal', { num, on }).then(() => toast(on ? 'В разделе «Контакт»' : 'Убрано из раздела «Контакт»')).catch(err => toast(err.message));
+    b.classList.toggle('on', on); b.innerHTML = dealTxt(on); if (x) x.deal = on;
+    call('deal', { num, on }).then(() => toast(on ? 'В разделе «Контакт»' : 'Убрано из «Контакта» — само больше не добавится')).catch(err => toast(err.message));
     return;
   }
+  if (t.closest('[data-cmp]')) { complainForm(cardEl, num, t.closest('[data-cmp]')); return; }   // v5.24a: «⚠ Пожаловаться»
   // фото в карточке — объявление целиком, как на Авито: большое фото, лента миниатюр, рядом цена и описание
   if (t.matches('.strip img')) { openItem(num, +t.dataset.k); markSeen(cardEl, num); return; }
   if (t.closest('[data-open]')) { openItem(num); return; }
@@ -673,7 +685,9 @@ async function onCard(e, cardEl) {
     const as = t.closest('[data-adm]').dataset.adm;
     if (as === 'del' && !confirm(`Удалить объявление № ${num}? Оно пропадёт у всех и не вернётся ночной загрузкой. Вернуть можно в «Скрытые» → «Удалённые».`)) return;
     call('admin_hide', { num, as }).then(() => {
-      cardEl.classList.add('gone-out'); setTimeout(() => cardEl.remove(), 250);
+      if (x) x.hidden_kind = as === 'back' ? null : as;
+      if (cardEl.classList.contains('itemv')) closeSheet();   // v5.24a: кнопки — в окне объявления; карточку в выдаче убираем следом
+      document.querySelectorAll(`#list .card[data-num="${num}"], #ml-items .card[data-num="${num}"]`).forEach(el => { el.classList.add('gone-out'); setTimeout(() => el.remove(), 250); });
       toast({ hide: `№ ${num} скрыт — он в разделе «🙈 Скрытые»`, del: `№ ${num} удалён — вернуть можно в «Скрытые» → «Удалённые»`, back: `№ ${num} снова в поиске` }[as]);
     }).catch(err => toast(err.message));
     return;
@@ -758,6 +772,7 @@ async function openItem(num, k = 0) {
     }, { passive: true });
   }
   $('#sheet-body').scrollTop = 0;
+  window.LINKS?.full?.(num, el.querySelector('[data-ivlk]'));   // v5.24a: отметки целиком (собственник, подборки, клиенты) и «снять» — здесь, на карточке — только значки
   simLoad(num);
   const inList = document.querySelector(`#list .card[data-num="${num}"]`);
   if (inList) markSeen(inList, num);
@@ -793,10 +808,8 @@ function itemView(x, k) {
         ${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
         ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
         ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}
-        ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
+        ${meta.features.selections ? pickHtml(x) : ''}
         ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
-        ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
-        ${meta.features.mail ? `<button class="mailb agent-only" data-mail="${x.num}" aria-label="В рассылку" title="В рассылку — объявление появится в «Списке рассылки»">✉️</button>` : ''}
       </div>
       ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
@@ -813,9 +826,50 @@ function itemView(x, k) {
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
         <a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a></div>
+      ${ivTools(x)}
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${descrHtml(x.descr)}</p></div>` : ''}
     </div>
   </article>`;
+}
+// v5.24a: внутри объявления — то, что раньше было значками на фото: «Контакт», «В рассылку», отметки (снять), «⚠ Пожаловаться», модерация админа
+const dealTxt = on => on ? '✓ В «Контакте» · <u>убрать</u>' : '🤝 В контакт';
+function ivTools(x) {
+  const adm = me?.role === 'admin', agent = me && !me.guest;
+  const row = [meta.features.deals && agent ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
+    meta.features.mail && agent ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
+    agent && !adm ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : ''].filter(Boolean).join('');
+  const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
+    : '<button type="button" class="btn ghost sm" data-adm="hide" title="Пропадёт у всех, будет в «🙈 Скрытые»">🙈 Скрыть</button><button type="button" class="btn ghost sm bad" data-adm="del" title="Пропадёт у всех, ночная загрузка не вернёт">🗑 Удалить</button>'}</div>` : '';
+  return row || mod ? `<div class="iv-tools agent-only">${row ? `<div class="iv-row">${row}</div>` : ''}<div class="iv-lk" data-ivlk="${x.num}"></div><div class="iv-cmpf" hidden></div>${mod}</div>` : '';
+}
+// «⚠ Пожаловаться»: причина кнопкой + текст (у «Другое» — обязательно) → web complain → очередь модерации админа; объявление само не снимается
+const CMP = [['sold', 'Продано'], ['changed', 'Передумал продавать'], ['later', 'Отложил продажу'], ['agent', 'Это агент'], ['other', 'Другое']];
+function complainForm(cardEl, num, btn) {
+  const box = cardEl.querySelector('.iv-cmpf'); if (!box) return;
+  if (!box.hidden) { box.hidden = true; return; }
+  let why = '';
+  box.innerHTML = `<div class="iv-h">Что не так с объявлением?</div><div class="chips">${CMP.map(([k, t]) => `<button type="button" class="chip" data-why="${k}">${t}</button>`).join('')}</div>
+    <textarea rows="2" maxlength="1000" placeholder="Подробнее (необязательно)"></textarea>
+    <div class="iv-row"><button type="button" class="btn primary sm" data-send disabled>Отправить</button><button type="button" class="btn ghost sm" data-cancel>Отмена</button></div>
+    <p class="hint">Объявление не снимется сразу — его проверит администратор.</p>`;
+  box.hidden = false;
+  const ta = box.querySelector('textarea'), send = box.querySelector('[data-send]');
+  const ok = () => { send.disabled = !why || (why === 'other' && ta.value.trim().length < 3); };
+  ta.oninput = ok;
+  box.onclick = async e => {
+    e.stopPropagation();
+    const w = e.target.closest('[data-why]');
+    if (w) { why = w.dataset.why; box.querySelectorAll('[data-why]').forEach(b => b.classList.toggle('on', b === w)); ta.placeholder = why === 'other' ? 'Напишите, что не так (обязательно)' : 'Подробнее (необязательно)'; ok(); return; }
+    if (e.target.closest('[data-cancel]')) { box.hidden = true; return; }
+    if (!e.target.closest('[data-send]') || send.disabled) return;
+    send.disabled = true;
+    try {
+      const r = await call('complain', { num, reason: why, text: ta.value.trim() });
+      if (r.ok === false) throw new Error(r.error || 'Не получилось');
+      box.innerHTML = `<p class="iv-thanks">✓ ${r.again ? 'Вы уже жаловались на это объявление — администратор проверит.' : 'Спасибо, проверим. Объявление пока остаётся в поиске.'}</p>`;
+      btn.disabled = true;
+    } catch (err) { send.disabled = false; toast(err.message); }
+  };
 }
 // другое фото в окне объявления: большое фото, счётчик, выделенная миниатюра
 function ivShow(el, x, k) {
@@ -884,15 +938,26 @@ if (window.ResizeObserver) new ResizeObserver(() => { const b = $('#selbar'); if
 // подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
 function selStart(nums, title, fmt) {
   sel = new Set(nums.slice(0, MAXSEL)); store.set('sel', [...sel]); selbar();
-  document.querySelectorAll('[data-sel]').forEach(c => c.checked = sel.has(+c.closest('[data-num]')?.dataset.num));
+  document.querySelectorAll('.card[data-num]').forEach(el => pickSync(+el.dataset.num));
   $('#sel-make').onclick();
   if ($('#s-title')) $('#s-title').value = title ?? '';
   const r = fmt && document.querySelector(`[name="s-fmt"][value="${fmt}"]`);
   if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
 }
-$('#sel-rk').onclick = () => me.can_rk ? RK.send([...sel]) : PLANS.locked('rk');   // «📣 Отправить в рекламу» рядом с «Сформировать подборку» (шаг 4.1)
+$('#sel-rk').onclick = () => me.can_rk ? RK.send([...sel]) : PLANS.locked('rk');   // «📣 В рекламу» рядом с «В подборку» (шаг 4.1)
+// v5.24a: «✉️ В рассылку» — все выбранные сразу в «Список рассылки» (то же, что прежняя ✉️ на карточке, auto mail_list_add {nums})
+$('#sel-mail').onclick = async () => {
+  if (!me.can_mail) return PLANS.locked('mail');
+  const b = $('#sel-mail'); b.disabled = true;
+  try {
+    const r = await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'mail_list_add', auth: { token }, nums: [...sel] }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || j.error || 'Не получилось');
+    toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`, 4500);
+  } catch (err) { toast(err.message, 4500); } finally { b.disabled = false; }
+};
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 6).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
-$('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); document.querySelectorAll('[data-sel]').forEach(c => c.checked = false); };
+$('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   const n = Math.min(sel.size, MAXSEL);
@@ -1032,7 +1097,7 @@ async function onSelPage(e) {
   if (g) {
     const add = g.dataset.again.split(',').map(Number).filter(n => !sel.has(n)), room = MAXSEL - sel.size;
     add.slice(0, room).forEach(n => sel.add(n)); store.set('sel', [...sel]); selbar();
-    toast(add.length > room ? `Добавлено ${Math.max(0, room)} — в подборке до ${MAXSEL} объектов` : 'Объекты добавлены в подборку — внизу «Сформировать подборку»');
+    toast(add.length > room ? `Добавлено ${Math.max(0, room)} — в подборке до ${MAXSEL} объектов` : 'Объекты выбраны — внизу «📄 В подборку»');
     return;
   }
   const x = e.target.closest('[data-extend]');
@@ -1106,7 +1171,30 @@ function hoverLeave() {
   hoverT = setTimeout(() => { const el = openPop?.getElement(); if (el && !el.matches(':hover')) map.closePopup(); }, 400);
 }
 const mlnShort = v => v >= 1e6 ? `${(v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: v >= 1e8 ? 0 : 1 })} млн` : `${Math.round(v / 1e3)} тыс`;
-const ptCard = p => card(items.get(p.num) ?? p, true);
+// v5.24a: «Низкая цена» / «Низкая за м²» — плашка под ценой мини-карточки (окно точки и список под картой)
+const lowBy = new Map();
+const lowHtml = num => { const l = lowBy.get(num); if (!l) return '';
+  const where = l.g.startsWith('z') ? 'в этом ЖК' : 'в этом доме', tip = t => `${t} среди ${l.n} таких же объектов ${where} на карте (тот же тип и комнатность)`;
+  return `<div class="lowtags">${l.p ? `<span class="lowtag" title="${tip('Самая низкая цена')}">Низкая цена</span>` : ''}${l.m ? `<span class="lowtag m" title="${tip('Самая низкая цена за м²')}">Низкая за м²</span>` : ''}</div>`; };
+const withLow = (h, num) => lowBy.has(num) ? h.replace('</small></div>', `</small></div>${lowHtml(num)}`) : h;
+const ptCard = p => withLow(card(items.get(p.num) ?? p, true), p.num);
+// самая низкая цена и цена за м² среди точек карты одного ЖК (или дома), того же типа и комнатности, если таких от 2
+function lowMark(pts) {
+  lowBy.clear();
+  const G = new Map();
+  for (const p of pts) {
+    if (!(p.price > 0) || !p.g) continue;
+    const k = `${p.g}|${p.kind ?? ''}|${p.rooms ?? ''}`;
+    (G.get(k) ?? G.set(k, []).get(k)).push(p);
+  }
+  for (const [, ps] of G) {
+    if (ps.length < 2) continue;
+    const lo = ps.reduce((a, b) => b.price < a.price ? b : a);
+    const wm = ps.filter(p => p.area > 0), lm = wm.length >= 2 ? wm.reduce((a, b) => b.price / b.area < a.price / a.area ? b : a) : null;
+    if (ps.some(p => p !== lo && p.price === lo.price)) continue;   // одинаковая цена у нескольких — «самой низкой» нет
+    for (const [p, key] of [[lo, 'p'], [lm, 'm']]) if (p) { const l = lowBy.get(p.num) ?? { g: p.g, n: ps.length }; l[key] = true; lowBy.set(p.num, l); p.low = true; }
+  }
+}
 const popHtml = ps => `<div class="mlist${ps.length > 1 ? ' many' : ''}">${ps.length > 1 ? `<b class="ml-n">${ps.length} объявл. здесь</b>` : ''}${ps.map(ptCard).join('')}</div>`;
 async function loadItems(nums) {
   const need = [...new Set(nums)].filter(n => !items.has(n)).slice(0, 60);
@@ -1115,7 +1203,7 @@ async function loadItems(nums) {
     const r = await call('items', { nums: need });
     for (const x of r.items ?? []) {
       items.set(x.num, x);
-      document.querySelectorAll(`.card.mc[data-num="${x.num}"]`).forEach(el => { el.outerHTML = card(x, true); });
+      document.querySelectorAll(`.card.mc[data-num="${x.num}"]`).forEach(el => { el.outerHTML = withLow(card(x, true), x.num); });
     }
     // окно на карте выросло (дата, ЖК, отметки) — пересчитать размер и сдвинуть карту, чтобы окно было видно целиком
     if (openPop && r.items.some(x => openPop.getElement()?.querySelector(`.card.mc[data-num="${x.num}"]`))) placePop(openPop, true);
@@ -1158,8 +1246,9 @@ async function loadMap() {
     // метки появляются плавно (CSS mfade), без «разлёта»; навёл мышку — всплывают все предложения этой точки
     cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: z => z >= 15 ? 40 : z >= 13 ? 60 : 80,   // v5.16: шире — метки с ценой не наезжают друг на друга spiderfyOnMaxZoom: false, zoomToBoundsOnClick: false,
       animate: false, chunkedLoading: true, chunkInterval: 120, removeOutsideVisibleBounds: true,
+      // v5.24a: облачко-диалог как у Авито — «6 от 6,7 млн»; внутри есть «Низкая цена» — мягкая пульсация
       iconCreateFunction: c => { const ps = c.getAllChildMarkers().map(m => m.p), min = Math.min(...ps.map(p => p.price || Infinity));
-        return L.divIcon({ className: 'mk-c', html: `<span><b>${ps.length}</b>${Number.isFinite(min) ? ` · от ${mlnShort(priceOf(min))}` : ''}</span>`, iconSize: null }); } });
+        return L.divIcon({ className: `mk-c${ps.some(p => p.low) ? ' low' : ''}`, html: `<span><b>${ps.length}</b>${Number.isFinite(min) ? ` от ${mlnShort(priceOf(min))}` : ''}</span>`, iconSize: null }); } });
     // наведение на группу из одного дома — сразу список; на большую группу — подсказка «нажмите, чтобы приблизить»
     if (hoverOk) cluster.on('clustermouseover', e => {
       const b = e.layer.getBounds();
@@ -1176,10 +1265,11 @@ async function loadMap() {
       openPts(e.layer.getLatLng(), ps);
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old], i) =>
-      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true }));
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old, g], i) =>
+      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true, g: g ?? (addr ? `a${addr}` : '') }));
+    lowMark(mapPts);   // v5.24a: ключ ЖК/дома с сервера (g), из старого кэша — по адресу точки
     const marks = mapPts.map(p => {
-      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mk-p', html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }) });
+      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `mk-p${p.low ? ' low' : ''}`, html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }), zIndexOffset: p.low ? 500 : 0 });
       m.p = p;
       m.on('click', () => { clearTimeout(hoverT); openPts(m.getLatLng(), [p]); });
       if (hoverOk) m.on('mouseover', () => hoverOpen(() => openPts(m.getLatLng(), [p]))).on('mouseout', hoverLeave);
@@ -1288,7 +1378,7 @@ function tabs() {
 function selHow() {
   sheet('💡 Как собрать подборку', `<ol class="lk-how">
     <li><b>Найдите объекты</b> — строкой поиска («2к до 15 млн Мамайка»), фильтром или голосом 🎤.</li>
-    <li><b>Отметьте галочкой</b> на карточках — ссылкой до 20 объектов, PDF до 10. Внизу появится «Сформировать подборку».</li>
+    <li><b>Отметьте «Выбрать»</b> на карточках — ссылкой до 20 объектов, PDF до 10. Внизу появится «📄 В подборку».</li>
     <li><b>Сформируйте</b>: ссылка клиенту (с вашей комиссией в цене, без адреса дома) и <b>ссылка для вас</b> — с собственниками и их телефонами.</li>
     <li><b>Напишите собственникам</b> на своей ссылке — «Написать всем» в Telegram или WhatsApp. Ответы («актуально» / «продано») сайт проверит сам и покажет в «Ответах собственников» и на карточках.</li>
     <li><b>Отправьте клиенту</b> проверенную подборку — только актуальные объекты. Клиент отмечает ✓ «подходит» или ✗, пишет комментарий — это в «Откликах клиентов».</li>

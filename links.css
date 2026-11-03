@@ -23,3 +23,14 @@
 .lk-how li { margin: 0 0 8px; }
 /* «С клиентом» — связи агента не показываем (agent-only уже прячет, это — на случай своих правил страницы) */
 body.client .lk { display: none !important; }
+/* v5.24a: на карточке — только значки (подсказка — наведение или нажатие), подписи и «снять» — внутри объявления */
+.lk.lk-ic { gap: 4px; margin: 6px 0 0; }
+.lk-i { display: inline-flex; align-items: center; gap: 2px; min-width: 26px; height: 26px; padding: 0 6px; justify-content: center; border-radius: 999px; font-size: 14px; line-height: 1;
+  background: var(--soft); color: var(--text); cursor: help; border: 1px solid var(--line); }
+.lk-i b { font-size: 12px; font-weight: 700; }
+.lk-i.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; font-weight: 800; }
+.lk-i.bad { background: color-mix(in srgb, var(--bad) 11%, var(--card)); color: var(--bad); border-color: transparent; font-weight: 800; }
+.lk-i.wait { background: color-mix(in srgb, var(--warn) 13%, var(--card)); border-color: transparent; }
+.lk-i.grey { color: var(--muted); }
+.lk-off { color: var(--muted); }
+.lk-off:hover { color: var(--bad); }
