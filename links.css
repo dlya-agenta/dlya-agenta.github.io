@@ -8,6 +8,9 @@
 .lk-c.grey { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--muted); }
 .lk-c.lnk { cursor: pointer; border-color: var(--line); background: var(--card); }
 .lk-c.lnk:hover { background: var(--soft); }
+/* v5.23e: «⏳ Ждём · проверка недоступна: подключите …» — ссылка на «🔗 Мессенджеры», цвет ожидания сохраняем */
+.lk-c.wait.lnk { background: color-mix(in srgb, var(--warn) 13%, var(--card)); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.lk-c.wait.lnk:hover { background: color-mix(in srgb, var(--warn) 20%, var(--card)); }
 .lk-acts { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .lk .lk-b { min-height: 34px; padding: 6px 12px; font-size: 13.5px; }
 .lk-mini { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }

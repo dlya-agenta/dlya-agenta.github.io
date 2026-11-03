@@ -20,7 +20,14 @@ window.LINKS = (() => {
     if (o.st === 'sold') return `<span class="lk-c bad"${tip}>✗ Продано${o.at ? ` · ${day(o.at)}` : ''}</span>`;
     if (o.st === 'no') return `<span class="lk-c bad"${tip}>✗ Не актуально${o.at ? ` · ${day(o.at)}` : ''}</span>`;
     if (o.st === 'none') return '<span class="lk-c grey">✗ Собственник не ответил</span>';
-    return `<span class="lk-c wait">⏳ Ждём ответ${o.next ? ` · проверю в ${hm(o.next)}` : ''}</span>`;
+    // v5.23e: проверка невозможна (мессенджер не подключён, вход закончился) — так и пишем, со ссылкой на подключение; прошедшее время «проверю в …» не показываем никогда
+    if (o.err) {
+      const t = String(o.err).replace(/\s*в «🔗 Мессенджеры»/, ''), short = t.charAt(0).toLowerCase() + t.slice(1);
+      return /подключите|войдите/i.test(t) ? `<a class="lk-c wait lnk" href="hub.html#msg" title="${esc(o.err)}">⏳ Ждём · ${esc(short)}</a>`
+        : `<span class="lk-c wait" title="${esc(o.err)}">⏳ Ждём · ${esc(short)}</span>`;
+    }
+    const soon = o.next && new Date(o.next).getTime() > Date.now();
+    return `<span class="lk-c wait">⏳ Ждём ответ${soon ? ` · проверю в ${hm(o.next)}` : ''}</span>`;
   }
   function strip(num, v) {
     const yes = v.sels.filter(s => s.fb === 'yes'), no = v.sels.filter(s => s.fb === 'no');
@@ -111,7 +118,8 @@ window.LINKS = (() => {
     if (!s || !ui) return;
     e.preventDefault(); e.stopPropagation();
     const cardEl = s.closest('.card'), num = +cardEl?.dataset.num;
-    if (s.dataset.lkSels) return document.querySelector(`.top [data-go="sels"][data-tab="${s.dataset.lkSels}"]`)?.click() ?? document.querySelector('.top [data-go="sels"]')?.click();
+    // v5.23e: click() возвращает undefined — через ?? всегда открывалась ещё и общая; теперь: кнопка вкладки, а нет её — общая
+    if (s.dataset.lkSels) return void (document.querySelector(`.top [data-go="sels"][data-tab="${s.dataset.lkSels}"]`) ?? document.querySelector('.top [data-go="sels"]'))?.click();
     if (s.dataset.lkCl) return window.CRM?.openClient?.(+s.dataset.lkCl);
     if (s.matches('[data-lk-ex]')) return excl(num, cardEl);
     if (s.matches('[data-lk-show]')) {

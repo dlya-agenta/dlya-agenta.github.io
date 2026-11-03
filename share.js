@@ -72,7 +72,7 @@ window.SHARE = (() => {
   const TABS = [['all', 'Все подборки', 'Все'], ['own', 'Ответы собственников', 'Собственники'], ['fb', 'Отклики клиентов', 'Клиенты']];
   const agentLink = s => rel(s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`));
   let css = false;
-  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.23b1">'); };
+  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.23e1">'); };
   // сводка ответов собственников по подборке: marks — { [num]: { st, at, text } } из auto own_marks (вкладка A)
   function ownSum(s, marks) {
     const m = (s.nums ?? []).map(n => marks?.[n]).filter(Boolean);

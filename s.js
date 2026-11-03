@@ -34,10 +34,14 @@
   const digits = p => String(p ?? '').replace(/\D/g, '');
   const intl = p => { let d = digits(p); if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1); if (d.length === 10) d = '7' + d; return d.length >= 11 ? d : ''; };   // 8 918… → 7918…
 
+  // v5.23e: свои рисованные значки (как design.js) и заглушка «Фото нет» — одна на странице клиента и агента (раньше у клиента — чёрная плашка)
+  const ic = d => `<i class="mi sa-ic" data-e="" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${d}"/></svg></i>`;
+  const HOME = 'M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z';
+  const noPhoto = () => `<div class="sa-noph" role="img" aria-label="Фото нет">${ic(HOME)}<span>Фото нет</span></div>`;
   // v5.20: фото листаются, как на главной: стрелки, точки, свайп пальцем; на компьютере — ведёшь мышкой по фото; нажатие — на весь экран
   const gal = (photos, i) => photos.length ? `<div class="s-gal"><div class="s-ph" data-i="${i}">${photos.map((u, k) => `<div class="s-im"><img src="${esc(u)}" alt="Фото ${k + 1}" loading="${i < 2 && !k ? 'eager' : 'lazy'}" referrerpolicy="no-referrer" crossorigin="anonymous" data-k="${k}"></div>`).join('')}</div>
       ${photos.length > 1 ? `<button type="button" class="s-nav l" data-nav="-1" aria-label="Предыдущее фото">‹</button><button type="button" class="s-nav r" data-nav="1" aria-label="Следующее фото">›</button>
-      <div class="s-dots">${photos.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div><span class="s-cnt">${photos.length} фото</span>` : ''}</div>` : '<div class="s-ph s-noph">Фото нет</div>';
+      <div class="s-dots">${photos.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div><span class="s-cnt">${photos.length} фото</span>` : ''}</div>` : noPhoto();
   // v5.23d: вертикальное фото — целиком на размытом фоне (как на главной), горизонтальное — на всю рамку; низ 1/20 срезан у всех.
   // Чёрные поля по краям кадра (стоп-кадр из видео) обрезаются, чтобы в рамке не было чёрных полос
   function bands(im) {
@@ -218,9 +222,8 @@
     const put = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } };
     const SV = { tg: 'Telegram', wa: 'WhatsApp', max: 'MAX' };
     const selArg = () => selId ? { sel_id: selId } : {};
-    const ic = d => `<i class="mi sa-ic" data-e="" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${d}"/></svg></i>`;
     const I = { mail: 'M3.5 6.5A1.5 1.5 0 0 1 5 5h14a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5zM4 6.5l8 6.5 8-6.5',
-      home: 'M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z', eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+      eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
       note: 'M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 20zM14.5 3.5v4.5H19M9 12h6M9 15.5h6', check: 'M4.5 12.5 9.5 17.5 19.5 6.5' };
     let svcs = null, job = null, marks = {}, filter = get(FKEY, 'all');
     const opened = new Set(get(`${KEY}:o`, [])), allOpen = () => !!get(OKEY, false);
@@ -242,18 +245,28 @@
     const fmtPh = d => `+${d.replace(/^(\d)(\d{3})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3-$4-$5')}`;
     const clip = (s, n) => { s = String(s ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
+    // v5.23e: время настоящего ответа собственника — replied_at (новое поле own_marks), у прежнего сервера at = replied_at ?? sent_at
+    const repAt = m => m?.replied_at ?? (m?.at && m.at !== m.sent_at ? m.at : null);
+    // ручной итог ✓ и ✗ — одинаково; sent_at === undefined — отметка из sel_agent (own_marks ещё не пришли): итог ✓/✗ — ответ
+    const answered = m => !!m && (!!repAt(m) || ((!!m.manual || m.sent_at === undefined) && ['yes', 'no', 'sold'].includes(m.st)));
+    const when = m => m.manual ? (repAt(m) ? `${tm(repAt(m))} · итог отмечен вами` : 'отмечено вами') : m.at ? tm(m.at) : '';
     // статус собственника на карточке: ✓ зелёный — ответил, ✗ красный — не актуально / продано, ✗ серый — не ответил, ⏳ — ждём
     function stHtml(m) {
       if (!m) return '';
       const q = m.text ? `: «${esc(clip(m.text, 90))}»` : '';
-      if (m.st === 'yes') return `<div class="sa-res yes">✓ Ответил${q}<small>${m.manual ? 'отмечено вами' : tm(m.at)}</small></div>`;
-      if (m.st === 'sold') return `<div class="sa-res no">✗ Продано${q}<small>${m.manual ? 'отмечено вами' : tm(m.at)}</small></div>`;
-      if (m.st === 'no') return `<div class="sa-res no">✗ Не актуально${q}<small>${m.manual ? 'отмечено вами' : tm(m.at)}</small></div>`;
+      if (m.st === 'yes') return `<div class="sa-res yes">✓ Ответил${q}<small>${when(m)}</small></div>`;
+      if (m.st === 'sold') return `<div class="sa-res no">✗ Продано${q}<small>${when(m)}</small></div>`;
+      if (m.st === 'no') return `<div class="sa-res no">✗ Не актуально${q}<small>${when(m)}</small></div>`;
       if (m.st === 'none') return `<div class="sa-res none">✗ Не ответил<small>проверил ${m.checks || 5} раз, последний — через 12 ч</small></div>`;
       return `<div class="sa-res wait">⏳ Ждём ответа${m.err ? `<small class="sa-err">${esc(m.err)}${/подключите/.test(m.err) ? ' · <a href="hub.html#msg">подключить</a>' : ''}</small>`
         : m.next ? `<small>проверю ${/^завтра|^вчера|\s/.test(tm(m.next)) ? tm(m.next) : `в ${tm(m.next)}`}</small>` : ''}</div>`;
     }
-    function noPhoto() { return `<div class="sa-noph" role="img" aria-label="Фото нет">${ic(I.home)}<span>Фото нет</span></div>`; }
+    // v5.23e: как в прежнем PDF агенту — «Уникальна» / «Есть в рекламе» и ссылка на объявление «Проверить в рекламе», ещё ссылки — мелко «2», «3»
+    function adHtml(x) {
+      const t = x.ad_state === 'unique' ? '<span class="tag ok">Уникальна</span>' : x.ad_state === 'ads' ? '<span class="tag grey">Есть в рекламе</span>' : '';
+      const L = (x.src ?? []).map((s, k) => `<a href="${esc(s.url)}" target="_blank" rel="noopener"${k ? ' class="src-n" title="Ещё одна ссылка на объявление"' : ''}>${k ? k + 1 : 'Проверить в рекламе'}</a>`).join('');
+      return t || L ? `<div class="sa-ad">${t}${L ? `<span class="src">${L}</span>` : ''}</div>` : '';
+    }
     function row(x, i) {
       const d = intl(x.phone), m = marks[x.num], k = kind(m?.st), open = opened.has(x.num) !== allOpen();
       const st = job?.items?.find(j => j.num === x.num);
@@ -262,6 +275,7 @@
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
           ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с продажи</p>' : ''}
+          ${adHtml(x)}
           ${stHtml(m)}
           ${st && !st.ok ? `<div class="sa-res no">✗ Не отправлено: ${esc(st.error || 'ошибка')}</div>` : ''}
           <div class="sa-more">
@@ -303,7 +317,7 @@
     function sumHtml() {
       const all = data.items.length, c = { yes: 0, no: 0, none: 0, wait: 0 };
       data.items.forEach(x => { const k = kind(marks[x.num]?.st); if (k) c[k]++; });
-      const wrote = c.yes + c.no + c.none + c.wait, ans = c.yes + data.items.filter(x => ['no', 'sold'].includes(marks[x.num]?.st) && !marks[x.num]?.manual).length;
+      const wrote = c.yes + c.no + c.none + c.wait, ans = data.items.filter(x => answered(marks[x.num])).length;
       const F = [['all', `Все ${all}`], ['yes', `✓ ${c.yes}`], ['no', `✗ ${c.no + c.none}`], ['wait', `Ждём ${c.wait}`]];
       return `<div class="sa-sum"><p>${wrote ? `Написали ${wrote} из ${all} · ответили ${ans} · <b class="t-ok">актуально ${c.yes}</b> · <b class="t-bad">не актуально ${c.no}</b>${c.none ? ` · не ответили ${c.none}` : ''} · ждём ${c.wait}`
           : 'Собственникам ещё не писали — напишите всем сразу или каждому кнопкой WhatsApp / Telegram / MAX.'}</p>
@@ -334,7 +348,8 @@
         <div id="sa-sum">${sumHtml()}</div>
         <div class="sa-list">${listHtml()}</div>`;
     }
-    const redraw = () => { const y = scrollY, v = $('#sa-text')?.value; draw(); if (v != null) $('#sa-text').value = v; scrollTo(0, y); };
+    const redraw = () => { const y = scrollY, v = $('#sa-text')?.value, f = document.activeElement?.id === 'sa-text';
+      draw(); if (v != null) $('#sa-text').value = v; if (f) $('#sa-text').focus({ preventScroll: true }); scrollTo(0, y); };   // v5.23e: поле на телефоне раскрыто, пока в нём пишут — не сворачивать при обновлении
 
     async function loadMarks() {
       try { marks = (await call('own_marks', { _fn: 'auto', nums: data.items.map(x => x.num) })).marks ?? {}; } catch { /* нет связи — покажем то, что было */ }
@@ -351,7 +366,8 @@
     }
     async function openPhone(x, b) {
       if (b) { b.disabled = true; b.textContent = 'Открываю…'; }
-      try { const r = await call('phone', { num: x.num }); if (!r.phone) throw new Error(r.error || 'Номера нет в объявлении'); x.phone = r.phone; x.owner = r.owner ?? r.owner_name ?? x.owner; return true; }
+      try { const r = await call('phone', { num: x.num }); if (!r.phone) throw new Error(r.error || 'Номера нет в объявлении'); x.phone = r.phone; x.owner = r.owner ?? r.owner_name ?? x.owner;
+        x.ad_state = r.ad_state ?? x.ad_state; if (r.src?.length && !x.src?.length) x.src = r.src.slice(0, 3); return true; }   // v5.23e: номер открыт — реклама проверена
       catch (e) { toast(e.message, 5000); if (b) { b.disabled = false; b.textContent = '📞 Открыть телефон'; } return false; }
     }
     async function poll() {

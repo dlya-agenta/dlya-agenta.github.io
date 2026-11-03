@@ -51,3 +51,23 @@ nav[data-nav] { align-items: center; }
   .top .menu > .link, .top .menu .mg-b { font-size: 12.5px !important; padding: 9px 4px !important; }
   .top .menu .mi { margin-right: 3px !important; }
 }
+/* v5.23e: на главной 761–1279 px строка разделов была шире окна («Продлить доступ» обрезано, прокрутка вбок): до 1279 — короткие подписи,
+   «Продлить доступ» — значком (подпись — в подсказке; без значков — «Продлить»); 761–979 — без значков в строке. Пункты не переносятся (nowrap выше) */
+@media (min-width: 761px) and (max-width: 1279px) {
+  .top .menu .lbl-long { display: none; }
+  .top .menu .lbl-short { display: inline; }
+  html:not([data-icons=none]) .top .menu #go-pay { font-size: 0 !important; padding-left: 8px !important; padding-right: 8px !important; }
+  html:not([data-icons=none]) .top .menu #go-pay .mi { font-size: 15px; margin-right: 0 !important; }
+  html[data-icons=none] .top .menu #go-pay { font-size: 0 !important; }   /* без значков — короткая подпись */
+  html[data-icons=none] .top .menu #go-pay::after { content: 'Продлить'; font-size: 13.5px; }
+}
+/* 761–979 px: значки у пунктов строки разделов не помещаются — только подписи (в выпадающих списках значки остаются); «Продлить» — подписью */
+@media (min-width: 761px) and (max-width: 979px) {
+  .top .menu > .link .mi, .top .menu > .mg > .mg-b .mi { display: none !important; }
+  .top .menu #go-pay { font-size: 0 !important; }
+  .top .menu #go-pay::after { content: 'Продлить'; font-size: 13.5px; }
+}
+@media (min-width: 761px) and (max-width: 939px) { .top .menu #go-pay::after { font-size: 12.5px; } }
+/* v5.23e: запас для «Линий на плитке» и шрифтов «Неба»/«Дюны» (на 980 и 1280 px строка была на 3–48 px шире окна) — отступы пунктов чуть меньше */
+@media (min-width: 980px) and (max-width: 1099px) { .top .menu > .link, .top .menu .mg-b { padding-left: 5px !important; padding-right: 5px !important; } }
+@media (min-width: 1280px) and (max-width: 1365px) { .top .menu > .link, .top .menu .mg-b { padding-left: 7px !important; padding-right: 7px !important; } }

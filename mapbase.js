@@ -14,6 +14,7 @@ window.MAPBASE = (() => {
   })();
   const note = (map, html) => map.getContainer().querySelectorAll('.map-info span, .ex-attr span').forEach(s => { s.innerHTML = html; });
   async function add(map) {
+    map.options.maxZoom ??= 19;   // v5.23e: предел приближения сразу — подложка приходит после запроса public, а кластеры меток без maxZoom падают («Map has no maxZoom specified»)
     const c = await conf();
     if (c.yandex) {
       try {

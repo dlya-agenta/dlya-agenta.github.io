@@ -116,7 +116,7 @@ function showLogin(reason, tab = 'login') {
       <label class="chk"><input type="checkbox" name="agree" required> <span>Принимаю условия ${docs}</span></label>
       <button class="btn primary" type="submit">Зарегистрироваться</button>
       <p class="err" id="gerr"></p></form>`}`);
-  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => showLogin(reason, b.dataset.tab));
+  $('#gate').querySelectorAll('.tabs2 [data-tab]').forEach(b => b.onclick = () => showLogin(reason, b.dataset.tab));   // v5.23e: только вкладки окна входа — у меню «Мои подборки» свои [data-tab]
   $('#login')?.addEventListener('submit', async e => {
     e.preventDefault();
     const fm = e.target, btn = fm.querySelector('button');
@@ -879,6 +879,8 @@ function selbar() {
   $('#selcount').innerHTML = `Выбрано: ${sel.size} <small class="sel-lim${sel.size > MAXPDF ? ' over' : ''}">ссылкой до ${MAXSEL}, PDF до ${MAXPDF}</small>`;
   $('#selcount').title = sel.size > MAXPDF ? `Больше ${MAXPDF} объектов — PDF не собрать, только ссылкой` : '';
 }
+// v5.23e: кнопка «Помощь» (#sup-fab) — над полосой выбора по её фактической высоте (две строки на телефоне ~126 px; sels.css --selbar-top)
+if (window.ResizeObserver) new ResizeObserver(() => { const b = $('#selbar'); if (b && !b.hidden && b.offsetHeight) document.documentElement.style.setProperty('--selbar-top', `${Math.ceil(innerHeight - b.getBoundingClientRect().top)}px`); }).observe($('#selbar'));
 // подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
 function selStart(nums, title, fmt) {
   sel = new Set(nums.slice(0, MAXSEL)); store.set('sel', [...sel]); selbar();
@@ -894,6 +896,8 @@ $('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); d
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   const n = Math.min(sel.size, MAXSEL);
+  // v5.23e: раньше selPhones = true записывался при каждой подборке и с галочкой «по умолчанию вкл.» — один раз сбрасываем, дальше — выбор агента
+  if (!store.get('selPh523e', false)) { store.set('selPhones', false); store.set('selPh523e', 1); }
   sheet('Подборка', `
     <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
     ${SHARE.formatHtml(n)}
@@ -902,12 +906,29 @@ $('#sel-make').onclick = () => {
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
-    <label class="chk agent-only"><input type="checkbox" id="s-ph" ${store.get('selPhones', true) ? 'checked' : ''}> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
-    <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span> Без галочки телефоны можно открыть потом — на странице «Ссылка агенту».</div>
+    <label class="chk agent-only"><input type="checkbox" id="s-ph" ${store.get('selPhones', false) ? 'checked' : ''}> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
+    <div class="hint agent-only" id="s-ph-n">Номера тратятся из лимита тарифа только с галочкой. Без неё телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны».</div>
+    <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span></div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   SHARE.mount();
   $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
+  // v5.23e: галочка телефонов по умолчанию выключена (раньше на каждую ссылку незаметно уходило до 20 номеров); рядом — сколько новых номеров уйдёт.
+  // sel_check только считает (номер не открывает): по одному запросу на вид (ссылкой — 20 первых, PDF — 10)
+  const phN = {};
+  const phHint = () => {
+    const el = $('#s-ph-n'); if (!el) return;
+    const k = SHARE.format() === 'link' ? MAXSEL : MAXPDF, nums = [...sel].slice(0, k), c = phN[k];
+    if (!c && !me.guest && nums.length) { phN[k] = 'wait'; call('sel_check', { nums }).then(r => { phN[k] = r?.need == null ? null : r; phHint(); }).catch(() => { phN[k] = null; }); }
+    const need = c && c !== 'wait' ? c.need : null, room = c && c !== 'wait' ? c.room : null;
+    const later = 'телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны»';
+    el.innerHTML = $('#s-ph').checked
+      ? `С галочкой из лимита уйдёт новых номеров: <b>${need ?? `до ${nums.length}`}</b>${room != null ? ` (осталось ${room})` : ''}, уже открытые — бесплатно. Можно не тратить сейчас: ${later}.`
+      : `Номера не тратятся${need != null ? ` (новых в подборке: ${need})` : ''}. ${later[0].toUpperCase()}${later.slice(1)}.`;
+  };
+  $('#s-ph').addEventListener('change', () => { store.set('selPhones', $('#s-ph').checked); phHint(); });
+  $('#s-fmt')?.addEventListener('change', phHint);
+  phHint();
   let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
     const b = $('#s-go'); b.disabled = true; b.textContent = 'Готовлю…'; $('#s-err').textContent = ''; $('#s-lim').innerHTML = '';

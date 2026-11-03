@@ -62,5 +62,6 @@ body.client .share-agent { display: none; }
   .selbar #sel-clear { flex: 0 0 auto; }
   .selbar #sel-rk, .selbar #sel-video, .selbar #sel-make { flex: 1 1 22%; min-width: 0; white-space: normal; line-height: 1.2; font-size: 13.5px; padding: 8px 6px; }
   .selbar #sel-make { flex: 1.6 1 40%; }
-  body:has(#selbar:not([hidden])) .sup-fab { bottom: calc(132px + env(safe-area-inset-bottom)); }   /* полоса стала в две строки */
+  /* полоса в две строки: v5.23e — по фактической высоте (--selbar-top из app.js: от низа окна до верха полосы) + 10 px; без него — с запасом */
+  body:has(#selbar:not([hidden])) .sup-fab { bottom: calc(var(--selbar-top, calc(152px + env(safe-area-inset-bottom))) + 10px); }
 }

@@ -114,7 +114,7 @@ window.CRM = (() => {
         ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(t => taskRow(t, false)).join('')}</details>` : ''}</section>
       <section class="crm-sec"><div class="crm-h"><b>Объекты · ${n}</b><span><button type="button" class="btn ghost" data-from-sel>📄 Из подборки</button><button type="button" class="btn ghost" data-favs>⭐ Из избранного</button></span></div>
         ${n ? `<div class="crm-sel"><button type="button" class="btn primary" data-sel="pdf">📄 Подборка PDF</button><button type="button" class="btn soft" data-sel="link">🔗 Подборка ссылкой</button></div>
-          ${n > 10 ? '<p class="hint">В подборку войдут 10 последних объектов.</p>' : ''}` : '<p class="muted crm-empty">Объектов нет. На карточке объекта нажмите «👥 Клиенту» — он появится здесь.</p>'}
+          ${n > 10 ? `<p class="hint">В PDF войдут 10 последних объектов, ссылкой — ${n > 20 ? '20 последних' : `все ${n}`}.</p>` : ''}` : '<p class="muted crm-empty">Объектов нет. На карточке объекта нажмите «👥 Клиенту» — он появится здесь.</p>'}
         <div class="crm-objs">${C.items.map(x => `<div class="crm-obj" data-num="${x.num}">
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
           <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
@@ -172,7 +172,10 @@ window.CRM = (() => {
       try { const r = await ui.call('crm_obj_favs', { client_id: c.id }); ui.toast(r.added ? `Добавлено из избранного: ${r.added}` : 'Новых объектов в избранном нет'); if (r.added) client(c.id); } catch (er) { ui.toast(er.message, 5000); }
       return;
     }
-    if (t.closest('[data-sel]')) return ui.selStart?.(C.items.slice(0, 10).map(x => x.num), `Для: ${c.name || c.phone || 'клиента'}`.slice(0, 80), t.closest('[data-sel]').dataset.sel);
+    if (t.closest('[data-sel]')) {   // v5.23e: ссылкой — до 20 объектов, PDF — до 10 (SHARE.MAX)
+      const f = t.closest('[data-sel]').dataset.sel, k = window.SHARE?.MAX?.[f] ?? (f === 'link' ? 20 : 10);
+      return ui.selStart?.(C.items.slice(0, k).map(x => x.num), `Для: ${c.name || c.phone || 'клиента'}`.slice(0, 80), f);
+    }
     const obj = t.closest('[data-num]');
     if (obj && t.closest('[data-del-obj]')) {
       try { await ui.call('crm_obj_del', { client_id: c.id, num: +obj.dataset.num }); C.items = C.items.filter(x => x.num !== +obj.dataset.num); drawClient(); ui.toast('Объект убран у клиента'); } catch (er) { ui.toast(er.message, 5000); }
