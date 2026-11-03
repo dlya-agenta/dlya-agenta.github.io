@@ -876,7 +876,8 @@ document.addEventListener('keydown', e => {
 function selbar() {
   $('#selbar').hidden = !sel.size || !meta?.features.selections;
   // v5.23: «Выбрано 12 (ссылкой до 20, PDF до 10)»; больше 10 — PDF уже нельзя, подсказка об этом
-  $('#selcount').innerHTML = `Выбрано: ${sel.size} <small class="sel-lim${sel.size > MAXPDF ? ' over' : ''}">${sel.size > MAXPDF ? `ссылкой до ${MAXSEL} · PDF до ${MAXPDF} — только ссылкой` : `ссылкой до ${MAXSEL}, PDF до ${MAXPDF}`}</small>`;
+  $('#selcount').innerHTML = `Выбрано: ${sel.size} <small class="sel-lim${sel.size > MAXPDF ? ' over' : ''}">ссылкой до ${MAXSEL}, PDF до ${MAXPDF}</small>`;
+  $('#selcount').title = sel.size > MAXPDF ? `Больше ${MAXPDF} объектов — PDF не собрать, только ссылкой` : '';
 }
 // подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
 function selStart(nums, title, fmt) {
@@ -984,12 +985,14 @@ async function showSelections(tab) {
   box.innerHTML = '<div class="sp-head"><h1>Мои подборки</h1></div><p class="muted">Загрузка…</p>';
   try {
     const r = await call('sel_list');
-    // ответы собственников (вкладка A, auto own_marks): действия ещё нет или ошибка — молча без них
-    const nums = [...new Set(r.items.flatMap(s => s.nums))];
-    // v5.23c (1 строка, правка вкладки C): own_marks — действие функции auto, call() ходит только в web (там был 400 «Неизвестное действие»)
-    const marks = nums.length ? await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'own_marks', auth, nums }) }).then(r => r.json()).then(m => m?.marks ?? null, () => null) : null;
-    selCache = { at: Date.now(), items: r.items, marks };
+    selCache = { at: Date.now(), items: r.items, marks: null, pending: true };
     if (selTab) box.innerHTML = SHARE.page(selCache, selTab);
+    // ответы собственников (вкладка A, auto own_marks) — следом, список уже на экране; действия нет или ошибка — молча без них
+    const nums = [...new Set(r.items.flatMap(s => s.nums))].slice(0, 500), c = selCache;   // own_marks берёт до 500 номеров — свежие подборки первыми
+    c.marks = nums.length ? await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'own_marks', auth, nums }) }).then(x => x.json()).then(m => m?.marks ?? null, () => null) : null;   // call() ходит только в web
+    c.pending = false;
+    if (selTab && selCache === c) box.innerHTML = SHARE.page(c, selTab);
   } catch (e) { if (e.gate) return showLogin(e.gate); box.innerHTML = `<div class="sp-head"><h1>Мои подборки</h1></div><p class="err">${esc(e.message)}</p>`; }
 }
 function leaveSelections() {
@@ -1021,6 +1024,8 @@ async function onSelPage(e) {
 document.addEventListener('click', e => { const g = e.target.closest('.top [data-go]'); if (g && selTab && g.dataset.go !== 'sels' && g.dataset.go !== 'client') leaveSelections(); }, true);
 addEventListener('hashchange', () => { const h = /^#sels(?:=(\w+))?$/.exec(location.hash); if (h && me && !me.guest) showSelections(h[1] ?? 'all'); else if (!h) leaveSelections(); });
 addEventListener('popstate', () => { if (!/^#sels/.test(location.hash)) leaveSelections(); });
+// режим «С клиентом» (экран показывают клиенту) — раздел агента закрыть: там ответы собственников, ссылка агенту, PDF агенту
+new MutationObserver(() => { if (selTab && document.body.classList.contains('client')) leaveSelections(); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 // ---------- карта ----------
 // окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);

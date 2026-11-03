@@ -33,14 +33,14 @@ window.SHARE = (() => {
   function mount() {
     const box = $('#s-fmt');
     if (!box) return;
-    const sync = () => {
+    const sync = save => {
       const v = format();
       box.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.querySelector('input').checked));
       $('#s-fmt-hint').innerHTML = HINT[v];
       document.querySelectorAll('.pdf-only').forEach(x => x.hidden = v === 'link');
-      put('selFmt', v);
+      if (save) put('selFmt', v);   // выбор человека; «Ссылка» при 11+ объектах — не запоминаем
     };
-    box.onchange = sync; sync();
+    box.onchange = () => sync(true); sync(false);
   }
 
   // ссылка: копировать (с запасным способом), отправить (меню «Поделиться» телефона), открыть
@@ -49,7 +49,10 @@ window.SHARE = (() => {
     catch { const i = document.createElement('textarea'); i.value = t; document.body.append(i); i.select(); document.execCommand?.('copy'); i.remove(); toast?.(what); }
   }
   // готовая подборка: ссылка клиенту и (v5.23) ссылка агенту вместо PDF агенту
-  const agentBtn = r => r.agent_link ? `<div class="share-agent agent-only"><a class="btn soft" href="${esc(r.agent_link)}" target="_blank" rel="noopener">🔗 Ссылка агенту</a>
+  // ссылка агенту — относительная (s.html#… на том же адресе сайта, где агент вошёл) и в Telegram-приложении — в том же окне: во внешнем браузере входа нет
+  const rel = u => String(u ?? '').replace(/^https?:\/\/[^#]*?s\.html#/, 's.html#');
+  const ablank = () => window.Telegram?.WebApp?.initData ? '' : ' target="_blank" rel="noopener"';
+  const agentBtn = r => r.agent_link ? `<div class="share-agent agent-only"><a class="btn soft" href="${esc(rel(r.agent_link))}"${ablank()}>🔗 Ссылка агенту</a>
       <span class="hint">собственники, переписка, актуальность — только для вас, клиенту не отправляйте${r.phones != null && r.total ? ` · телефоны открыты: ${r.phones} из ${r.total}` : ''}</span></div>` : '';
   const resultHtml = r => (r.link ? `<div class="share-box"><label class="field">Ссылка для клиента<input id="s-link" readonly value="${esc(r.link)}"></label>
       <div class="sheet-foot"><button class="btn primary" data-copy="${esc(r.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(r.link)}">Поделиться</button>` : ''}
@@ -66,8 +69,8 @@ window.SHARE = (() => {
   }
 
   // ---------- «Мои подборки» — раздел на главной ----------
-  const TABS = [['all', 'Все подборки'], ['own', 'Ответы собственников'], ['fb', 'Отклики клиентов']];
-  const agentLink = s => s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`);
+  const TABS = [['all', 'Все подборки', 'Все'], ['own', 'Ответы собственников', 'Собственники'], ['fb', 'Отклики клиентов', 'Клиенты']];
+  const agentLink = s => rel(s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`));
   let css = false;
   const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.23b1">'); };
   // сводка ответов собственников по подборке: marks — { [num]: { st, at, text } } из auto own_marks (вкладка A)
@@ -75,9 +78,9 @@ window.SHARE = (() => {
     const m = (s.nums ?? []).map(n => marks?.[n]).filter(Boolean);
     if (!m.length) return null;
     const c = k => m.filter(x => k.includes(x.st)).length;
-    return { sent: m.length, total: s.nums.length, yes: c(['yes']), no: c(['no', 'sold']), none: c(['none']), wait: c(['wait']), answered: c(['yes', 'no', 'sold']) };
+    return { sent: m.length, total: s.nums.length, yes: c(['yes']), no: c(['no', 'sold']), none: c(['none']), wait: c(['wait']), answered: c(['yes', 'no', 'sold']), unseen: m.some(x => x.unseen) };
   }
-  const ownLine = o => `Собственники: ответили ${o.answered} из ${o.sent}${o.yes ? ` · <b class="ok">актуально ${o.yes}</b>` : ''}${o.no ? ` · <b class="bad">не актуально ${o.no}</b>` : ''}${o.wait ? ` · ждём ${o.wait}` : ''}${o.none ? ` · молчат ${o.none}` : ''}`;
+  const ownLine = o => `${o.unseen ? '<span class="sp-b">новые ответы</span> ' : ''}Собственники: ответили ${o.answered} из ${o.sent}${o.yes ? ` · <b class="ok">актуально ${o.yes}</b>` : ''}${o.no ? ` · <b class="bad">не актуально ${o.no}</b>` : ''}${o.wait ? ` · ждём ${o.wait}` : ''}${o.none ? ` · молчат ${o.none}` : ''}`;
   const fbLine = s => s.link ? [`👁 ${s.views ? `клиент открыл ${s.views} ${plural(s.views, 'раз', 'раза', 'раз')}` : 'клиент ещё не открывал'}`, s.yes && `<b class="ok">✓ ${s.yes}</b>`, s.no && `<b class="bad">✗ ${s.no}</b>`,
     s.comments && `💬 ${s.comments}`].filter(Boolean).join(' · ') : '';
   const linkBadge = s => s.link ? (s.live ? `<span class="sp-b">🔗 ссылка до ${day(s.link_until)}</span>` : '<span class="sp-b off">ссылка закончилась</span>')
@@ -87,8 +90,8 @@ window.SHARE = (() => {
     s.link && s.live && `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a>`,
     s.link && s.live && `<button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>`,
     s.link && s.live && navigator.share && `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>`,
-    `<a class="btn soft" href="${esc(agentLink(s))}" target="_blank" rel="noopener" title="Собственники, «Написать всем», переписка, кто ответил — только для вас">🔗 Ссылка агенту</a>`,
-    s.kid && `<a class="btn soft ok" href="${esc(s.kid.link || `s.html#id=${s.kid.id}&a=1`)}" target="_blank" rel="noopener" title="${esc(s.kid.title || '')}">✓ Проверенная подборка</a>`,
+    `<a class="btn soft" href="${esc(agentLink(s))}"${ablank()} title="Собственники, «Написать всем», переписка, кто ответил — только для вас">🔗 Ссылка агенту</a>`,
+    s.kid && `<a class="btn soft ok" href="${esc(s.kid.link || rel(`s.html#id=${s.kid.id}&a=1`))}" target="_blank" rel="noopener" title="${esc(s.kid.title || '')}">✓ Проверенная подборка</a>`,
     s.link && `<button class="btn ghost" data-extend="${s.id}" title="Ссылка клиенту будет действовать ещё 30 дней">Продлить</button>`,
     s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
     s.url_agent && `<a class="btn ghost" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}" title="Старый PDF агенту — хранится 7 дней, новые не делаются">PDF агенту</a>`,
@@ -105,15 +108,15 @@ window.SHARE = (() => {
   const ST = { yes: ['ok', '✓ актуально'], no: ['bad', '✗ не актуально'], sold: ['bad', '✗ продано'], none: ['', '✗ не ответил'], wait: ['', '⏳ ждём'] };
   function cardOwn(s, marks) {
     const o = ownSum(s, marks);
-    const rows = s.nums.map(n => marks?.[n] && { n, m: marks[n] }).filter(Boolean).map(({ n, m }) => `<li><span class="sp-n">№ ${n}</span><b class="${ST[m.st]?.[0] ?? ''}">${ST[m.st]?.[1] ?? esc(m.st)}</b>${m.text ? `<span class="muted">«${esc(String(m.text).slice(0, 120))}»</span>` : ''}${m.at ? `<small class="muted">${when(m.at)}</small>` : ''}</li>`).join('');
+    const rows = s.nums.map(n => marks?.[n] && { n, m: marks[n] }).filter(Boolean).map(({ n, m }) => `<li><span class="sp-n">№ ${n}</span><b class="${ST[m.st]?.[0] ?? ''}">${ST[m.st]?.[1] ?? esc(m.st)}</b>${m.text ? `<span class="muted">«${esc(String(m.text).slice(0, 120))}»</span>` : ''}${m.unseen ? '<span class="sp-b">новый ответ</span>' : ''}${m.at ? `<small class="muted">${m.st === 'wait' || m.st === 'none' ? 'написали ' : ''}${when(m.at)}</small>` : ''}${m.err ? `<small class="muted">${esc(m.err)}</small>` : m.st === 'wait' && m.next ? `<small class="muted">проверю ${when(m.next)}</small>` : ''}</li>`).join('');
     return `<article class="sp-card">${head(s)}<div class="sp-st"><span>${ownLine(o)}</span></div><ul class="sp-rows">${rows}</ul>
-      <div class="sp-acts"><a class="btn primary" href="${esc(agentLink(s))}" target="_blank" rel="noopener">Открыть ссылку агента</a>${s.kid ? `<a class="btn soft ok" href="${esc(s.kid.link || `s.html#id=${s.kid.id}&a=1`)}" target="_blank" rel="noopener">✓ Проверенная подборка</a>` : ''}</div></article>`;
+      <div class="sp-acts"><a class="btn primary" href="${esc(agentLink(s))}"${ablank()}>Открыть ссылку агента</a>${s.kid ? `<a class="btn soft ok" href="${esc(s.kid.link || rel(`s.html#id=${s.kid.id}&a=1`))}" target="_blank" rel="noopener">✓ Проверенная подборка</a>` : ''}</div></article>`;
   }
   function cardFb(s) {
     const rows = (s.fb ?? []).map(f => `<li><span class="sp-n">№ ${f.num}</span>${f.mark === 'yes' ? '<b class="ok">✓ подходит</b>' : f.mark === 'no' ? '<b class="bad">✗ не подходит</b>' : '<b>💬</b>'}<span>${esc(f.what)}</span>${f.comment ? `<span class="muted">«${esc(f.comment)}»</span>` : ''}<small class="muted">${when(f.at)}</small></li>`).join('');
     return `<article class="sp-card">${head(s)}<div class="sp-st"><span>${fbLine(s)}</span></div>${rows ? `<ul class="sp-rows">${rows}</ul>` : ''}
       <div class="sp-acts">${s.live ? `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}">Ссылка клиенту</a><button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>` : ''}
-        <a class="btn soft" href="${esc(agentLink(s))}" target="_blank" rel="noopener">🔗 Ссылка агенту</a>${s.link ? `<button class="btn ghost" data-extend="${s.id}">Продлить</button>` : ''}</div></article>`;
+        <a class="btn soft" href="${esc(agentLink(s))}"${ablank()}>🔗 Ссылка агенту</a>${s.link ? `<button class="btn ghost" data-extend="${s.id}">Продлить</button>` : ''}</div></article>`;
   }
   const EMPTY = {
     all: 'Подборок пока нет. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать подборку»: ссылкой — до 20 объектов, PDF — до 10. Ссылки живут 30 дней (можно продлить), PDF — 7.',
@@ -128,8 +131,8 @@ window.SHARE = (() => {
     const own = marks ? items.filter(s => ownSum(s, marks)) : [], fb = items.filter(s => s.link && (s.views || s.fb?.length));
     const list = tab === 'own' ? own : tab === 'fb' ? fb : items, n = { all: items.length, own: own.length, fb: fb.length };
     return `<div class="sp-head"><h1>Мои подборки</h1><p class="muted">${HOW}</p></div>
-      <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${TABS.map(([k, t]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''}>${t}${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
-      ${list.length ? `<div class="sp-list">${list.map(s => tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${EMPTY[tab]}</p>`}`;
+      <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${TABS.map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
+      ${list.length ? `<div class="sp-list">${list.map(s => tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${tab === 'own' && d.pending ? 'Загружаю ответы собственников…' : EMPTY[tab]}</p>`}`;
   }
 
   style();   // стили раздела, окна подборки и «Проверить в рекламе» — сразу (share.js подключён только на главной)
