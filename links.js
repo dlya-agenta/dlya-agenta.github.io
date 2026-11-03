@@ -65,7 +65,7 @@ window.LINKS = (() => {
       v.cl.length > 3 ? `<span class="lk-c grey">ещё ${v.cl.length - 3}</span>` : '',
       v.deal ? `<a class="lk-c lnk" href="hub.html#deal=${v.deal.id}" title="${esc(v.deal.title || 'Сделка')}">📑 В сделке</a>` : ''].filter(Boolean);
     const acts = [yes.length || v.own?.st === 'yes' ? '<button type="button" class="btn soft lk-b" data-lk-show>📅 На показ</button>' : '',
-      v.own?.st === 'yes' ? `<button type="button" class="btn ghost lk-b" data-lk-ex>💎 Предложить эксклюзив</button><button type="button" class="btn ghost lk-b" data-mail="${num}">✉️ В рассылку</button>` : ''].filter(Boolean);
+      v.own?.st === 'yes' ? `<button type="button" class="btn ghost lk-b" data-lk-ex>💎 Предложить эксклюзив</button>` : ''].filter(Boolean);
     const off = v.own ? `<button type="button" class="lk-c lnk lk-off" data-lk-off title="Убрать отметку «написал» и ответ собственника (проверка ответа остановится)">✕ Снять отметку собственника</button>` : '';
     return parts.length || acts.length ? `<div class="lk agent-only" data-lkf>${parts.join('')}${off}${acts.length ? `<span class="lk-acts">${acts.join('')}</span>` : ''}</div>` : '';
   }
