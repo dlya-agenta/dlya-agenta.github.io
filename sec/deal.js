@@ -117,7 +117,10 @@
         Проверок сегодня: <b>${r.doc_ai.used} из ${r.doc_ai.lim}</b>. PDF или фото до 10 МБ. Файлы видите вы и приглашённые юрист или брокер; удаляются вместе со сделкой и через 30 дней после её закрытия.</p>
       <div class="dl-docs">${r.docs.map(docRow).join('') || '<p class="muted">Документов пока нет.</p>'}</div>
       <p class="hub-actions"><label class="btn primary dl-up" id="d-up">📎 Загрузить документ<input type="file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" multiple data-doc-file></label>
-        <label class="hub-chk"><input type="checkbox" id="d-autocheck" checked> <span>Сразу проверить ИИ-юристом</span></label></p></section>`;
+        <label class="hub-chk"><input type="checkbox" id="d-autocheck" checked> <span>Сразу проверить ИИ-юристом</span></label></p>
+      ${r.docs.length ? `<div class="dl-lawchk"><p class="hub-actions"><button class="btn primary" data-law-check="object">🔎 Проверить объект</button><button class="btn soft" data-law-check="owner">🔎 Проверить собственника</button></p>
+        <p class="hint">По всем документам сделки и открытым источникам (без капчи и платы; где капча или плата — ссылка «проверьте сами»): вывод, степень риска, какие документы запросить, шаги. Считается из «Проверок» тарифа в месяц.</p>
+        <div id="d-lawrep"></div></div>` : ''}</section>`;
   // фото больше 3 МБ — уменьшаем до 2200 px по длинной стороне (JPEG), PDF — как есть
   async function fileData(f) {
     if (f.type.startsWith('image/') && (f.size > 3e6 || !/jpeg|png|webp/.test(f.type))) {
@@ -193,6 +196,14 @@
       try { await H.call('deal_doc_check', { id: +dck.dataset.docCheck }, { signal: AbortSignal.timeout?.(170000) }); await card(d.id); el.querySelector(`[data-doc="${dck.dataset.docCheck}"]`)?.scrollIntoView({ block: 'center' }); }
       catch (er) { H.toast(er.name === 'TimeoutError' ? 'Проверка идёт дольше обычного — обновите страницу через минуту' : er.message, 6000); dck.disabled = false; dck.textContent = '🔎 Проверить'; }
       return;
+    }
+    const lc = t.closest('[data-law-check]');
+    if (lc) {   // v5.24b: проверка объекта/собственника по документам сделки (hub law_check, отчёт — sec/docs.js)
+      const label = lc.textContent; lc.disabled = true; lc.textContent = '⏳ Проверяем — 1–2 минуты';
+      try { const r = await H.call('law_check', { deal_id: d.id, kind: lc.dataset.lawCheck }, { signal: AbortSignal.timeout?.(170000) });
+        const box = el.querySelector('#d-lawrep'); window.LAWR?.report(box, r.report, { id: r.id, attach: false }); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      catch (er) { (window.LAWR?.fail ?? (x => H.toast(x.message, 6000)))(er); }
+      lc.disabled = false; lc.textContent = label; return;
     }
     const ddl = t.closest('[data-doc-del]');
     if (ddl) { if (!confirm('Удалить документ из сделки? Файл удалится навсегда.')) return; try { await H.call('deal_doc_del', { id: +ddl.dataset.docDel }); await card(d.id); el.querySelector('#d-docs')?.scrollIntoView({ block: 'start' }); } catch (er) { H.toast(er.message, 5000); } return; }

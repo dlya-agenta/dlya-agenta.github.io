@@ -5,9 +5,10 @@
   const H = window.HUB;
   let caps = null;
   async function start() {
-    if (location.hash.startsWith('#deal-guest=')) {   // ипотечный брокер или юрист по ссылке агента — без входа
+    const pub = location.hash.match(/^#(deal-guest|law-report)=/)?.[1];   // по ссылке агента без входа: брокер/юрист в сделке, отчёт проверки (v5.24b)
+    if (pub) {
       $('#gate').hidden = true; $('#app').hidden = false; $('#hub-nav').hidden = true;
-      return window.SEC['deal-guest'].open(location.hash.split('=')[1], { el: $('#hub') }).catch(e => { $('#hub').innerHTML = `<p class="err">${H.esc(e.message)}</p>`; });
+      return window.SEC[pub].open(location.hash.split('=')[1], { el: $('#hub') }).catch(e => { $('#hub').innerHTML = `<p class="err">${H.esc(e.message)}</p>`; });
     }
     if (!H.token()) { location.href = './#login'; return; }
     try { caps = await H.call('caps'); }
