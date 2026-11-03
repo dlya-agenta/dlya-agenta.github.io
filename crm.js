@@ -121,6 +121,7 @@ window.CRM = (() => {
           <button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
       <p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p></div>`;
     bind(onClient);
+    links(c);
   }
   // «📄 Из подборки» (v5.15): объекты подборки — клиенту; живую ссылку подборки — клиенту в WhatsApp, Telegram, MAX или скопировать
   async function fromSel(c) {
@@ -177,6 +178,8 @@ window.CRM = (() => {
       try { await ui.call('crm_obj_del', { client_id: c.id, num: +obj.dataset.num }); C.items = C.items.filter(x => x.num !== +obj.dataset.num); drawClient(); ui.toast('Объект убран у клиента'); } catch (er) { ui.toast(er.message, 5000); }
       return;
     }
+    if (obj && t.closest('[data-show-obj]')) { const x = C.items.find(i => i.num === +obj.dataset.num); return show(+obj.dataset.num, { client_id: c.id, what: x ? what(x) : '' }); }
+    if (t.closest('[data-lk-sels]')) { e.preventDefault(); ui.closeSheet?.(); return document.querySelector('.top [data-go="sels"][data-tab="fb"]')?.click(); }
     if (obj && t.closest('[data-open-obj], img')) return ui.openItem?.(+obj.dataset.num);
     if (t.closest('[data-del-client]')) {
       if (!confirm(`Удалить клиента «${c.name || c.phone}»? Объекты у него пропадут, задачи останутся без клиента.`)) return;
@@ -283,5 +286,76 @@ window.CRM = (() => {
     });
   }
 
-  return { use, open, pick, badge };
+  // ---------- v5.23c «📅 Записать на показ» (связи, п. 12): из отклика клиента «✓ подходит», из ответа собственника «актуально», с карточки объекта и у клиента ----------
+  // Одно окно: клиент (из CRM или новый — сразу создаётся), дата и время показа → объект клиенту, статус клиента «Показ», задача с напоминанием (бот, push, окно).
+  async function show(num, o = {}) {
+    view = 'show';
+    ui.sheet(`📅 Показ · № ${num}`, '<p class="muted">Загрузка…</p>');
+    let r; try { r = await ui.call('crm_pick', { num }); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    const has = new Set(r.has), cl = r.clients ?? [];
+    const pre = o.client_id ?? cl.find(c => has.has(c.id))?.id ?? '';
+    const p = mskParts(Date.now() + 864e5);
+    body().innerHTML = `<form class="crm crm-form lk-show" id="crm-sf" novalidate>
+      ${o.why ? `<p class="hint">${esc(o.why)}</p>` : ''}
+      <label class="field">Клиент<select name="client"><option value="">＋ Новый клиент</option>${cl.map(c => `<option value="${c.id}"${+pre === c.id ? ' selected' : ''}>${esc(c.name || c.phone || 'Без имени')}${has.has(c.id) ? ' · объект уже у него' : ''}</option>`).join('')}</select></label>
+      <div class="lk-new"${pre ? ' hidden' : ''}><label class="field">Имя<input name="name" maxlength="80" autocomplete="off" placeholder="Иван Петров"></label>
+        <label class="field">Телефон<input name="phone" type="tel" maxlength="30" autocomplete="off" placeholder="+7 900 000-00-00"></label></div>
+      <div class="field"><span>Когда показ (по Москве)</span><div class="crm-due"><input type="date" name="d" value="${p.d}"><input type="time" name="t" value="12:00"></div>
+        <div class="crm-chips"><button type="button" class="chip" data-q="today18">Сегодня 18:00</button><button type="button" class="chip" data-q="tom12">Завтра 12:00</button><button type="button" class="chip" data-q="sat11">Суббота 11:00</button></div></div>
+      <label class="field">Что сделать<textarea name="text" rows="2" maxlength="500">${esc(`Показ № ${num}${o.what ? ` — ${o.what.replace(/\.+$/, '')}` : ''}. Договориться с собственником о времени.`)}</textarea></label>
+      <p class="hint">Напомню за час в Telegram-бот, push и окном на сайте. Клиенту — статус «Показ», объект — в его карточку.</p>
+      <p class="err crm-err" hidden></p>
+      <div class="crm-bar"><button type="button" class="btn ghost" data-close>Отмена</button><button class="btn primary">📅 Записать</button></div></form>`;
+    const f = $('#crm-sf');
+    f.client.onchange = () => f.querySelector('.lk-new').hidden = !!f.client.value;
+    bind(e => {
+      const q = e.target.closest('[data-q]')?.dataset.q;
+      if (!q) return;
+      const sat = (6 - new Date(Date.now() + 3 * 3600e3).getUTCDay() + 7) % 7 || 7;
+      const x = mskParts(Date.now() + (q === 'today18' ? 0 : q === 'tom12' ? 864e5 : sat * 864e5));
+      f.d.value = x.d; f.t.value = q === 'today18' ? '18:00' : q === 'tom12' ? '12:00' : '11:00';
+    });
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const b = f.querySelector('button.primary'); b.disabled = true; b.textContent = 'Записываю…'; err('', f);
+      try {
+        let id = +f.client.value, name = cl.find(c => c.id === id)?.name;
+        if (!id) {
+          if (!f.name.value.trim() && !f.phone.value.trim()) throw new Error('Укажите имя или телефон клиента');
+          const c = await ui.call('crm_client_save', { name: f.name.value, phone: f.phone.value, status: 'show', source: 'other', note: o.why ? o.why.slice(0, 300) : '' });
+          if (c.error) throw new Error(c.message); id = c.client?.id ?? c.id; name = c.client?.name ?? f.name.value;
+        } else {
+          const x = (await ui.call('crm_client', { id })).client;
+          if (['new', 'work'].includes(x.status)) await ui.call('crm_client_save', { ...x, status: 'show' });
+        }
+        await ui.call('crm_obj_add', { client_id: id, num });
+        const due = f.d.value ? `${f.d.value}T${f.t.value || '12:00'}:00+03:00` : null;
+        const t = await ui.call('crm_task_save', { text: f.text.value, due, client_id: id, num, via: ['tg', 'push', 'site'] });
+        if (t.error) throw new Error(t.message);
+        ui.toast(`📅 Показ записан${name ? ` — ${name}` : ''}, ${when(due)}. Напомню заранее`, 5000);
+        ui.closeSheet?.(); window.LINKS?.refresh?.([num]);
+      } catch (er) { err(er.message, f); b.disabled = false; b.textContent = '📅 Записать'; }
+    };
+  }
+  // v5.23c: у клиента — что по его объектам ответили собственники и он сам (по подборкам), и сами подборки с его объектами (hub lnk_cards)
+  async function links(c) {
+    const box = body().querySelector('.crm-objs'), nums = C.items.map(x => x.num);
+    if (!box || !nums.length || !window.HUB) return;
+    let r; try { r = await HUB.call('lnk_cards', { nums: nums.slice(0, 60) }); } catch { return; }
+    if (C?.client?.id !== c.id) return;
+    const sels = new Map();
+    for (const [n, v] of Object.entries(r.by ?? {})) {
+      const el = box.querySelector(`.crm-obj[data-num="${n}"] [data-open-obj]`);
+      const own = window.LINKS?.ownChip?.(v.own) ?? '';
+      const fb = v.sels.find(s => s.fb === 'yes') ? '<span class="lk-c ok">👍 подходит</span>' : v.sels.find(s => s.fb === 'no') ? '<span class="lk-c bad">👎 не подошёл</span>' : '';
+      if (el) el.insertAdjacentHTML('beforeend', `<span class="lk lk-mini">${own}${fb}<button type="button" class="lk-c lnk" data-show-obj title="Записать на показ">📅 На показ</button></span>`);
+      for (const s of v.sels) { const a = sels.get(s.id) ?? { ...s, n: 0, yes: 0, no: 0 }; a.n++; if (s.fb === 'yes') a.yes++; if (s.fb === 'no') a.no++; sels.set(s.id, a); }
+    }
+    if (sels.size) box.closest('.crm-sec').insertAdjacentHTML('afterend', `<section class="crm-sec lk-sels"><div class="crm-h"><b>📄 Подборки с его объектами · ${sels.size}</b><a class="btn ghost" href="./#sels=fb" data-lk-sels>Отклики клиентов</a></div>
+      ${[...sels.values()].map(s => `<div class="crm-selrow"><b>${esc(s.title)}</b><small class="muted">${esc(when(s.at))} · его объектов: ${s.n}${s.yes ? ` · 👍 ${s.yes}` : ''}${s.no ? ` · 👎 ${s.no}` : ''}</small></div>`).join('')}</section>`);
+  }
+
+  async function openClient(id) { await open(); return client(id); }   // v5.23c: «👥 Иван» на карточке объекта — сразу карточка клиента
+
+  return { use, open, pick, badge, show, openClient };
 })();

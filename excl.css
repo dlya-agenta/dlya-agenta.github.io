@@ -238,3 +238,4 @@ body.ex-modal { overflow: hidden; }
 .ex-gn { z-index: 3; }
 .ex-nophb { font-size: 12.5px !important; color: var(--muted); }
 .ex-mapw { padding: 24px; margin: 0; }
+.ex-pre { background: var(--soft); border-radius: 10px; padding: 8px 12px; }   /* v5.23c: форма заполнена из объявления (#new=<номер>) */

@@ -101,7 +101,7 @@
     document.querySelectorAll('[data-tab]').forEach(t => { const on = t.dataset.tab === (k === 'fav' || k === 'my' ? k : 'all'); t.classList.toggle('on', on); t.setAttribute('aria-selected', on); });
     closeSheet();
     if (k === 'my') return showMy();
-    if (k === 'new') return form(null);
+    if (k === 'new') return form(null, +v || 0);   // v5.23c: #new=<номер> — из объявления, где собственник ответил «актуально»
     if (k === 'edit') return form(+v);
     feed(k === 'fav').then(() => { if (k === 'o' && v) card(+v); });
   }
@@ -447,20 +447,23 @@
   }
 
   // ---------- форма: разместить / изменить ----------
-  async function form(id) {
+  async function form(id, fromNum = 0) {
     const el = $('#ex');
     el.onclick = null;
     if (!my) try { my = await H.call('excl_my'); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     let x = id ? my.items.find(i => i.id === id) : null;
     if (id && !x) { try { my = await H.call('excl_my'); x = my.items.find(i => i.id === id); } catch { /* нет */ } }
     if (id && !x) { el.innerHTML = '<p class="err">Объект не найден</p><a class="btn soft" href="#my">‹ Мои размещения</a>'; return; }
-    x ??= { kind: 'квартира', agent_show: true, photos: [], ph: [] };
+    let pre = null;
+    if (!x && fromNum) try { pre = (await H.call('lnk_prefill', { num: fromNum })).item; } catch (e) { H.toast?.(e.message); }
+    x ??= { kind: 'квартира', agent_show: true, photos: [], ph: [], ...(pre ?? {}) };
     const ag = my.agent, regs = ref?.districts ?? [];
     const subsOf = d => regs.find(r => r.name === d)?.subs ?? [];
     const sel = (name, list, v, empty = '') => `<select name="${name}">${empty !== null ? `<option value="">${empty}</option>` : ''}${list.map(([k, t]) => `<option value="${esc(k)}"${String(v ?? '') === String(k) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
     el.innerHTML = `<p><a class="btn ghost" href="#my">‹ Мои размещения</a></p>
       <form class="ex-form" id="ex-form" novalidate>
       <h3>${x.id ? `✏️ № ${x.num} — изменить` : '＋ Новый объект'}</h3>
+      ${pre ? `<p class="hint ex-pre">💎 Заполнено из объявления № ${pre.from_num} — проверьте цену и описание с собственником. Фото площадок не переносим: сделайте свои (так объект не найдут по чужим фото).</p>` : ''}
       <section class="ex-fs"><h4>Фото <small class="muted">до 15, первое — обложка</small></h4>
         <div class="ex-phs" id="ex-phs"></div>
         <label class="btn soft ex-up"><input type="file" accept="image/*" multiple hidden id="ex-file">📷 Добавить фото</label> <span class="hint" id="ex-upst"></span></section>

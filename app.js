@@ -17,7 +17,7 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
 const FIN = [['clean', 'Чистовая'], ['rough', 'Черновая']];
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
-const MAXSEL = 10;   // объектов в одной подборке PDF
+const MAXSEL = 20, MAXPDF = 10;   // v5.23: подборка ссылкой — до 20 объектов, PDF и «PDF + ссылка» — до 10
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
 // до моря по прямой (сервер считает по береговой линии): один выбор из списка
 const SEA = [[300, 'до 300 м'], [500, 'до 500 м'], [1000, 'до 1 км'], [2000, 'до 2 км'], [3000, 'до 3 км']];
@@ -170,6 +170,7 @@ async function start() {
   PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
   NOTIFY.start({ call, sheet, toast }, meta);   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
   CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta);   // клиенты и задачи (site/crm.js, шаг 3.4)
+  window.LINKS?.use({ call, sheet, closeSheet, toast, me: () => me, agent: () => !!me && !me.guest });   // v5.23c: связи под карточкой — собственник, подборки, клиенты (site/links.js)
   RK.use({ sheet, closeSheet, toast, auth: () => auth });   // «Реклама»: черновики на площадках (site/reklama/rk.js, шаг 4.1)
   ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
   const p = me.prefs;
@@ -229,6 +230,7 @@ async function start() {
     const cm = store.get('sel_cm', null); store.set('sel_cm', null);
     if (cm != null && $('#s-mk')) { $('#s-mk').value = cm; $('#s-mk').dispatchEvent(new Event('input', { bubbles: true })); }
   }   // «Реклама»: …/#rk, #rk=daily
+  if (/^#sels=(all|own|fb)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
   if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
   HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
@@ -593,7 +595,8 @@ function card(x, mini = false) {
   </article>`;
 }
 // источник объявления ссылкой (Авито, Циан, ДомКлик…) — только агенту: в режиме «С клиентом» скрыт
-const srcHtml = x => x.src?.length ? `<div class="src agent-only">Источник: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : '';
+// v5.23: без названий площадок — одна ссылка «Проверить в рекламе» (первый источник), остальные — «2», «3» мелко
+const srcHtml = x => x.src?.length ? `<div class="src agent-only">${x.src.map((s, i) => `<a href="${esc(s.url)}" target="_blank" rel="noopener"${i ? ' class="src-n" title="Ещё одна ссылка на объявление"' : ''}>${i ? i + 1 : 'Проверить в рекламе'}</a>`).join('')}</div>` : '';
 // tg (v5.21) — профиль Telegram собственника (объявления из чатов ЖК): если телефона нет, контакт — «Написать в Telegram»
 function phoneBox(p, owner, tg) {
   const tgA = tg ? `<a class="m-tg" href="https://t.me/${encodeURIComponent(tg)}" target="_blank" rel="noopener">Написать в Telegram</a>` : '';
@@ -630,7 +633,7 @@ async function onCard(e, cardEl) {
   if (t.closest('[data-nav]')) { const g = t.closest('.gal'); const s = g.querySelector('.strip'); s.scrollBy({ left: s.clientWidth * +t.closest('[data-nav]').dataset.nav, behavior: 'smooth' }); return; }
   if (t.closest('[data-sel]')) {
     const c = t.closest('[data-sel]');
-    if (c.checked && sel.size >= MAXSEL) { c.checked = false; toast(`В одной подборке до ${MAXSEL} объектов — сформируйте PDF и начните новую`); return; }
+    if (c.checked && sel.size >= MAXSEL) { c.checked = false; toast(`В одной подборке до ${MAXSEL} объектов ссылкой (PDF — до ${MAXPDF}) — сформируйте её и начните новую`); return; }
     c.checked ? sel.add(num) : sel.delete(num); store.set('sel', [...sel]); selbar(); return;
   }
   if (t.closest('[data-more]')) {
@@ -872,7 +875,8 @@ document.addEventListener('keydown', e => {
 // ---------- подборка ----------
 function selbar() {
   $('#selbar').hidden = !sel.size || !meta?.features.selections;
-  $('#selcount').textContent = `Выбрано: ${sel.size}`;
+  // v5.23: «Выбрано 12 (ссылкой до 20, PDF до 10)»; больше 10 — PDF уже нельзя, подсказка об этом
+  $('#selcount').innerHTML = `Выбрано: ${sel.size} <small class="sel-lim${sel.size > MAXPDF ? ' over' : ''}">${sel.size > MAXPDF ? `ссылкой до ${MAXSEL} · PDF до ${MAXPDF} — только ссылкой` : `ссылкой до ${MAXSEL}, PDF до ${MAXPDF}`}</small>`;
 }
 // подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
 function selStart(nums, title, fmt) {
@@ -888,15 +892,17 @@ $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].sli
 $('#sel-clear').onclick = () => { sel.clear(); store.set('sel', []); selbar(); document.querySelectorAll('[data-sel]').forEach(c => c.checked = false); };
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
+  const n = Math.min(sel.size, MAXSEL);
   sheet('Подборка', `
     <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
-    ${SHARE.formatHtml()}
+    ${SHARE.formatHtml(n)}
     <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
     <div class="hint">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
-    <div class="hint">Объектов: ${sel.size} (до ${MAXSEL}).<span class="pdf-only"> В PDF агенту — ссылка на источник объявления, в PDF клиенту источников нет. Имя файла будет латиницей (открывается на любом телефоне). PDF хранится 7 дней во вкладке «Мои подборки».</span></div>
+    <label class="chk agent-only"><input type="checkbox" id="s-ph" ${store.get('selPhones', true) ? 'checked' : ''}> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
+    <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span> Без галочки телефоны можно открыть потом — на странице «Ссылка агенту».</div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   SHARE.mount();
@@ -904,81 +910,117 @@ $('#sel-make').onclick = () => {
   let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
     const b = $('#s-go'); b.disabled = true; b.textContent = 'Готовлю…'; $('#s-err').textContent = ''; $('#s-lim').innerHTML = '';
-    store.set('agent', { name: $('#s-name').value, phone: $('#s-phone').value }); store.set('hideAddr', $('#s-hide').checked);
+    store.set('agent', { name: $('#s-name').value, phone: $('#s-phone').value }); store.set('hideAddr', $('#s-hide').checked); store.set('selPhones', $('#s-ph').checked);
     const prog = t => { const el = $('#s-prog'); if (el) el.textContent = t; };
+    const done = (r, what) => {
+      $('#sheet-body').innerHTML = `<p>Подборка готова — ${what}.</p>${r.url ? `<div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a></div>
+        <p class="hint">Ссылка на PDF действует час; сам PDF хранится 7 дней в «Моих подборках».</p>` : ''}${SHARE.resultHtml(r)}
+        ${r.phones != null && r.phones < r.total ? `<p class="hint">Телефоны собственников открыты: ${r.phones} из ${r.total}${limit ? ` (${esc(limit)})` : ''} — остальные можно открыть на странице «Ссылка агенту».</p>` : ''}
+        <p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
+      SHARE.bind($('#sheet-body'), toast);
+      if (r.link) NOTIFY.offerInstall('sel');   // первая подборка ссылкой — предложить «На экран Домой» (один раз)
+      if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
+      selCache = null;   // «Мои подборки» перечитать
+    };
+    let limit = '';
     try {
       // телефоны и проверка рекламы — по одному объекту за запрос: сервис телефонов отвечает 7–15 с, один общий запрос упирался в предел времени сервера
-      const nums = [...sel].slice(0, MAXSEL); let limit = '';
-      const fmt = SHARE.format(), args = { nums, title: $('#s-title').value, markup: +$('#s-mk').value, agent: $('#s-name').value, agent_phone: $('#s-phone').value,
-        hide_addr: $('#s-hide').checked, format: fmt };
-      if (fmt === 'link') {   // только ссылка: телефоны не нужны, номера не тратятся
-        prog('Создаю ссылку…');
-        const r = await call('sel_create', args);
-        $('#sheet-body').innerHTML = `<p>Подборка готова — ссылка для клиента.</p>${SHARE.resultHtml(r)}`;
-        SHARE.bind($('#sheet-body'), toast);
-        if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
-        NOTIFY.offerInstall('sel');   // первая подборка ссылкой — предложить «На экран Домой» (один раз)
-        return;
-      }
-      // новых номеров больше, чем осталось, — не обрезаем молча: сколько не хватает; убрать объекты, докупить или собрать без части телефонов
-      if (!partial) {
-        const c = await call('sel_check', { nums });
-        PLANS.counter(c.used);
-        if (c.need > c.room) {
-          const miss = c.need - c.room, when = { day: 'на сегодня', month: 'в этом месяце', hour: 'в этот час' }[c.why] ?? '';
-          $('#s-lim').innerHTML = `<div class="lim"><p>В подборке новых номеров: ${c.need}, а ${when} осталось ${c.room}. Не хватает ${miss}. Уберите ${miss} ${miss === 1 ? 'объект' : miss < 5 ? 'объекта' : 'объектов'} из подборки или докупите номера.</p>
-            <div class="sheet-foot"><button class="btn ghost" data-close>Убрать объекты</button>${c.why !== 'hour' && c.pack ? `<button class="btn soft" data-pack>Докупить ${c.pack.qty} номеров за ${c.pack.usd} $</button>` : ''}
-            <button class="btn ghost" id="s-part">Собрать без ${miss} ${miss === 1 ? 'телефона' : 'телефонов'}</button></div></div>`;
-          $('#s-part').onclick = () => { partial = true; $('#s-go').click(); };
-          b.disabled = false; b.textContent = 'Сформировать'; return;
+      const fmt = SHARE.format(), phones = $('#s-ph').checked && !me.guest, nums = [...sel].slice(0, fmt === 'link' ? MAXSEL : MAXPDF);
+      if (sel.size > nums.length) throw new Error(`В PDF до ${MAXPDF} объектов — уберите ${sel.size - MAXPDF} или выберите «Ссылка»`);
+      const args = { nums, title: $('#s-title').value, markup: +$('#s-mk').value, agent: $('#s-name').value, agent_phone: $('#s-phone').value,
+        hide_addr: $('#s-hide').checked, format: fmt, phones };
+      if (phones) {
+        // новых номеров больше, чем осталось, — не обрезаем молча: сколько не хватает; убрать объекты, докупить или собрать без части телефонов
+        if (!partial) {
+          const c = await call('sel_check', { nums });
+          PLANS.counter(c.used);
+          if (c.need > c.room) {
+            const miss = c.need - c.room, when = { day: 'на сегодня', month: 'в этом месяце', hour: 'в этот час' }[c.why] ?? '';
+            $('#s-lim').innerHTML = `<div class="lim"><p>В подборке новых номеров: ${c.need}, а ${when} осталось ${c.room}. Не хватает ${miss}. Уберите ${miss} ${miss === 1 ? 'объект' : miss < 5 ? 'объекта' : 'объектов'} из подборки или докупите номера.</p>
+              <div class="sheet-foot"><button class="btn ghost" data-close>Убрать объекты</button>${c.why !== 'hour' && c.pack ? `<button class="btn soft" data-pack>Докупить ${c.pack.qty} номеров за ${c.pack.usd} $</button>` : ''}
+              <button class="btn ghost" id="s-part">Собрать без ${miss} ${miss === 1 ? 'телефона' : 'телефонов'}</button></div></div>`;
+            $('#s-part').onclick = () => { partial = true; $('#s-go').click(); };
+            b.disabled = false; b.textContent = 'Сформировать'; return;
+          }
+        }
+        for (const [i, n] of nums.entries()) {
+          const x = items.get(n);
+          if (x?.phone && x.ad_state) continue;
+          prog(`Открываю телефоны собственников: ${i + 1} из ${nums.length}…`);
+          for (let t = 0; t < 2; t++) {
+            try { const p = await call('phone', { num: n, via: 'pdf' }); PLANS.counter(p.used); if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; } break; }
+            catch (err) { if (err.gate) throw err; if (err.data?.limit) { limit = err.message; break; } }
+          }
+          if (limit) break;
         }
       }
-      for (const [i, n] of nums.entries()) {
-        const x = items.get(n);
-        if (x?.phone && x.ad_state) continue;
-        prog(`Открываю телефоны и проверяю рекламу: ${i + 1} из ${nums.length}…`);
-        for (let t = 0; t < 2; t++) {
-          try { const p = await call('phone', { num: n, via: 'pdf' }); PLANS.counter(p.used); if (x) { x.phone = p.phone; x.ad_state = p.ad_state ?? x.ad_state; } break; }
-          catch (err) { if (err.gate) throw err; if (err.data?.limit) { limit = err.message; break; } }
-        }
-        if (limit) break;
-      }
-      prog(`${limit ? limit + ' ' : ''}Собираю два PDF…`); b.textContent = 'Собираю PDF…';
-      const r = await call('sel_create', { ...args, partial });
-      PLANS.counter(r.used);
-      $('#sheet-body').innerHTML = `<p>Подборка готова — два PDF${r.link ? ' и ссылка' : ''}.</p>
-        <div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a>
-        <a class="btn soft agent-only" href="${esc(r.url_agent)}" target="_blank" rel="noopener" data-url="${esc(r.url_agent)}">PDF агенту (с телефонами)</a></div>
-        ${r.phones < r.total ? `<p class="hint">Телефоны в PDF агенту: ${r.phones} из ${r.total} — остальные не открылись (${limit ? 'лимит номеров' : 'у объявления нет мобильного или сервис телефонов не ответил'}).</p>` : ''}
-        <p class="hint">Ссылки на PDF действуют час; сами PDF хранятся 7 дней во вкладке «Мои подборки».</p>${SHARE.resultHtml(r)}`;
-      SHARE.bind($('#sheet-body'), toast);
-      if (r.link) NOTIFY.offerInstall('sel');
-      if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
+      prog(`${limit ? limit + ' ' : ''}${fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'}`); b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…';
+      const r = await call('sel_create', { ...args, partial: partial || !!limit });
+      if (r.used) PLANS.counter(r.used);
+      done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
     } catch (e) { if (e.gate) return showLogin(e.gate); $('#s-err').textContent = e.message; b.disabled = false; b.textContent = 'Сформировать'; }
   };
 };
-async function showSelections() {
-  sheet('Мои подборки', '<p class="muted">Загрузка…</p>');
+// ---------- «Мои подборки» — раздел на главной (v5.23): ./#sels, ./#sels=all | own | fb (меню — nav.js, вкладка C) ----------
+// не шторка, а своя страница вместо выдачи: вкладки «Все», «Ответы собственников» (auto own_marks, вкладка A), «Отклики клиентов».
+// Уйти — любой пункт меню, «Назад» браузера или другой адрес.
+var selCache = null, selTab = null;   // var: tabs() зовётся и до этой строки
+async function showSelections(tab) {
+  tab = SHARE.TABS.includes(tab) ? tab : /^#sels=(\w+)$/.exec(location.hash)?.[1] ?? 'all';
+  if (!SHARE.TABS.includes(tab)) tab = 'all';
+  closeSheet(); sheetGo = null;   // раздел, а не окно: подсветка пункта меню — по selTab (tabs)
+  let box = $('#selpage');
+  if (!box) {
+    $('main').insertAdjacentHTML('afterend', '<section id="selpage" aria-label="Мои подборки"></section>');
+    box = $('#selpage');
+    SHARE.bind(box, toast);
+    box.addEventListener('click', onSelPage);
+  }
+  const was = selTab;
+  selTab = tab; box.hidden = false; document.body.classList.add('selmode'); tabs();
+  if (location.hash !== `#sels=${tab}`) history[was ? 'replaceState' : 'pushState'](null, '', `${location.pathname}${location.search}#sels=${tab}`);
+  if (!was) scrollTo(0, 0);
+  if (selCache && Date.now() - selCache.at < 60e3) { box.innerHTML = SHARE.page(selCache, tab); return; }
+  box.innerHTML = '<div class="sp-head"><h1>Мои подборки</h1></div><p class="muted">Загрузка…</p>';
   try {
     const r = await call('sel_list');
-    // v5.20: карточка подборки — название и сведения на всю ширину, кнопки ниже рядами с переносом (раньше текст сжимался в узкую колонку, кнопки обрезались)
-    $('#sheet-body').innerHTML = r.items.length ? r.items.map(s => `<div class="selrow"><div class="sel-info"><b class="sel-t">${esc(s.title)}</b>
-      <small class="muted">${new Date(s.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })} · ${{ agent: 'для агента · ', client: 'для клиента · ' }[s.mode] ?? ''}+${s.markup}% · объектов: ${s.nums.length}${s.query ? ` · ${esc(s.query)}` : ''}
-      ${s.url ? ` · PDF удалится ${new Date(Date.parse(s.created_at) + 7 * 864e5).toLocaleDateString('ru-RU')}` : ''}</small>${SHARE.row(s)}</div>
-      <div class="sel-acts">${SHARE.btns(s)}
-      ${s.url ? `<a class="btn soft" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">${s.url_agent ? 'Клиенту' : 'PDF'}</a>` : ''}
-      ${s.url_agent ? `<a class="btn soft" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}">Агенту</a>` : ''}
-      <button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button><button class="btn ghost agent-only" data-rk="${s.nums.join(',')}">📣 В рекламу</button><button class="btn ghost agent-only" data-video="${s.nums.slice(0, 6).join(',')}">🎬 Ролик</button></div></div>`).join('')
-      : '<p class="muted">Подборок пока нет: PDF хранятся 7 дней, ссылки — 30. Отметьте объекты галочкой «В подборку» и нажмите «Сформировать подборку».</p>';
-    SHARE.bind($('#sheet-body'), toast);
-    $('#sheet-body').onclick = e => {
-      const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); }
-      const k = e.target.closest('[data-rk]'); if (k) return me.can_rk ? RK.send(k.dataset.rk.split(',').map(Number)) : PLANS.locked('rk');
-      const v = e.target.closest('[data-video]'); if (v) { location.href = `hub.html#video=${v.dataset.video}`; return; }
-      const g = e.target.closest('[data-again]'); if (g) { g.dataset.again.split(',').forEach(n => sel.add(+n)); store.set('sel', [...sel]); selbar(); toast('Объекты добавлены в подборку'); }
-    };
-  } catch (e) { if (e.gate) return showLogin(e.gate); $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    // ответы собственников (вкладка A, auto own_marks): действия ещё нет или ошибка — молча без них
+    const nums = [...new Set(r.items.flatMap(s => s.nums))];
+    // v5.23c (1 строка, правка вкладки C): own_marks — действие функции auto, call() ходит только в web (там был 400 «Неизвестное действие»)
+    const marks = nums.length ? await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'own_marks', auth, nums }) }).then(r => r.json()).then(m => m?.marks ?? null, () => null) : null;
+    selCache = { at: Date.now(), items: r.items, marks };
+    if (selTab) box.innerHTML = SHARE.page(selCache, selTab);
+  } catch (e) { if (e.gate) return showLogin(e.gate); box.innerHTML = `<div class="sp-head"><h1>Мои подборки</h1></div><p class="err">${esc(e.message)}</p>`; }
 }
+function leaveSelections() {
+  if (!selTab) return;
+  selTab = null; $('#selpage').hidden = true; document.body.classList.remove('selmode');
+  if (/^#sels/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+  tabs();
+}
+async function onSelPage(e) {
+  const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); return; }
+  const t = e.target.closest('.sp-tab'); if (t) { e.preventDefault(); showSelections(t.getAttribute('href').slice(6)); return; }
+  const k = e.target.closest('[data-rk]'); if (k) return me.can_rk ? RK.send(k.dataset.rk.split(',').map(Number)) : PLANS.locked('rk');
+  const v = e.target.closest('[data-video]'); if (v) { location.href = `hub.html#video=${v.dataset.video}`; return; }
+  const g = e.target.closest('[data-again]');
+  if (g) {
+    const add = g.dataset.again.split(',').map(Number).filter(n => !sel.has(n)), room = MAXSEL - sel.size;
+    add.slice(0, room).forEach(n => sel.add(n)); store.set('sel', [...sel]); selbar();
+    toast(add.length > room ? `Добавлено ${Math.max(0, room)} — в подборке до ${MAXSEL} объектов` : 'Объекты добавлены в подборку — внизу «Сформировать подборку»');
+    return;
+  }
+  const x = e.target.closest('[data-extend]');
+  if (x) {
+    x.disabled = true;
+    try { const r = await call('sel_extend', { id: +x.dataset.extend }); toast(`Ссылка продлена до ${new Date(r.until).toLocaleDateString('ru-RU')}`); selCache = null; showSelections(selTab); }
+    catch (err) { x.disabled = false; toast(err.message); }
+  }
+}
+// пункт меню «Мои подборки» открывает раздел (обработчик [data-go] выше); другой пункт меню — уйти из раздела
+document.addEventListener('click', e => { const g = e.target.closest('.top [data-go]'); if (g && selTab && g.dataset.go !== 'sels' && g.dataset.go !== 'client') leaveSelections(); }, true);
+addEventListener('hashchange', () => { const h = /^#sels(?:=(\w+))?$/.exec(location.hash); if (h && me && !me.guest) showSelections(h[1] ?? 'all'); else if (!h) leaveSelections(); });
+addEventListener('popstate', () => { if (!/^#sels/.test(location.hash)) leaveSelections(); });
 
 // ---------- карта ----------
 // окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);
@@ -1173,9 +1215,10 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
     f = { [LISTS[g][0]]: g === 'hidden' ? 'hide' : true }; $('#q').value = ''; changed();
     toast(LISTS[g][1], 4000);
   }
-  if (['sels', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
+  if (['sels', 'selhow', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
-  if (g === 'sels') showSelections();
+  if (g === 'sels') showSelections(b.dataset.tab || 'all');   // v5.23c: «Мои подборки» — своя группа меню: все / ответы собственников / отклики клиентов
+  if (g === 'selhow') selHow();
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
   if (g === 'rk') { if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/reklama/rk.js (шаг 4.1)
@@ -1198,19 +1241,33 @@ function mgSync() {
     g.hidden = !items.some(i => !i.hidden && !(document.body.classList.contains('client') && i.classList.contains('agent-only') && !i.classList.contains('client-ok')));
     g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
   });
-  // ссылки меню с других страниц: ./#favs, ./#sels, ./#prof — открыть этот раздел (один раз, после загрузки)
-  const h = /^#(favs|sels|prof|deals)$/.exec(location.hash);
+  // ссылки меню с других страниц: ./#favs, ./#sels, ./#selhow, ./#prof — открыть этот раздел (один раз, после загрузки)
+  const h = /^#(favs|sels|selhow|prof|deals)$/.exec(location.hash);   // #sels=all|own|fb открывает start() (вкладка B)
   if (h && !mgSync.done && me) { mgSync.done = true; history.replaceState(null, '', location.pathname); setTimeout(() => document.querySelector(`.top [data-go="${h[1]}"]`)?.click(), 300); }
 }
 // активная вкладка: открытое окно меню, иначе то, что показано в выдаче («Все объявления», «Избранное» или «Контакт»)
 function tabs() {
-  const on = sheetGo && !$('#sheet').hidden ? sheetGo : favMode || 'all';
+  const on = sheetGo && !$('#sheet').hidden ? sheetGo : selTab ? 'sels' : favMode || 'all';   // v5.23: раздел «Мои подборки» (вкладка B)
   document.querySelectorAll('.top [data-go]').forEach(b => {
     if (b.dataset.go === 'client') return;   // «С клиентом» — режим со своей отметкой
-    b.classList.toggle('on', b.dataset.go === on);
-    b.dataset.go === on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
+    const is = b.dataset.go === on && (!b.dataset.tab || b.dataset.tab === selTab);   // v5.23c: у «Моих подборок» подсвечена открытая вкладка
+    b.classList.toggle('on', is);
+    is ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   });
   mgSync();
+}
+
+// v5.23c: «💡 Как собрать подборку» — коротко, по шагам, со ссылками на вкладки «Моих подборок»
+function selHow() {
+  sheet('💡 Как собрать подборку', `<ol class="lk-how">
+    <li><b>Найдите объекты</b> — строкой поиска («2к до 15 млн Мамайка»), фильтром или голосом 🎤.</li>
+    <li><b>Отметьте галочкой</b> на карточках — ссылкой до 20 объектов, PDF до 10. Внизу появится «Сформировать подборку».</li>
+    <li><b>Сформируйте</b>: ссылка клиенту (с вашей комиссией в цене, без адреса дома) и <b>ссылка для вас</b> — с собственниками и их телефонами.</li>
+    <li><b>Напишите собственникам</b> на своей ссылке — «Написать всем» в Telegram или WhatsApp. Ответы («актуально» / «продано») сайт проверит сам и покажет в «Ответах собственников» и на карточках.</li>
+    <li><b>Отправьте клиенту</b> проверенную подборку — только актуальные объекты. Клиент отмечает ✓ «подходит» или ✗, пишет комментарий — это в «Откликах клиентов».</li>
+    <li><b>«📅 На показ»</b> — у объекта, который подошёл: клиент в CRM, задача с напоминанием. Собственник согласен работать — «💎 Предложить эксклюзив».</li></ol>
+    <div class="sheet-foot"><button class="btn ghost" data-close>Понятно</button><button class="btn soft" data-how="own">✉️ Ответы собственников</button><button class="btn primary" data-how="all">📄 Мои подборки</button></div>`);
+  $('#sheet-body').onclick = e => { const t = e.target.closest('[data-how]')?.dataset.how; if (t) document.querySelector(`.top [data-go="sels"][data-tab="${t}"]`)?.click(); };
 }
 
 // ---------- режим «С клиентом» ----------

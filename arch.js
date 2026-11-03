@@ -390,7 +390,7 @@ function phoneBox(p, owner) {
     <div class="msgs"><a class="m-call" href="tel:${esc(p)}">Позвонить</a><a class="m-wa" href="https://wa.me/${d}?text=${t}" target="_blank" rel="noopener">WhatsApp</a>
       <button class="m-copy" data-copy="${esc(p)}">Копировать</button></div></div>`;
 }
-const srcHtml = c => c.src?.length ? `<div class="src">Источник: ${c.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : '';
+const srcHtml = c => c.src?.length ? `<div class="src">${c.src.map((s, i) => `<a href="${esc(s.url)}" target="_blank" rel="noopener"${i ? ' class="src-n"' : ''}>${i ? i + 1 : 'Проверить в рекламе'}</a>`).join('')}</div>` : '';   // v5.23: без названий площадок
 const contHtml = c => `<div class="cont">${c.phones?.length ? c.phones.map((p, i) => phoneBox(p, i ? null : c.owner)).join('') : `<span class="err">${esc(c.error || 'номера нет')}</span>`}${srcHtml(c)}</div>`;
 async function contacts(x, b) {
   b.disabled = true; b.textContent = 'Узнаю контакты…';

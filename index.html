@@ -11,11 +11,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 <link rel="stylesheet" href="style.css?v=5.23">
-<link rel="stylesheet" href="nav.css?v=5.23">
-<script src="design.js?v=5.23"></script>
+<link rel="stylesheet" href="nav.css?v=5.23c1">
+<script src="design.js?v=5.23c1"></script>
 <link rel="stylesheet" href="offer.css?v=5.23">
 <link rel="stylesheet" href="notify.css?v=5.23">
 <link rel="stylesheet" href="crm.css?v=5.23">
+<link rel="stylesheet" href="links.css?v=5.23c1">
 <link rel="stylesheet" href="reklama/rk.css?v=5.23">
 <link rel="stylesheet" href="support.css?v=5.23">
 <link rel="manifest" href="manifest.json">
@@ -43,22 +44,20 @@
           <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
           <button class="link agent-only" data-go="hidden" id="go-hidden" hidden>🙈 Скрытые</button>
         </div></div>
-      <a class="link agent-only mg-solo" data-g="excl" href="excl.html">💎 Эксклюзивы</a>
+      <div class="mg" data-g="sels"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span> <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <button class="link agent-only" data-go="sels" data-tab="all">📄 Все подборки</button>
+          <button class="link agent-only" data-go="sels" data-tab="own">✉️ Ответы собственников</button>
+          <button class="link agent-only" data-go="sels" data-tab="fb">👍 Отклики клиентов</button>
+          <button class="link agent-only" data-go="selhow">💡 Как собрать подборку</button>
+        </div></div>
       <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <button class="link" data-go="favs">★ Избранное</button>
-          <button class="link agent-only" data-go="sels"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span></button>
           <button class="link agent-only" data-go="crm" id="go-crm" hidden>👥 Клиенты<b class="crm-badge" id="crm-badge" hidden></b></button>
           <button class="link agent-only" data-go="deals" hidden>🤝 Контакт</button>
           <a class="link agent-only" href="hub.html#deal">📑 Сделки</a>
           <a class="link agent-only" href="hub.html#fix">📌 Фиксации</a>
-        </div></div>
-      <div class="mg" data-g="promo"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">📣 Продвижение <span class="mg-a" aria-hidden="true">▾</span></button>
-        <div class="mg-p" role="menu">
-          <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
-          <button class="link agent-only" data-go="rk" id="go-rk">📣 Реклама</button>
-          <button class="link agent-only" data-go="mail" id="go-mail">✉️ Рассылки</button>
-          <a class="link agent-only" href="hub.html#video">🎬 Видеомонтаж-СММ</a>
         </div></div>
       <div class="mg" data-g="help"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🤖 Помощник <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
@@ -70,6 +69,14 @@
           <a class="link agent-only client-ok" href="hub.html#taxes">🧾 Налоги при продаже</a>
           <a class="link" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a>
         </div></div>
+      <div class="mg" data-g="promo"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">📣 Продвижение <span class="mg-a" aria-hidden="true">▾</span></button>
+        <div class="mg-p" role="menu">
+          <a class="link agent-only" href="hub.html#msg">🔗 Мессенджеры и соцсети</a>
+          <button class="link agent-only" data-go="rk" id="go-rk">📣 Реклама</button>
+          <button class="link agent-only" data-go="mail" id="go-mail">✉️ Рассылки</button>
+          <a class="link agent-only" href="hub.html#video">🎬 Видеомонтаж-СММ</a>
+        </div></div>
+      <a class="link agent-only mg-solo" data-g="excl" href="excl.html">💎 Эксклюзивы</a>
       <div class="mg" data-g="cab"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">💼 Кабинет <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <a class="link agent-only" href="hub.html#balance">💰 Баланс</a>
@@ -192,11 +199,12 @@
 <script src="profile.js?v=5.23" defer></script>
 <script src="notify.js?v=5.23" defer></script>
 <script src="share.js?v=5.23" defer></script>
-<script src="crm.js?v=5.23" defer></script>
+<script src="crm.js?v=5.23c1" defer></script>
+<script src="links.js?v=5.23c1" defer></script>
 <script src="reklama/rk.js?v=5.23" defer></script>
 <script src="hub.js?v=5.23" defer></script>
-<script src="nav.js?v=5.23" defer></script>
-<script src="app.js?v=5.23" defer></script>
+<script src="nav.js?v=5.23c1" defer></script>
+<script src="app.js?v=5.23c1" defer></script>
 <script src="support.js?v=5.23" defer></script>
 </body>
 </html>
