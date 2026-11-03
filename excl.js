@@ -178,7 +178,7 @@
   let map = null, layer = null, mapXs = [], mlT = null, fitKey = '';
   const attrib = () => new (L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
     const d = L.DomUtil.create('div', 'ex-attr');   // подпись карты (лицензия OpenStreetMap) — маленьким «ⓘ», полностью — по нажатию
-    d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © Esri, HERE, Garmin</span>';
+    d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
     L.DomEvent.disableClickPropagation(d); d.querySelector('button').onclick = () => { const sp = d.querySelector('span'); sp.hidden = !sp.hidden; };
     return d; } }))();
   function popup(ll, xs) {
@@ -202,7 +202,7 @@
     if (!map) {
       el.innerHTML = '';
       map = L.map(el, { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 })   /* v5.22.2: карта без подписей и значков (просьба Алексея 03.11) */.addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })   /* OpenStreetMap — самая подробная бесплатная карта Сочи; источник — свёрнутым «ⓘ» (v5.22.3) */.addTo(map);
       attrib().addTo(map);
       map.on('moveend', () => { clearTimeout(mlT); $('#ex-mli').classList.add('wait'); mlT = setTimeout(mapList, 700); })
         .on('popupopen', e => { const p = e.popup.getElement(); if (p && !p._ex) { p._ex = 1; p.addEventListener('click', onPop); } });
