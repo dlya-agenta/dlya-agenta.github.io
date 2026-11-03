@@ -923,7 +923,7 @@ $('#sel-make').onclick = () => {
     const need = c && c !== 'wait' ? c.need : null, room = c && c !== 'wait' ? c.room : null;
     const later = 'телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны»';
     el.innerHTML = $('#s-ph').checked
-      ? `С галочкой из лимита уйдёт новых номеров: <b>${need ?? `до ${nums.length}`}</b>${room != null ? ` (осталось ${room})` : ''}, уже открытые — бесплатно. Можно не тратить сейчас: ${later}.`
+      ? `С галочкой из лимита уйдёт новых номеров: <b>${need ?? `до ${nums.length}`}</b>${room != null ? ` (осталось ${({ hour: 'в этот час', day: 'на сегодня', month: 'в этом месяце' })[c.why] ?? ''} ${room})`.replace('  ', ' ') : ''}, уже открытые — бесплатно. Можно не тратить сейчас: ${later}.`
       : `Номера не тратятся${need != null ? ` (новых в подборке: ${need})` : ''}. ${later[0].toUpperCase()}${later.slice(1)}.`;
   };
   $('#s-ph').addEventListener('change', () => { store.set('selPhones', $('#s-ph').checked); phHint(); });
