@@ -1,0 +1,25 @@
+/* Стиль «Лагуна» (v5.24, вариант «Неба» по просьбе Алексея): та же раскладка и шрифты, что у «Неба», но бирюза и мята —
+   светлая мятная подложка, белые карточки, бирюзовые кнопки и цены, тёплые песочные отметки. Ночью — глубокая морская бирюза. */
+@import url('design-sky.css?v=5.24');
+:root {
+  --bg: #f2faf8; --card: #ffffff; --card2: #e4f3ef; --text: #14302c; --ink-rgb: 20, 48, 44; --muted: #4f6c67;
+  --accent: #0d7a72; --accent-text: #ffffff; --link: #0a6b64;
+  --sand: #c9995a; --sand2: #e5c99c; --sand-a: rgba(201, 153, 90, .5); --sand-ink: #3d2a12;
+  --sel: rgba(13, 122, 114, .2); --glow: rgba(78, 196, 182, .22); --acc-sh: rgba(13, 122, 114, .22); --acc-sh2: rgba(13, 122, 114, .3);
+  --line: rgba(13, 122, 114, .16); --soft: #def2ed;
+  --shadow: 0 1px 2px rgba(20, 48, 44, .04), 0 8px 24px rgba(13, 122, 114, .08);
+  --logo-bg: #129387; --logo-ink: #f3fbf9; --head: #fbfefd;
+  --side: #e3f3ef; --side-ink: #234540; --side-head: #0d5c56; --side-hover: rgba(13, 122, 114, .1); --side-on: #0d7a72; --side-on-ink: #ffffff;
+  --fl-ink: #0b5751; --fl-bar: #c9995a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a1918; --card: #102422; --card2: #14302c; --text: #e8f5f2; --ink-rgb: 0, 0, 0; --muted: #9dbcb6;
+    --accent: #5fd0c2; --accent-text: #052220; --link: #7ee0d4;
+    --sand: #e0bd88; --sand2: #ecd2a8; --sand-a: rgba(224, 189, 136, .42);
+    --line: rgba(95, 208, 194, .18); --soft: #15342f; --sel: rgba(95, 208, 194, .25);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35); --logo-bg: #5fd0c2; --logo-ink: #08201d; --head: #0d201e;
+    --side: #081514; --side-ink: #c4dcd7; --side-head: #f0e2c8; --side-hover: rgba(95, 208, 194, .1); --side-on: #e0bd88; --side-on-ink: #1a1208;
+    --fl-ink: #9ae6dc; --fl-bar: #e0bd88;
+  }
+}

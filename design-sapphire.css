@@ -1,0 +1,25 @@
+/* Стиль «Сапфир» (v5.24, вариант «Неба» по просьбе Алексея): раскладка и шрифты «Неба», но строже и дороже —
+   белый с холодной дымкой, глубокий сапфировый синий в кнопках и ценах, золотые отметки. Ночью — тёмно-синий с золотом. */
+@import url('design-sky.css?v=5.24');
+:root {
+  --bg: #f4f6fb; --card: #ffffff; --card2: #e9eef9; --text: #131d38; --ink-rgb: 19, 29, 56; --muted: #535e7a;
+  --accent: #1e4db3; --accent-text: #ffffff; --link: #1b47a6;
+  --sand: #b48b34; --sand2: #dcc07c; --sand-a: rgba(180, 139, 52, .45); --sand-ink: #2f2208;
+  --sel: rgba(30, 77, 179, .18); --glow: rgba(96, 135, 230, .2); --acc-sh: rgba(30, 77, 179, .22); --acc-sh2: rgba(30, 77, 179, .3);
+  --line: rgba(30, 77, 179, .14); --soft: #e7edfb;
+  --shadow: 0 1px 2px rgba(19, 29, 56, .05), 0 8px 24px rgba(30, 77, 179, .08);
+  --logo-bg: #1e4db3; --logo-ink: #f6e8c4; --head: #ffffff;
+  --side: #e8eefb; --side-ink: #24304f; --side-head: #15398a; --side-hover: rgba(30, 77, 179, .1); --side-on: #1e4db3; --side-on-ink: #ffffff;
+  --fl-ink: #1d2f66; --fl-bar: #b48b34;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0f1e; --card: #111a2f; --card2: #172139; --text: #edf1fb; --ink-rgb: 0, 0, 0; --muted: #a3aec8;
+    --accent: #86a9ff; --accent-text: #0a1430; --link: #a4bfff;
+    --sand: #dcbc68; --sand2: #ead293; --sand-a: rgba(220, 188, 104, .42);
+    --line: rgba(134, 169, 255, .17); --soft: #19264a; --sel: rgba(134, 169, 255, .25);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 28px rgba(0, 0, 0, .38); --logo-bg: #86a9ff; --logo-ink: #0b1430; --head: #0d1527;
+    --side: #080d1a; --side-ink: #c6cfe4; --side-head: #f1e3bd; --side-hover: rgba(134, 169, 255, .1); --side-on: #dcbc68; --side-on-ink: #1a1405;
+    --fl-ink: #e6cf8f; --fl-bar: #86a9ff;
+  }
+}

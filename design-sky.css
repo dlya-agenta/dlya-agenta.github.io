@@ -23,6 +23,8 @@
   --sand2: #e6d2b0;
   --sand-a: rgba(210, 180, 140, .55);
   --sand-ink: #3a2c18;
+  --fl-ink: #7a5524;      /* v5.24: подписи фильтров — тёмный песок (светлый песок на кремовом сливался) */
+  --fl-bar: var(--sand);
   --sel: rgba(61, 134, 184, .22);
   --glow: rgba(126, 185, 224, .22);
   --acc-sh: rgba(61, 134, 184, .24);
@@ -42,6 +44,7 @@
     --line: rgba(140, 196, 234, .18); --soft: #1c3040; --ok: #5fd197; --ok-soft: #12291d; --warn: #f0b545; --bad: #ff8a80;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35); --logo-bg: #8cc4ea; --logo-ink: #10222e; --head: #12202a;
     --side: #0c161d; --side-ink: #c9d6de; --side-head: #f3e6cf; --side-hover: rgba(140, 196, 234, .1); --side-on: #d6bb92; --side-on-ink: #1a140a;
+    --fl-ink: #e6cda3;
   }
 }
 html, body { font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -107,7 +110,9 @@ input:focus, select:focus, textarea:focus { outline-color: color-mix(in srgb, va
 .hub-main h2, .hub-main h3, .adm-head h1, .sheet-head b, .gate h2 { font-weight: 800; letter-spacing: -.01em; }
 .hub-main h2, .adm-head h1 { font-size: 27px; }
 .sheet-head b { font-size: 20px; }
-.fl { color: var(--sand); font-weight: 800; letter-spacing: .1em; }
+/* v5.24 (п. 3): подписи фильтров — контрастные (≥ 6:1) и с короткой цветной чертой слева: видно, где начинается группа */
+.fl { color: var(--fl-ink); font-size: 12px; font-weight: 800; letter-spacing: .08em; display: flex; align-items: center; gap: 6px; }
+.filters .fl::before { content: ''; flex: none; width: 3px; height: 1.05em; border-radius: 2px; background: var(--fl-bar); }
 .tag { background: var(--soft); color: var(--accent); border-radius: 5px; }
 @media (prefers-color-scheme: dark) { .tag { color: var(--link); } }
 .tag.ok { background: var(--ok-soft); color: var(--ok); }

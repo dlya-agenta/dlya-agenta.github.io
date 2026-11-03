@@ -1,0 +1,94 @@
+// v5.24 (п. 7 Алексея): писать собственникам и клиентам — через ПРИЛОЖЕНИЕ мессенджера на телефоне или компьютере, а не через веб-версию в браузере:
+// веб-версия (web.whatsapp.com, web.max.ru, web.telegram.org) — тот же «привязанный браузер», что держит наш сервер для рассылок и проверки ответов,
+// и второй такой вход в браузере агента сбивает вход сервера. Поэтому все ссылки wa.me / t.me / web.max.ru на сайте при нажатии открывают приложение
+// (whatsapp://, tg://, max://), а в первый раз за день — окно с предупреждением (и про 30 незнакомых в день, и про не основной аккаунт).
+// window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
+window.MSGAPP = (() => {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const SV = { wa: 'WhatsApp', tg: 'Telegram', max: 'MAX' };
+  const KEY = 'msgappWarn', day = () => new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+  const TEXT = {
+    app: 'Пишите через <b>приложение</b> WhatsApp, Telegram или MAX на телефоне или компьютере — не через веб-версию в браузере: она сбивает вход нашего сервера, который делает рассылки и проверяет ответы собственников.',
+    spam: '<b>Не больше 30 незнакомым людям в день</b> — иначе мессенджер посчитает это спамом и может заблокировать аккаунт. Лучше писать с <b>не основного</b> аккаунта.',
+  };
+  const warn = (where = '') => `<div class="ma-warn" role="note"><b class="ma-t">⚠️ Перед тем как писать${where ? ` ${esc(where)}` : ''}</b><p>${TEXT.app}</p><p>${TEXT.spam}</p></div>`;
+  const digits = s => String(s ?? '').replace(/\D/g, '');
+  // ссылка → {svc, url приложения}; не мессенджер — null
+  function appUrl(href) {
+    let u; try { u = new URL(href, location.href); } catch { return null; }
+    const h = u.hostname.replace(/^www\./, '');
+    if (h === 'wa.me' || h === 'api.whatsapp.com' || h === 'web.whatsapp.com') {
+      const phone = digits(u.pathname.slice(1)) || digits(u.searchParams.get('phone'));
+      const text = u.searchParams.get('text');
+      return { svc: 'wa', url: `whatsapp://send?${phone ? `phone=${phone}` : ''}${text ? `${phone ? '&' : ''}text=${encodeURIComponent(text)}` : ''}` };
+    }
+    if (h === 't.me' || h === 'telegram.me' || h === 'web.telegram.org') {
+      const p = decodeURIComponent(u.pathname.slice(1));
+      if (/^\+\d{6,}$/.test(p)) return { svc: 'tg', url: `tg://resolve?phone=${digits(p)}` };
+      if (/^[A-Za-z][\w]{3,}$/.test(p)) return { svc: 'tg', url: `tg://resolve?domain=${p}` };
+      return { svc: 'tg', url: 'tg://' };
+    }
+    if (h === 'web.max.ru' || h === 'max.ru') return { svc: 'max', url: 'max://' };
+    return null;
+  }
+  function toast(t, ms = 6000) {
+    let el = document.querySelector('.ma-toast');
+    if (!el) { el = document.createElement('div'); el.className = 'ma-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.innerHTML = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, ms);
+  }
+  // приложение не открылось (страница осталась видна 1,6 с) — подсказка вместо веб-версии
+  function go(svc, url) {
+    let left = false;
+    const off = () => { left = true; };
+    addEventListener('blur', off, { once: true }); document.addEventListener('visibilitychange', off, { once: true });
+    location.href = url;
+    setTimeout(() => {
+      removeEventListener('blur', off); document.removeEventListener('visibilitychange', off);
+      if (!left && !document.hidden) toast(`Приложение ${SV[svc]} не открылось. Установите ${SV[svc]} на компьютер или напишите с телефона — веб-версию не используйте: она сбивает вход сервера.${svc === 'max' ? ' Номер собственника уже скопирован.' : ''}`, 9000);
+    }, 1600);
+  }
+  function confirmOnce(svc, then) {
+    let seen = null; try { seen = localStorage.getItem(KEY); } catch { /* приватный режим */ }
+    if (seen === day()) return then();
+    const d = document.createElement('div');
+    d.className = 'sheet ma-sheet';
+    d.innerHTML = `<div class="sheet-box ma-box" role="dialog" aria-modal="true" aria-label="Перед тем как писать">
+      ${warn(`в ${SV[svc]}`)}
+      <div class="ma-btns"><button type="button" class="btn primary" data-ok>Понятно, открыть ${SV[svc]}</button><button type="button" class="btn ghost" data-x>Отмена</button></div></div>`;
+    document.body.appendChild(d);
+    const close = () => d.remove();
+    d.addEventListener('click', e => {
+      if (e.target === d || e.target.closest('[data-x]')) return close();
+      if (e.target.closest('[data-ok]')) { try { localStorage.setItem(KEY, day()); } catch { /* приватный режим */ } close(); then(); }
+    });
+    d.querySelector('[data-ok]').focus();
+  }
+  const open = (svc, phone = '', text = '') => {
+    const url = svc === 'wa' ? `whatsapp://send?phone=${digits(phone)}${text ? `&text=${encodeURIComponent(text)}` : ''}` : svc === 'tg' ? `tg://resolve?phone=${digits(phone)}` : 'max://';
+    confirmOnce(svc, () => go(svc, url));
+  };
+  // все ссылки на мессенджеры на странице: в окне клиента (s.html без входа агента) — не трогаем, клиент пишет агенту как ему удобно
+  document.addEventListener('click', e => {
+    const a = e.target.closest?.('a[href]');
+    if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || a.dataset.web != null) return;
+    if (/\/s\.html$/.test(location.pathname) && !document.body.classList.contains('sa')) return;
+    const m = appUrl(a.getAttribute('href'));
+    if (!m) return;
+    e.preventDefault();
+    // MAX: номер в ссылке не передаётся — копируем его (как раньше data-cp / data-max)
+    const ph = a.dataset.max || (m.svc === 'max' ? a.closest('[data-num]')?.querySelector('[href^="tel:"]')?.getAttribute('href')?.slice(4) : '');
+    if (m.svc === 'max' && ph) navigator.clipboard?.writeText(ph).catch(() => {});
+    confirmOnce(m.svc, () => go(m.svc, m.url));
+  }, true);
+  // стили — здесь же (файл подключается на всех страницах, в том числе s.html со своим s.css)
+  const st = document.createElement('style');
+  st.textContent = `.ma-warn{border:1px solid color-mix(in srgb,var(--warn,#9a5b00) 45%,transparent);background:color-mix(in srgb,var(--warn,#9a5b00) 9%,var(--card,#fff));color:var(--text,#1f2a33);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4}
+.ma-warn p{margin:6px 0 0}.ma-t{display:block;font-size:14.5px}
+.ma-sheet{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,16,24,.45)}
+.ma-box{background:var(--card,#fff);color:var(--text,#1f2a33);border-radius:16px;padding:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.ma-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ma-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5001;max-width:min(520px,calc(100vw - 24px));background:var(--text,#1f2a33);color:var(--card,#fff);padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.ma-toast[hidden]{display:none}`;
+  document.head.appendChild(st);
+  return { warn, open, appUrl, text: TEXT };
+})();

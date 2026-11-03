@@ -138,7 +138,7 @@ window.CRM = (() => {
           ${s.link && s.live ? `${d ? `<a class="btn soft" href="https://wa.me/${esc(d)}?text=${encodeURIComponent(msg(s))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
             <a class="btn soft" href="https://t.me/share/url?url=${encodeURIComponent(s.link)}&text=${encodeURIComponent(s.title || 'Подборка объектов')}" target="_blank" rel="noopener">Telegram</a>
             <button type="button" class="btn ghost" data-sel-copy="${esc(msg(s))}">MAX · скопировать</button>` : '<small class="muted">ссылки нет — соберите подборку «Ссылкой» или «Оба»</small>'}</span></div>`).join('')
-          : '<p class="muted crm-empty">Подборок пока нет. Отметьте объекты в выдаче и нажмите «Сформировать подборку».</p>'}</section></div>`;
+          : '<p class="muted crm-empty">Подборок пока нет. Отметьте объекты галочкой «Выбрать» и нажмите внизу «В подборку».</p>'}</section></div>`;
     bind(async e => {
       const t = e.target;
       if (t.closest('[data-back]')) return client(c.id);

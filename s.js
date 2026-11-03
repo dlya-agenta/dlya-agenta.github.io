@@ -217,7 +217,9 @@
     if (typeof tok !== 'string') return fail2('Нужен вход', 'Откройте ссылку там, где вы вошли на сайт «Для Агента», — страница с телефонами собственников видна только вам.');
     if (!selId && !/^[A-Za-z0-9_-]{22,40}$/.test(t)) return fail2('Подборка не найдена', 'В ссылке нет кода подборки — откройте её из «Моих подборок».');
     const KEY = `sa:${selId || t.slice(0, 12)}`, TKEY = 'saText', OKEY = 'saOpen', FKEY = 'saFilter';
-    const TPL = 'Здравствуйте, {имя}! Я агент, у меня есть покупатель на ваш объект {адрес}, {цена}. Продажа актуальна?';
+    // v5.24: без {имя} (имена собственников приходят редко), с {ЖК}; № объекта дописывается сам (auto/own.ts ownText) — тот же текст и здесь
+    const TPL = 'Здравствуйте! Я агент, у меня есть покупатель на ваш объект {ЖК}, {адрес}, {цена}. Продажа актуальна?';
+    const OLD_TPL = 'Здравствуйте, {имя}! Я агент, у меня есть покупатель на ваш объект {адрес}, {цена}. Продажа актуальна?';
     const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
     const put = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } };
     const SV = { tg: 'Telegram', wa: 'WhatsApp', max: 'MAX' };
@@ -228,11 +230,12 @@
     let svcs = null, job = null, marks = {}, filter = get(FKEY, 'all');
     const opened = new Set(get(`${KEY}:o`, [])), allOpen = () => !!get(OKEY, false);
     const short = a => String(a ?? '').replace(/^(г\.?\s*о\.?\s*)?Сочи,?\s*/i, '').replace(/мкр-н\s+[^,]+,\s*/i, '').trim();
-    const fill = (tx, x) => {
-      const name = String(x.owner ?? '').trim().split(/\s+/)[0] || '';
-      return tx.replace(/,?\s*\{имя\}/g, name ? (m => m.startsWith(',') ? `, ${name}` : ` ${name}`) : '')
-        .replace(/\{адрес\}/g, short(x.address) || x.what).replace(/\{цена\}/g, x.price ? `${money(x.price)} ₽` : '').replace(/\{объект\}/g, x.what).replace(/\s+([,.!?])/g, '$1').trim();
-    };
+    const fill = (tx, x) => tx.replace(/,?\s*\{имя\}/gi, '').replace(/\{ЖК\}/gi, x.zk ? `ЖК «${x.zk}»` : '')
+      .replace(/\{адрес\}/g, short(x.address) || x.what).replace(/\{цена\}/g, x.price ? `${money(x.price)} ₽` : '').replace(/\{объект\}/g, x.what)
+      .replace(/(Здравствуйте|Добрый день),\s*!/g, '$1!').replace(/\s+([,.!?])/g, '$1').replace(/,\s*,/g, ',').replace(/(объект|квартиру)\s*,/g, '$1').replace(/ {2,}/g, ' ').trim()
+      + `\n\n№ ${x.num}`;
+    // сохранённый текст со старым шаблоном — на новый; свой текст — без {имя}
+    { const v = get(TKEY, null); if (v === OLD_TPL) put(TKEY, TPL); else if (typeof v === 'string' && /\{имя\}/i.test(v)) put(TKEY, v.replace(/,?\s*\{имя\}/gi, '').replace(/(Здравствуйте|Добрый день),\s*!/g, '$1!')); }
     const text = () => $('#sa-text')?.value.trim() || TPL;
     const copyTxt = async v => { try { await navigator.clipboard.writeText(v); return true; } catch { return false; } };
     const tm = s => { const d = new Date(s), now = new Date(), o = { timeZone: 'Europe/Moscow' };
@@ -290,7 +293,7 @@
             <a class="btn soft sa-tg" href="https://t.me/+${d}" target="_blank" rel="noopener" data-w="tg" data-cp>Telegram</a>
             <a class="btn soft sa-max" href="https://web.max.ru/" target="_blank" rel="noopener" data-w="max" data-cp data-cpph>MAX</a>`
             : `<button type="button" class="btn soft sa-wide" data-open>📞 Открыть телефон</button>`}
-            <button type="button" class="btn ghost sa-note-b" data-note>${ic(I.note)}Заметка${m?.unseen ? '<i class="sa-dot" title="Новый ответ"></i>' : ''}</button>
+            <button type="button" class="btn ghost sa-note-b" data-note>${ic(I.note)}Переписка${m?.unseen ? '<i class="sa-dot" title="Новый ответ"></i>' : ''}</button>
             ${d ? `<button type="button" class="btn ghost sa-mark" data-done aria-pressed="${!!m?.wrote}">${m?.wrote ? '✓ Написал' : 'Отметить «написал»'}</button>` : ''}</div>
           <small class="muted s-no-num">${i + 1} из ${data.items.length} · № ${x.num}</small>
         </div></article>`;
@@ -341,7 +344,8 @@
         <section class="sa-box">
           <label class="sa-lbl" for="sa-text">Сообщение собственникам ${ic(I.mail)}</label>
           <textarea id="sa-text" rows="3" maxlength="600">${esc(get(TKEY, TPL))}</textarea>
-          <small class="muted">{имя}, {адрес} и {цена} подставятся у каждого собственника. <button type="button" class="link" data-tpl>Вернуть шаблон</button></small>
+          <small class="muted">{ЖК}, {адрес} и {цена} подставятся у каждого собственника; в конце — № объекта в нашей базе, к сообщению — 1 фото квартиры. <button type="button" class="link" data-tpl>Вернуть шаблон</button></small>
+          ${window.MSGAPP?.warn('собственникам') ?? ''}
           <div class="sa-all"><div class="sa-h">Написать всем сразу — с ваших аккаунтов</div><div id="sa-svc">${svcHtml()}</div><div id="sa-job">${jobHtml()}</div></div>
           ${closed ? `<button type="button" class="btn soft sa-openall" data-open-all>📞 Открыть телефоны (${closed})</button>` : ''}
         </section>
@@ -384,7 +388,7 @@
       const was = JSON.stringify(marks); await loadMarks(); if (JSON.stringify(marks) !== was) redraw();
     }, 60e3);
 
-    // ---------- окно «📝 Заметка»: заметка агента + переписка с собственником + «Ответить» ----------
+    // ---------- окно «Переписка» (v5.24, было «Заметка»): заметка агента + переписка с собственником + «Ответить» ----------
     function modal(html) {
       $('#sa-note')?.remove();
       document.body.insertAdjacentHTML('beforeend', `<div class="sa-modal" id="sa-note" role="dialog" aria-modal="true"><div class="sa-sheet">${html}</div></div>`);
@@ -394,7 +398,7 @@
     const close = () => { $('#sa-note')?.remove(); document.body.classList.remove('sa-lock'); };
     const bub = m => `<div class="sa-msg ${m.who === 'me' ? 'me' : 'own'}${m.pending ? ' pend' : ''}"><p>${esc(m.text)}</p><small>${m.who === 'me' ? 'Вы' : 'Собственник'} · ${SV[m.svc] ?? ''}${m.at ? ` · ${tm(m.at)}` : ''}${m.pending ? ' · отправляю…' : ''}</small></div>`;
     async function noteOpen(x) {
-      const el = modal(`<div class="sa-sh-head"><b>${ic(I.note)}Заметка · ${esc(x.what)}</b><button type="button" class="s-x2" data-close aria-label="Закрыть">✕</button></div>
+      const el = modal(`<div class="sa-sh-head"><b>${ic(I.note)}Переписка · ${esc(x.what)}</b><button type="button" class="s-x2" data-close aria-label="Закрыть">✕</button></div>
         <p class="muted sa-sh-sub">${esc(x.owner || 'Собственник')}${x.phone ? ` · ${fmtPh(intl(x.phone))}` : ''} · № ${x.num}</p>
         <label class="sa-lbl" for="sa-nt">Ваша заметка <small class="muted" id="sa-nt-st"></small></label>
         <textarea id="sa-nt" rows="3" maxlength="1000" placeholder="Например: торг до 18 млн, показ в субботу, ключи у соседки">${esc(x.note || '')}</textarea>
@@ -527,7 +531,7 @@
       const all = e.target.closest('[data-all]');
       if (all) {
         const svc = all.dataset.all, nums = data.items.filter(i => i.phone).map(i => i.num);
-        if (!confirm(`Отправить сообщение ${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')} через ${SV[svc]} с вашего аккаунта? У каждого подставятся имя, адрес и цена.`)) return;
+        if (!confirm(`Отправить сообщение ${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')} через ${SV[svc]} с вашего аккаунта? У каждого подставятся ЖК, адрес, цена и № объекта, к сообщению — 1 фото.\n\nНезнакомым — не больше 30 в день: мессенджер может посчитать это спамом.`)) return;
         all.disabled = true;
         try {
           const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...selArg() });

@@ -20,14 +20,29 @@ nav[data-nav] .nav-home { display: none !important; }   /* «Все объявл
 nav[data-nav] { align-items: center; }
 @media (prefers-reduced-motion: reduce) { .mg-p, .mg-a { transition: none; } }
 
+/* v5.24 (п. 2): телефон — каждая группа карточкой с ярким заголовком, пункты плитками в 2 колонки (меньше листать);
+   отдельные пункты (Эксклюзивы, С клиентом, Админ, Стиль, Выйти) — тоже плитками по 2 */
 @media (max-width: 760px) {
-  .top .menu { flex-wrap: nowrap; }   /* группы — одной колонкой, без переноса во вторую */
-  .mg { display: flex; flex-direction: column; }
-  .mg-b { pointer-events: none; font-size: 12.5px !important; text-transform: uppercase; letter-spacing: .04em; color: var(--muted) !important; min-height: 0 !important; padding: 10px 12px 2px !important; background: none !important; box-shadow: none !important; }
+  .top.open .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0 12px; }
+  .top .menu [hidden] { display: none !important; }
+  .top .menu > .mg { grid-column: 1 / -1; display: block; padding: 8px; border: 1px solid var(--line); border-radius: 14px;
+    background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+  .top .menu .mg-b { pointer-events: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 0 !important;
+    padding: 4px 6px 8px !important; margin: 0 0 8px; border-radius: 0 !important; background: none !important; box-shadow: none !important;
+    border-bottom: 2px solid color-mix(in srgb, var(--accent) 55%, transparent) !important;
+    font-size: 14px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .05em; color: var(--accent) !important; }
+  .top .menu .mg-b .mi { opacity: 1; }
   .mg-a { display: none; }
-  .mg-p { visibility: visible; opacity: 1; transform: none; pointer-events: auto; position: static; box-shadow: none; border: 0; padding: 0; background: none; min-width: 0; transition: none; }
+  .mg-p { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+    position: static; box-shadow: none; border: 0; padding: 0; background: none; min-width: 0; transition: none; }
   .mg-p::before { display: none; }
-  nav[data-nav] .who { order: -1; padding: 6px 12px; }
+  .top .menu .mg-p .link, .top .menu > .link { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px !important;
+    padding: 7px 9px !important; margin: 0 !important; white-space: normal !important; line-height: 1.18; text-align: left;
+    font-size: 14.5px !important; font-weight: 500; color: var(--text) !important;
+    background: var(--card) !important; border: 1px solid var(--line) !important; border-radius: 10px !important; box-shadow: none !important; }
+  .top .menu .mg-p .link.on, .top .menu > .link.on { border-color: var(--accent) !important; box-shadow: inset 0 0 0 1px var(--accent) !important; font-weight: 700; }
+  .top .menu > .mg-solo { font-weight: 700; }
+  nav[data-nav] .who { order: -1; grid-column: 1 / -1; padding: 6px 12px; }
 }
 
 /* v5.20: «Профиль» с меню «Стиль» и «Выйти» (nav.js tools) — строка разделов в одну линию на любом окне от 761 px */

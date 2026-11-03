@@ -67,7 +67,7 @@ window.RK = (() => {
     items = r.items;
     const done = items.filter(x => x.status === 'done' || x.report?.offer);
     body().innerHTML = `<div class="rk">${head()}
-      ${items.length ? `<div class="rk-list">${items.map(row).join('')}</div>` : `<p class="muted">Пока пусто. Отметьте объекты галочкой в списке и нажмите «📣 Отправить в рекламу» внизу экрана — рядом с «Сформировать подборку». Или выберите готовые черновики дня.</p>`}
+      ${items.length ? `<div class="rk-list">${items.map(row).join('')}</div>` : `<p class="muted">Пока пусто. Отметьте объекты галочкой в списке и нажмите «📣 В рекламу» внизу экрана — рядом с «В подборку». Или выберите готовые черновики дня.</p>`}
       ${done.length ? `<div class="rk-rep"><div class="crm-h"><b>Отчёт: ${done.length}</b><button class="btn soft" data-csv>Скачать CSV</button></div>
         <div class="ascroll"><table class="atable"><thead><tr><th>№</th><th>Черновик</th><th>Адрес</th><th>м²</th><th>Этаж</th><th>Цена</th><th>Источник цены</th><th>Фото</th><th>Примечания</th></tr></thead><tbody>
         ${done.map(x => { const p = x.report; return `<tr><td>${x.num}</td><td>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.offer)}</a>` : esc(p.offer ?? '')}</td><td>${esc(p.addr ?? '')}</td>
@@ -204,7 +204,7 @@ window.RK = (() => {
   }
   async function send(nums) {
     if (!nums.length) return ui.toast('Отметьте объекты галочкой');
-    ui.sheet('📣 Отправить в рекламу', '<p class="muted">Проверяю объекты…</p>', true);
+    ui.sheet('📣 В рекламу', '<p class="muted">Проверяю объекты…</p>', true);
     let r;
     try { r = await call('rk_check', { nums }); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     const q = r.quota, room = q.month_lim == null ? 999 : Math.max(0, q.month_lim - q.month);
