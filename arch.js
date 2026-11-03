@@ -533,11 +533,11 @@ async function loadMap() {
   if (!map) {
     map = L.map('map', { attributionControl: false }).setView([43.585, 39.723], 11);
     map.on('moveend', () => mapList());
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 })   /* v5.22.2: карта без подписей и значков (просьба Алексея 03.11) */.addTo(map);
     // v5.20: подпись карты — «ⓘ», по нажатию «© OpenStreetMap» (как на главной; стиль .map-info — style.css)
     const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
       const d = L.DomUtil.create('div', 'map-info');
-      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © Esri, HERE, Garmin</span>';
       L.DomEvent.disableClickPropagation(d);
       d.querySelector('button').onclick = () => { const t = d.querySelector('span'); t.hidden = !t.hidden; };
       return d;

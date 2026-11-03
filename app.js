@@ -1059,7 +1059,7 @@ async function loadMap() {
     // v5.20: вместо строки «Leaflet | © OpenStreetMap» — маленький «ⓘ»; нажатие показывает подпись (лицензия OpenStreetMap требует, чтобы она была доступна)
     const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
       const d = L.DomUtil.create('div', 'map-info');
-      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © Esri, HERE, Garmin</span>';
       L.DomEvent.disableClickPropagation(d);
       d.querySelector('button').onclick = () => { const t = d.querySelector('span'); t.hidden = !t.hidden; };
       return d;
@@ -1074,7 +1074,7 @@ async function loadMap() {
       .on('popupclose', e => { popRO?.disconnect(); if (openPop === e.popup) openPop = null; })
       .on('zoomend', () => { if (openPop) placePop(openPop, true); })
       .on('click', () => { const s = $('#map-sheet'); if (s) s.hidden = true; });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 })   /* v5.22.2: карта без подписей и значков (просьба Алексея 03.11) */.addTo(map);
   }
   [50, 400, 1200].forEach(ms => setTimeout(() => map.invalidateSize(), ms));   // раскладка «список слева, карта справа» меняет размер после показа
   mctl?.abort();
