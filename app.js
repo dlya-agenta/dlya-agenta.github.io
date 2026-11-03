@@ -195,7 +195,7 @@ async function start() {
   document.title = 'Для Агента — объекты от собственников Сочи';
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#who').textContent = me.name || me.login;
-  if (me.role === 'admin') { $('#until').textContent = me.login === 'admin' ? 'главный администратор' : 'администратор'; $('#go-admin').hidden = false; }
+  if (me.role === 'admin') { $('#until').textContent = me.login === 'admin' ? 'главный администратор' : 'администратор'; $('#go-admin').hidden = false; $('#go-hidden').hidden = false; }
   else if (me.expires_at) {
     const d = new Date(me.expires_at), left = Math.ceil((d - Date.now()) / 864e5);
     $('#until').textContent = `${me.plan_name} · до ${d.toLocaleDateString('ru-RU')}${left <= 5 ? ` · осталось ${left} дн.` : ''}`;
@@ -279,7 +279,7 @@ function renderFilters() {
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, f[k] ?? '');
   $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl; $('#nold').checked = !!f.nold;
-  for (const k of ['pmin', 'pmax']) put(k, f[k] ? dots(Math.round(f[k] * 1e6)) : '');
+  for (const k of ['pmin', 'pmax']) put(k, f[k] ? mlnTxt(f[k]) : '');
   for (const k of ['fmin', 'fmax', 'nl']) $('#' + k).disabled = c.land;
   $('#nf').disabled = !c.nf;
   $('#fmin').closest('.fcell').classList.toggle('off', c.land);
@@ -304,15 +304,19 @@ function renderFilters() {
 // цена в рублях с точками: 12.000.000; число меньше 1000 — миллионы («12» → 12.000.000). В фильтре цена хранится в миллионах.
 const dots = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const rubOf = s => { const v = +String(s).replace(/\D/g, ''); return v > 0 && v < 1000 ? v * 1e6 : v; };
+// v5.22: цена в фильтрах — в миллионах рублей: «5», «12,5» (больше 1000 — значит, ввели рубли)
+const mlnOf = s => { const v = parseFloat(String(s ?? '').replace(/\s/g, '').replace(',', '.')); return !(v > 0) ? 0 : v >= 1000 ? v / 1e6 : Math.round(v * 1000) / 1000; };
+const mlnTxt = v => String(Math.round(v * 1000) / 1000).replace('.', ',');
+const mlnIn = e => { e.target.value = e.target.value.replace(/[^\d.,]/g, '').replace('.', ','); };
 function readInputs() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) { const v = +$('#' + k).value; if (v > 0) f[k] = v; else delete f[k]; }
-  for (const k of ['pmin', 'pmax']) { const v = rubOf($('#' + k).value); if (v > 0) f[k] = v / 1e6; else delete f[k]; }
+  for (const k of ['pmin', 'pmax']) { const v = mlnOf($('#' + k).value); if (v > 0) f[k] = v; else delete f[k]; }
   f.nf = $('#nf').checked || undefined; f.nl = $('#nl').checked || undefined; f.nold = $('#nold').checked || undefined;   // «не старый фонд» — без домов до 1990
   f.sea = +$('#sea').value || undefined;
 }
 for (const k of ['pmin', 'pmax']) {
-  $('#' + k).addEventListener('input', e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d ? dots(+d) : ''; });
-  $('#' + k).addEventListener('blur', e => { const v = rubOf(e.target.value); e.target.value = v ? dots(v) : ''; readInputs(); });
+  $('#' + k).addEventListener('input', mlnIn);
+  $('#' + k).addEventListener('blur', e => { const v = mlnOf(e.target.value); e.target.value = v ? mlnTxt(v) : ''; readInputs(); });
 }
 // поля сразу попадают в фильтр (иначе нажатие на кнопку фильтра стирало набранное), поиск — через 0,5 с после последней цифры
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
@@ -505,6 +509,8 @@ async function search(more = false) {
     $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const d = x.old && !oldShown; if (d) oldShown = true; return (d ? FUI.oldLine() : '') + card(x); }).join(''));
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
+    if (favMode === 'hidden') $('#status').insertAdjacentHTML('afterbegin', `<span class="hidtg">${[['hide', '🙈 Скрытые'], ['del', '🗑 Удалённые']]
+      .map(([k, t]) => `<button type="button" class="seg${f.hid === k ? ' on' : ''}" data-hid="${k}">${t}</button>`).join('')}</span> `);
     if (!more) noneBox(total ? null : r);
     if (r.old_pro && offset >= total) $('#list').insertAdjacentHTML('beforeend', PLANS.oldBanner(r.old_pro));
     $('#apply').textContent = `Показать ${total.toLocaleString('ru-RU')}`;
@@ -520,12 +526,14 @@ async function search(more = false) {
 // «Ничего не нашлось»: что мешает (сервер прислал drop) — в выдаче и в окне фильтра на телефоне; в пустом «Избранном» — как туда добавить
 function noneBox(r) {
   const own = favMode && Object.keys(f).length === 1;
-  const html = !r ? '' : own ? `<p>${favMode === 'favs' ? 'В «Избранном» пока ничего нет — нажмите ☆ на фото объявления.' : 'В разделе «Контакт» пока ничего нет — нажмите 🤝 на фото объявления.'}</p>`
+  const html = !r ? '' : own && favMode === 'hidden' ? `<p>${f.hid === 'del' ? 'Удалённых объявлений нет.' : 'Скрытых объявлений нет — нажмите 👁 на фото объявления, чтобы убрать его из поиска у всех.'}</p>`
+    : own ? `<p>${favMode === 'favs' ? 'В «Избранном» пока ничего нет — нажмите ☆ на фото объявления.' : 'В разделе «Контакт» пока ничего нет — нажмите 🤝 на фото объявления.'}</p>`
     : FUI.empty(r, Object.keys(f).some(k => !(favMode && k === LISTS[favMode][0])));
   if (r) $('#list').innerHTML = `<div class="empty">${html}</div>`;
   $('#f-drop').innerHTML = own ? '' : html; $('#f-drop').hidden = !html || own;
 }
 $('#more').addEventListener('click', () => search(true));
+$('#status').addEventListener('click', e => { const b = e.target.closest('[data-hid]'); if (b && favMode === 'hidden') { f = { hid: b.dataset.hid }; search(); } });
 
 function gallery(x) {
   const n = nPhotos(x);
@@ -539,6 +547,8 @@ function gallery(x) {
     ${meta.features.deals ? `<button class="deal agent-only${x.deal ? ' on' : ''}" data-deal aria-label="Контакт" title="Контакт — договорились с собственником">🤝</button>` : ''}
     ${meta.features.mail ? `<button class="mailb agent-only" data-mail="${x.num}" aria-label="В рассылку" title="В рассылку — объявление появится в «Списке рассылки»">✉️</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
+    ${me?.role === 'admin' ? `<span class="admb">${x.hidden_kind ? `<button type="button" data-adm="back" title="Вернуть в поиск">↩ Вернуть</button>`
+      : '<button type="button" data-adm="hide" title="Скрыть объявление (раздел «Скрытые»)" aria-label="Скрыть">👁</button><button type="button" data-adm="del" title="Удалить объявление" aria-label="Удалить">🗑</button>'}</span>` : ''}
   </div>`;
 }
 // вертикальное фото — целиком на размытом фоне, горизонтальное — на всю рамку 4:3 (низ с водяными знаками обрезается)
@@ -651,6 +661,20 @@ async function onCard(e, cardEl) {
   if (t.closest('[data-client]')) { sheetGo = 'crm'; CRM.pick(num); return; }   // «Клиенту…» — объект в карточку клиента (шаг 3.4)
   // карточка на карте открывает объявление нажатием в любом месте, кроме кнопок и ссылок
   if (cardEl.classList.contains('mc') && !t.closest('button, a, input, label, .phone')) { openItem(num); return; }
+  if (t.closest('[data-pwait]')) {   // v5.22: «🔔 Сообщить, когда номер появится» — в бот, push и окно на сайте
+    const w = t.closest('[data-pwait]'); w.disabled = true;
+    call('phone_wait', { num }).then(r => { w.outerHTML = r.ready ? '<b>Номер уже есть — нажмите «Телефон»</b>' : '<b>🔔 Сообщим, как только номер появится</b>'; }).catch(err => { w.disabled = false; toast(err.message); });
+    return;
+  }
+  if (t.closest('[data-adm]')) {   // v5.22: админ — 👁 скрыть, 🗑 удалить, ↩ вернуть
+    const as = t.closest('[data-adm]').dataset.adm;
+    if (as === 'del' && !confirm(`Удалить объявление № ${num}? Оно пропадёт у всех и не вернётся ночной загрузкой. Вернуть можно в «Скрытые» → «Удалённые».`)) return;
+    call('admin_hide', { num, as }).then(() => {
+      cardEl.classList.add('gone-out'); setTimeout(() => cardEl.remove(), 250);
+      toast({ hide: `№ ${num} скрыт — он в разделе «🙈 Скрытые»`, del: `№ ${num} удалён — вернуть можно в «Скрытые» → «Удалённые»`, back: `№ ${num} снова в поиске` }[as]);
+    }).catch(err => toast(err.message));
+    return;
+  }
   const b = t.closest('[data-phone]');
   if (!b) return;
   const box = b.parentElement;
@@ -658,7 +682,7 @@ async function onCard(e, cardEl) {
   try {
     const p = await call('phone', { num });
     PLANS.counter(p.used);
-    if (!p.phone && !p.tg) throw new Error(p.error || 'номер не найден');
+    if (!p.phone && !p.tg) throw Object.assign(new Error(p.error || 'номер не найден'), { pending: !!p.pending });
     b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
     const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
     if (y) { y.phone = p.phone; if (p.tg) y.tg = p.tg; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
@@ -669,7 +693,11 @@ async function onCard(e, cardEl) {
     b.disabled = false; b.textContent = '📞 Телефон';
     if (err.data?.used) PLANS.counter(err.data.used);
     box.querySelectorAll('.err, .lim').forEach(e => e.remove());
-    box.insertAdjacentHTML('beforeend', err.data?.limit ? `<div class="lim">${PLANS.limitHtml(err.message, err.data.limit)}</div>` : `<span class="err">${esc(err.message)}</span>`);
+    box.querySelectorAll('.pend').forEach(e => e.remove());
+    // v5.22: временный номер площадки — не ошибка: номер появится, конвейер перепроверит сам; можно попросить сообщить
+    box.insertAdjacentHTML('beforeend', err.data?.limit ? `<div class="lim">${PLANS.limitHtml(err.message, err.data.limit)}</div>`
+      : err.pending ? `<div class="pend">⏳ Номер уточняется у площадки — проверяем сами несколько раз в сутки. <button type="button" class="lnk" data-pwait>🔔 Сообщить, когда появится</button></div>`
+      : `<span class="err">${esc(err.message)}</span>`);
   }
 }
 document.addEventListener('scroll', e => {   // точки под фото: в выдаче, в окне точки на карте и в списке под картой
@@ -1131,7 +1159,9 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 // ---------- меню ----------
 // «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
 const LISTS = { favs: ['fav', 'Показано избранное — к поиску вернёт «Все объявления» или повторное нажатие на «★ Избранное»'],
-  deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'] };
+  deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'],
+  // v5.22: только админ — скрытые (👁) и удалённые (🗑) объявления; «Вернуть» на карточке, переключатель «Скрытые / Удалённые» над списком
+  hidden: ['hid', 'Скрытые и удалённые объявления — видите только вы. «Вернуть» на карточке возвращает объявление в поиск'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
   menuOpen(false); mgClose();   // на телефоне меню — панель под «☰ Меню»: выбрали раздел — закрыть
@@ -1140,7 +1170,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
     const was = favMode;
     if (was) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); if (was === g) { changed(); return; } }
     beforeFav = { f, text }; favMode = g; tabs();
-    f = { [LISTS[g][0]]: true }; $('#q').value = ''; changed();
+    f = { [LISTS[g][0]]: g === 'hidden' ? 'hide' : true }; $('#q').value = ''; changed();
     toast(LISTS[g][1], 4000);
   }
   if (['sels', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт

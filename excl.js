@@ -20,6 +20,7 @@
 
   // ---------- формат ----------
   const dots = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const mlnIn = r => String(Math.round(r / 1e3) / 1e3).replace('.', ',');   // рубли → «12,5»
   const rubOf = s => { const v = +String(s ?? '').replace(/[^\d]/g, ''); return v > 0 && v < 1000 ? v * 1e6 : v; };   // «12» — 12 млн, как на главной
   const money = v => v ? `${dots(Math.round(v))} ₽` : 'Цена не указана';
   const mln = v => v >= 1e6 ? `${(v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} млн ₽` : money(v);
@@ -251,7 +252,7 @@
       <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div><div class="pair"><input id="amin" type="number" min="0" placeholder="от" inputmode="numeric" value="${esc(f.amin ?? '')}"><span>—</span><input id="amax" type="number" min="0" placeholder="до" inputmode="numeric" value="${esc(f.amax ?? '')}"></div></div>
       <div class="fcell"><div class="fl" data-h="floor">Этаж</div><div class="pair"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric" value="${esc(f.fmin ?? '')}"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric" value="${esc(f.fmax ?? '')}"></div></div>
       <div class="fcell w2"><div class="checks"><label><input type="checkbox" id="nf"${f.nf ? ' checked' : ''}> не первый</label><label><input type="checkbox" id="nl"${f.nl ? ' checked' : ''}> не последний</label></div></div>
-      <div class="fcell w2"><div class="fl" data-h="price">Цена, ₽</div><div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off" value="${f.pmin ? dots(f.pmin) : ''}"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off" value="${f.pmax ? dots(f.pmax) : ''}"></div></div>
+      <div class="fcell w2"><div class="fl" data-h="price">Цена, млн ₽</div><div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="decimal" autocomplete="off" value="${f.pmin ? mlnIn(f.pmin) : ''}"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="decimal" autocomplete="off" value="${f.pmax ? mlnIn(f.pmax) : ''}"></div></div>
       <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div><div class="chips"><button type="button" class="chip pick-btn${(f.d ?? []).length ? ' on' : ''}" id="ex-areas">${esc(areaLabel())}</button></div></div>
       <div class="fcell"><div class="fl" data-h="sea">До моря</div><select id="sea" aria-label="Расстояние до моря">${SEA.map(([v, t]) => `<option value="${v}"${String(f.sea ?? '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="fcell w2"><input id="zk" type="search" placeholder="ЖК — название" list="ex-zk" value="${esc(f.zk ?? '')}" autocomplete="off"><datalist id="ex-zk">${(ref?.complexes ?? []).map(z => `<option value="${esc(z)}">`).join('')}</datalist></div>
@@ -269,7 +270,9 @@
       if (e.target.closest('#ex-areas')) areas();
     });
     for (const k of ['amin', 'amax', 'fmin', 'fmax']) $('#' + k).addEventListener('input', e => { e.target.value ? f[k] = +e.target.value : delete f[k]; chg(); });
-    for (const k of ['pmin', 'pmax']) $('#' + k).addEventListener('input', e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d ? dots(+d) : ''; const v = rubOf(d); v ? f[k] = v : delete f[k]; chg(); });
+    // v5.22: цена — в миллионах («5», «12,5»); в фильтре — рубли, как раньше
+    for (const k of ['pmin', 'pmax']) $('#' + k).addEventListener('input', e => { e.target.value = e.target.value.replace(/[^\d.,]/g, '').replace('.', ',');
+      const m = parseFloat(e.target.value.replace(',', '.')), v = !(m > 0) ? 0 : m >= 1000 ? Math.round(m) : Math.round(m * 1e6); v ? f[k] = v : delete f[k]; chg(); });
     $('#zk').addEventListener('input', e => { e.target.value.trim() ? f.zk = e.target.value.trim() : delete f.zk; chg(); });
     $('#sea').addEventListener('change', e => { e.target.value ? f.sea = +e.target.value : delete f.sea; chg(); });
     for (const k of ['nf', 'nl']) $('#' + k).addEventListener('change', e => { e.target.checked ? f[k] = true : delete f[k]; chg(); });

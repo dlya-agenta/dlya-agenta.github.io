@@ -10,20 +10,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.21">
-<link rel="stylesheet" href="nav.css?v=5.21">
-<script src="design.js?v=5.21"></script>
-<link rel="stylesheet" href="offer.css?v=5.21">
-<link rel="stylesheet" href="notify.css?v=5.21">
-<link rel="stylesheet" href="crm.css?v=5.21">
-<link rel="stylesheet" href="reklama/rk.css?v=5.21">
-<link rel="stylesheet" href="support.css?v=5.21">
+<link rel="stylesheet" href="style.css?v=5.22">
+<link rel="stylesheet" href="nav.css?v=5.22">
+<script src="design.js?v=5.22"></script>
+<link rel="stylesheet" href="offer.css?v=5.22">
+<link rel="stylesheet" href="notify.css?v=5.22">
+<link rel="stylesheet" href="crm.css?v=5.22">
+<link rel="stylesheet" href="reklama/rk.css?v=5.22">
+<link rel="stylesheet" href="support.css?v=5.22">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-180.png">
 <meta name="theme-color" content="#1453d8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
-<script src="tg.js?v=5.21"></script>
+<script src="tg.js?v=5.22"></script>
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -41,6 +41,7 @@
           <a class="link agent-only" href="hub.html#newb">🏗 Новостройки</a>
           <button class="link agent-only" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
           <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
+          <button class="link agent-only" data-go="hidden" id="go-hidden" hidden>🙈 Скрытые</button>
         </div></div>
       <a class="link agent-only mg-solo" data-g="excl" href="excl.html">💎 Эксклюзивы</a>
       <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
@@ -99,8 +100,8 @@
         <div class="fcell w2"><div class="fl" data-h="rooms">Комнаты</div><div class="chips" id="f-rooms"></div></div>
         <div class="fcell"><div class="fl" data-h="area">Площадь, м²</div>
             <div class="pair"><input id="amin" type="number" min="0" placeholder="от" inputmode="numeric"><span>—</span><input id="amax" type="number" min="0" placeholder="до" inputmode="numeric"></div></div>
-        <div class="fcell"><div class="fl" data-h="price">Цена, ₽</div>
-            <div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="numeric" autocomplete="off"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="numeric" autocomplete="off"></div></div>
+        <div class="fcell"><div class="fl" data-h="price">Цена, млн ₽</div>
+            <div class="pair"><input id="pmin" type="text" placeholder="от" inputmode="decimal" autocomplete="off"><span>—</span><input id="pmax" type="text" placeholder="до" inputmode="decimal" autocomplete="off"></div></div>
         <div class="fcell"><div class="fl" data-h="place">Район и ЖК</div>
             <div class="chips"><button type="button" class="chip pick-btn" id="open-areas">Район</button><button type="button" class="chip pick-btn" id="open-zk">ЖК</button></div></div>
         <div class="fcell"><div class="fl" data-h="sea" title="Расстояние до моря по прямой">До моря</div><select id="sea" aria-label="Расстояние до моря по прямой"></select></div>
@@ -131,7 +132,7 @@
       <p id="status" class="status muted"></p>
       <div class="bar-r">
         <span class="fbar" id="fbar"><button type="button" class="btn ghost sm" id="bar-f">⚙ Фильтр <b id="bar-fn" class="fmore-n" hidden></b></button><button type="button" class="btn ghost sm" id="bar-reset">Сбросить все</button></span>
-        <div class="views" id="layouts" title="Сколько объявлений на экране"><button class="seg ic" data-lay="3" title="3 объявления на экране">▥ 3</button><button class="seg ic" data-lay="6" title="6 объявлений на экране, миниатюры">▦ 6</button></div>
+        <div class="views" id="layouts" title="Сколько объявлений на экране"><button class="seg ic" data-lay="3" title="3 крупные карточки в ряд: фото, цена, описание, кнопки"><svg class="lay-ic" viewBox="0 0 26 18" aria-hidden="true"><rect x="1" y="1" width="7" height="16" rx="1.4" class="o"/><rect x="2" y="2.2" width="5" height="6" rx=".8"/><rect x="2" y="10" width="5" height="1.3" rx=".6"/><rect x="2" y="12.6" width="3.5" height="1.3" rx=".6"/><rect x="9.5" y="1" width="7" height="16" rx="1.4" class="o"/><rect x="10.5" y="2.2" width="5" height="6" rx=".8"/><rect x="10.5" y="10" width="5" height="1.3" rx=".6"/><rect x="10.5" y="12.6" width="3.5" height="1.3" rx=".6"/><rect x="18" y="1" width="7" height="16" rx="1.4" class="o"/><rect x="19" y="2.2" width="5" height="6" rx=".8"/><rect x="19" y="10" width="5" height="1.3" rx=".6"/><rect x="19" y="12.6" width="3.5" height="1.3" rx=".6"/></svg><span>3</span></button><button class="seg ic" data-lay="6" title="6 маленьких плиток в ряд: фото и цена — больше объявлений на экране"><svg class="lay-ic" viewBox="0 0 26 18" aria-hidden="true"><rect x="1.0" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="1.5" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="1.5" y="10.6" width="2.3" height="1.1" rx=".5"/><rect x="5.1" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="5.6" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="5.6" y="10.6" width="2.3" height="1.1" rx=".5"/><rect x="9.2" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="9.7" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="9.7" y="10.6" width="2.3" height="1.1" rx=".5"/><rect x="13.3" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="13.8" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="13.8" y="10.6" width="2.3" height="1.1" rx=".5"/><rect x="17.4" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="17.9" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="17.9" y="10.6" width="2.3" height="1.1" rx=".5"/><rect x="21.5" y="4" width="3.3" height="10" rx=".8" class="o"/><rect x="22.0" y="4.6" width="2.3" height="4.6" rx=".5"/><rect x="22.0" y="10.6" width="2.3" height="1.1" rx=".5"/></svg><span>6</span></button></div>
         <div class="views"><button class="seg on" data-view="list" aria-current="true">Список</button><button class="seg" data-view="map" id="go-map">Карта</button></div>
       </div>
     </div>
@@ -179,22 +180,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
-<script src="filters.js?v=5.21" defer></script>
-<script src="suggest.js?v=5.21" defer></script>
-<script src="offer.js?v=5.21" defer></script>
-<script src="plans.js?v=5.21" defer></script>
-<script src="mfa.js?v=5.21" defer></script>
-<script src="admin.js?v=5.21" defer></script>
-<script src="guest.js?v=5.21" defer></script>
-<script src="partner.js?v=5.21" defer></script>
-<script src="profile.js?v=5.21" defer></script>
-<script src="notify.js?v=5.21" defer></script>
-<script src="share.js?v=5.21" defer></script>
-<script src="crm.js?v=5.21" defer></script>
-<script src="reklama/rk.js?v=5.21" defer></script>
-<script src="hub.js?v=5.21" defer></script>
-<script src="nav.js?v=5.21" defer></script>
-<script src="app.js?v=5.21" defer></script>
-<script src="support.js?v=5.21" defer></script>
+<script src="filters.js?v=5.22" defer></script>
+<script src="suggest.js?v=5.22" defer></script>
+<script src="offer.js?v=5.22" defer></script>
+<script src="plans.js?v=5.22" defer></script>
+<script src="mfa.js?v=5.22" defer></script>
+<script src="admin.js?v=5.22" defer></script>
+<script src="guest.js?v=5.22" defer></script>
+<script src="partner.js?v=5.22" defer></script>
+<script src="profile.js?v=5.22" defer></script>
+<script src="notify.js?v=5.22" defer></script>
+<script src="share.js?v=5.22" defer></script>
+<script src="crm.js?v=5.22" defer></script>
+<script src="reklama/rk.js?v=5.22" defer></script>
+<script src="hub.js?v=5.22" defer></script>
+<script src="nav.js?v=5.22" defer></script>
+<script src="app.js?v=5.22" defer></script>
+<script src="support.js?v=5.22" defer></script>
 </body>
 </html>

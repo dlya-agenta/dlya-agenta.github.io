@@ -890,3 +890,18 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 .selrow .sel-acts .btn { flex: 0 0 auto; white-space: nowrap; width: auto; min-width: 0; max-width: none; padding: 8px 12px; font-size: 14px; overflow: visible; text-overflow: clip; }
 @media (max-width: 480px) { .selrow .sel-acts .btn { flex: 1 1 calc(50% - 8px); } }
 .selrow .sel-acts a.btn { text-decoration: none; text-align: center; justify-content: center; }
+/* v5.22: админ на фото — 👁 скрыть, 🗑 удалить, ↩ вернуть; временный номер площадки; переключатель «Скрытые / Удалённые» */
+.admb { position: absolute; right: 8px; bottom: 18px; display: flex; gap: 6px; z-index: 3; }
+.admb button { height: 30px; min-width: 30px; padding: 0 8px; border: 0; border-radius: 15px; background: rgba(15,18,24,.6); color: #fff; font-size: 14px; cursor: pointer; }
+.admb button:hover { background: rgba(15,18,24,.85); }
+.admb button[data-adm="del"]:hover { background: rgba(190,40,40,.9); }
+.list.l6 .admb button { height: 26px; min-width: 26px; font-size: 12px; padding: 0 6px; }
+.card.gone-out { opacity: 0; transform: scale(.97); transition: opacity .25s, transform .25s; }
+.pend { margin-top: 6px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.pend .lnk { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.hidtg { display: inline-flex; gap: 4px; margin-right: 8px; vertical-align: middle; }
+/* v5.22: значки вида выдачи — «3» три крупные карточки с фото и текстом, «6» шесть узких плиток в ряд */
+#layouts .seg.ic { display: inline-flex; align-items: center; gap: 5px; }
+.lay-ic { width: 26px; height: 18px; display: block; }
+.lay-ic rect { fill: currentColor; opacity: .85; }
+.lay-ic rect.o { fill: none; stroke: currentColor; stroke-width: 1; opacity: .9; }

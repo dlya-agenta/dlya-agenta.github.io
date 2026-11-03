@@ -52,6 +52,10 @@ const mln = v => (v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 2 })
 const rub = v => Math.round(v).toLocaleString('ru-RU') + ' ₽';
 const dots = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const rubOf = s => { const v = +String(s).replace(/\D/g, ''); return v > 0 && v < 1000 ? v * 1e6 : v; };
+// v5.22: цена в фильтрах — в миллионах рублей: «5», «12,5» (больше 1000 — значит, ввели рубли)
+const mlnOf = s => { const v = parseFloat(String(s ?? '').replace(/\s/g, '').replace(',', '.')); return !(v > 0) ? 0 : v >= 1000 ? v / 1e6 : Math.round(v * 1000) / 1000; };
+const mlnTxt = v => String(Math.round(v * 1000) / 1000).replace('.', ',');
+const mlnIn = e => { e.target.value = e.target.value.replace(/[^\d.,]/g, '').replace('.', ','); };
 const zkName = c => c ? 'ЖК ' + String(c).replace(/(^|\s)ЖК(?=\s|$)/gi, ' ').replace(/\s+/g, ' ').trim() : '';
 const day = s => s ? new Date(s).toLocaleDateString('ru-RU') : '—';
 function what(x) {
@@ -127,7 +131,7 @@ function renderFilters() {
   // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, af[k] ?? '');
-  for (const k of ['pmin', 'pmax']) put(k, af[k] ? dots(Math.round(af[k] * 1e6)) : '');
+  for (const k of ['pmin', 'pmax']) put(k, af[k] ? mlnTxt(af[k]) : '');
   $('#nf').checked = !!af.nf;
   for (const k of ['fmin', 'fmax']) $('#' + k).disabled = c.land;
   $('#nf').disabled = !c.nf;
@@ -147,12 +151,12 @@ function renderFilters() {
 }
 function readInputs() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) { const v = +$('#' + k).value; if (v > 0) af[k] = v; else delete af[k]; }
-  for (const k of ['pmin', 'pmax']) { const v = rubOf($('#' + k).value); if (v > 0) af[k] = v / 1e6; else delete af[k]; }
+  for (const k of ['pmin', 'pmax']) { const v = mlnOf($('#' + k).value); if (v > 0) af[k] = v; else delete af[k]; }
   af.nf = $('#nf').checked || undefined;
 }
 for (const k of ['pmin', 'pmax']) {
-  $('#' + k).addEventListener('input', e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d ? dots(+d) : ''; });
-  $('#' + k).addEventListener('blur', e => { const v = rubOf(e.target.value); e.target.value = v ? dots(v) : ''; readInputs(); });
+  $('#' + k).addEventListener('input', mlnIn);
+  $('#' + k).addEventListener('blur', e => { const v = mlnOf(e.target.value); e.target.value = v ? mlnTxt(v) : ''; readInputs(); });
 }
 // поля сразу попадают в фильтр, поиск — через 0,5 с после последней цифры
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
