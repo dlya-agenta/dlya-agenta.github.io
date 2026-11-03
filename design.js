@@ -1,10 +1,11 @@
-// Оформление сайта (v5.17): три стиля — «Классика» (как админка: тёмно-синяя шапка, белые карточки с синей полосой), «Резиденция» (вместо «Авроры»:
-// слоновая кость, глубокий изумруд и латунь — как у агентств бизнес- и премиум-класса) и «Премиум» (графит и золото). Файлы design-<id>.css — поверх style.css.
+// Оформление сайта (v5.21): четыре стиля — «Классика» (как админка: тёмно-синяя шапка, белые карточки с синей полосой), два светлых вместо «Резиденции»
+// (просьба Алексея 02.11: светло-голубой с бежевым, кремовым и песочным) — «Небо» (кремовый фон, голубые кнопки, песочные линии) и «Дюна» (голубой фон,
+// кремовые карточки, песочные кнопки), и «Премиум» (графит и золото). Файлы design-<id>.css — поверх style.css.
 // Ещё два выбора: логотип (4 варианта знака) и значки меню (линии, плитки, без значков, эмодзи). Всё по умолчанию для всех выбирает администратор
 // (админка → «🎨 Стиль сайта», app_settings.design {default, logo, icons}; без входа — hub design_public, кэш в localStorage design_def / logo_def / icons_def).
 // Кнопка «Стиль» ([data-style]) переключает стиль по кругу; личный выбор — localStorage design / logo / icons. ?design= ?logo= ?icons= — примерить.
 (() => {
-  const V = '5.20', IDS = ['classic', 'residence', 'premium'], NAMES = { classic: 'Классика', residence: 'Резиденция', premium: 'Премиум' };
+  const V = '5.21', IDS = ['classic', 'sky', 'dune', 'premium'], NAMES = { classic: 'Классика', sky: 'Небо', dune: 'Дюна', premium: 'Премиум' };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
   const LOGOS = {
     keyhole: { name: 'Дом-замок', text: 'Крыша и дом, вместо двери — замочная скважина: «ключи от объекта у агента».',
@@ -20,8 +21,8 @@
   const HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* приватный режим */ } } };
   const ok = x => IDS.includes(x) ? x : null, okLogo = x => x in LOGOS ? x : null, okIcons = x => x in ICONS ? x : null;
-  // старые «Море» и «Песок» (v5.5) и «Аврора» (v5.16) — на нынешние
-  const OLD = { a: 'classic', b: 'premium', aurora: 'residence' };
+  // старые «Море» и «Песок» (v5.5), «Аврора» (v5.16) и «Резиденция» (v5.17) — на нынешние
+  const OLD = { a: 'classic', b: 'premium', aurora: 'sky', residence: 'sky' };
   for (const k of ['design', 'design_def']) { const o = ls.get(k); if (OLD[o]) ls.set(k, OLD[o]); }
   const qs = new URLSearchParams(location.search);
   if (ok(qs.get('design'))) ls.set('design', qs.get('design'));

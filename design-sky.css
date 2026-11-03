@@ -1,0 +1,138 @@
+/* Стиль «Небо» (v5.21, вместо «Резиденции» — по просьбе Алексея): светлый и приятный — кремовый фон, белые карточки, светло-голубые кнопки и цены,
+   песочные линии и отметки, бежевые плашки. Шрифт — Manrope, название — Prata (как в PDF-подборках). Тёмная тема — вечернее море с песком.
+   Подключается поверх style.css (design.js). Анимируются только transform и opacity. */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Prata&display=swap');
+:root {
+  --radius: 14px;
+  --serif: 'Prata', Georgia, serif;
+  --brand-serif: 'Prata', Georgia, serif;
+  --ok: #1f7a52;
+  --ok-soft: #dcefe4;
+  --warn: #9a5b00;
+  --bad: #b3261e;
+  --bg: #fbf7ef;          /* кремовый */
+  --card: #ffffff;
+  --card2: #f6efe2;       /* бежевый */
+  --text: #1f2a33;
+  --ink-rgb: 31, 42, 51;
+  --muted: #61707b;
+  --accent: #2f78aa;      /* голубой: кнопки и цены (светлее — белый текст не читается) */
+  --accent-text: #ffffff;
+  --link: #2f74a5;
+  --sand: #d2b48c;        /* песочный: линии, отметки */
+  --sand2: #e6d2b0;
+  --sand-a: rgba(210, 180, 140, .55);
+  --sand-ink: #3a2c18;
+  --sel: rgba(61, 134, 184, .22);
+  --glow: rgba(126, 185, 224, .22);
+  --acc-sh: rgba(61, 134, 184, .24);
+  --acc-sh2: rgba(61, 134, 184, .32);
+  --line: rgba(61, 134, 184, .16);
+  --soft: #e7f2fa;        /* голубая дымка */
+  --shadow: 0 1px 2px rgba(31, 42, 51, .04), 0 8px 24px rgba(61, 134, 184, .08);
+  --logo-bg: #4b93c4;
+  --logo-ink: #fbf3e3;
+  --head: #fffdf8;
+  --side: #eaf3fa; --side-ink: #2b3c48; --side-head: #1f4f73; --side-hover: rgba(61, 134, 184, .1); --side-on: #2f78aa; --side-on-ink: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1a22; --card: #15232d; --card2: #1a2a35; --text: #eef3f6; --ink-rgb: 0, 0, 0; --muted: #a7b6c0;
+    --accent: #8cc4ea; --accent-text: #0d1c26; --link: #9fd0f0; --sand: #d6bb92; --sand2: #e3cba6; --sand-a: rgba(214, 187, 146, .45);
+    --line: rgba(140, 196, 234, .18); --soft: #1c3040; --ok: #5fd197; --ok-soft: #12291d; --warn: #f0b545; --bad: #ff8a80;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35); --logo-bg: #8cc4ea; --logo-ink: #10222e; --head: #12202a;
+    --side: #0c161d; --side-ink: #c9d6de; --side-head: #f3e6cf; --side-hover: rgba(140, 196, 234, .1); --side-on: #d6bb92; --side-on-ink: #1a140a;
+  }
+}
+html, body { font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+html { background: var(--bg); }
+body { background: var(--bg); }
+::selection { background: var(--sel); }
+
+/* шапка — светлая (ночью — тёмно-зелёная), снизу тонкая латунная линия */
+.top { background: color-mix(in srgb, var(--head) 94%, transparent) !important; -webkit-backdrop-filter: blur(12px) !important; backdrop-filter: blur(12px) !important;
+  border-bottom: 0 !important; box-shadow: 0 6px 22px rgba(var(--ink-rgb), .06); }
+.top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--sand) 18%, var(--sand2) 50%, var(--sand) 82%, transparent); }
+.logo svg { border-radius: 12px; box-shadow: 0 0 0 1px var(--sand-a), 0 6px 16px var(--acc-sh); }
+.brand b, .gbrand b { font-family: var(--brand-serif); font-weight: 400; font-size: 23px; letter-spacing: .01em; color: var(--accent); line-height: 1.05; }
+.gbrand b { font-size: 38px; }
+.brand small, .gbrand small { color: var(--sand) !important; font-size: 10.5px !important; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+@media (prefers-color-scheme: dark) { .brand b, .gbrand b { color: var(--text); } }
+.top .menu .link, .top button.who { color: var(--text); }
+.top .who small { color: var(--muted); }
+.top .who .who-t { color: var(--accent); }
+@media (prefers-color-scheme: dark) { .top .who .who-t { color: var(--link); } }
+.menu .link { font-weight: 600; letter-spacing: .01em; transition: color .2s, background .2s; }
+.top .menu .link:hover { background: var(--soft); color: var(--accent); }
+.top .menu .link.on, .mg-b.on { background: transparent; color: var(--accent); box-shadow: inset 0 -2px 0 var(--sand); font-weight: 700; }
+@media (prefers-color-scheme: dark) { .top .menu .link.on, .mg-b.on { color: var(--link); } }
+.burger { background: transparent !important; color: var(--accent) !important; border-color: var(--line) !important; }
+@media (min-width: 761px) {
+  .top .mg-p { background: var(--card); border: 1px solid var(--line); border-top: 2px solid var(--sand); border-radius: 10px; box-shadow: 0 22px 46px rgba(var(--ink-rgb), .16); animation: rfade .2s ease-out; }
+  .top .menu .mg-p .link:hover { background: var(--soft); }
+  .top .menu .mg-p .link.on { box-shadow: inset 2px 0 0 var(--sand); background: var(--soft); }
+}
+@keyframes rfade { from { opacity: 0; transform: translateY(-4px); } }
+html[data-icons=tiles] .top .mi { color: var(--sand); }
+
+/* кнопки: главная — изумруд с латунной кромкой; поля — с тонкой рамкой */
+.btn { border-radius: 8px; font-weight: 700; letter-spacing: .02em; transition: transform .2s ease, box-shadow .2s, background .2s; }
+.btn.primary { background: var(--accent); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--sand-a), 0 6px 16px var(--acc-sh); }
+@media (hover: hover) { .btn:not(:disabled):hover { transform: translateY(-1px); } .btn.primary:not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--sand2), 0 10px 24px var(--acc-sh2); } }
+.btn.soft { background: var(--soft); color: var(--accent); }
+@media (prefers-color-scheme: dark) { .btn.soft { color: var(--link); } }
+.btn.ghost { color: var(--link); }
+.chip { border-radius: 8px; border-color: var(--line); background: var(--card); color: var(--text); font-weight: 500; }
+.chip.on, .seg.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+input, select, textarea { border-radius: 8px; border-color: var(--line); background: var(--card); color: var(--text); }
+input:focus, select:focus, textarea:focus { outline-color: color-mix(in srgb, var(--sand) 70%, transparent); }
+.search input { box-shadow: 0 0 0 1px var(--line), var(--shadow); border-color: transparent; }
+
+/* карточки и панели — белые, тонкая рамка; при наведении — латунная */
+.card, .hub-sec, .filters, .ucard, .adm-panel, .adm-tile, .hub-lock, .hub-note, .hub-card, .sheet-box, .views {
+  background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow); border-radius: var(--radius); }
+.card, .hub-card, .adm-tile { transition: transform .3s cubic-bezier(.2, .8, .2, 1), box-shadow .3s, border-color .3s; }
+@media (hover: hover) {
+  .card:hover, .hub-card:hover, .adm-tile:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--sand) 70%, transparent) !important;
+    box-shadow: 0 2px 4px rgba(var(--ink-rgb), .05), 0 18px 40px rgba(var(--ink-rgb), .13); }
+}
+.hub-sec { position: relative; }
+.hub-sec::before, .adm-tile::before { content: ''; position: absolute; left: 18px; right: 18px; top: -1px; height: 2px; background: linear-gradient(90deg, transparent, var(--sand2), transparent); }
+.adm-tile { position: relative; }
+.price b, .adm-tile b { font-family: Manrope, -apple-system, sans-serif; font-weight: 800; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+.price b { font-size: 23px; color: var(--accent); }
+@media (prefers-color-scheme: dark) { .price b { color: var(--link); } }
+.adm-tile b { font-size: 26px; color: var(--accent); }
+.hub-main h2, .hub-main h3, .adm-head h1, .sheet-head b, .gate h2 { font-weight: 800; letter-spacing: -.01em; }
+.hub-main h2, .adm-head h1 { font-size: 27px; }
+.sheet-head b { font-size: 20px; }
+.fl { color: var(--sand); font-weight: 800; letter-spacing: .1em; }
+.tag { background: var(--soft); color: var(--accent); border-radius: 5px; }
+@media (prefers-color-scheme: dark) { .tag { color: var(--link); } }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.pro-line { background: var(--accent); color: var(--accent-text); }
+.pro-line .btn.soft { background: var(--sand2); color: var(--sand-ink); }
+.hub-msg.ai { background: var(--card2); }
+.hub-msg.user { background: var(--soft); }
+
+/* вход */
+.gate:has(.form) { background: radial-gradient(900px 420px at 50% -8%, var(--glow), transparent 70%), var(--bg); }
+.gate .form { border: 1px solid var(--line); border-top: 2px solid var(--sand); }
+
+/* админка: боковая панель */
+.adm-side { background: var(--side) !important; border-right: 1px solid var(--line); }
+.adm-side nav a, .adm-back { color: var(--side-ink) !important; }
+.adm-side .adm-brand b { font-family: var(--brand-serif); font-size: 22px; color: var(--side-head); }
+.adm-side .logo svg { box-shadow: 0 0 0 1px var(--sand-a); }
+.adm-side nav a:hover { background: var(--side-hover); color: var(--side-head) !important; }
+.adm-side nav a.on { background: var(--side-on) !important; color: var(--side-on-ink) !important; }
+.adm-heat i, .adm-bar i { background: var(--accent) !important; }
+.mk-bar { fill: var(--accent); }
+.mk-line { stroke: var(--sand); }
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--card); color: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  .top .mg-p { animation: none !important; }
+  .btn, .card, .hub-card, .adm-tile { transition: none !important; }
+}

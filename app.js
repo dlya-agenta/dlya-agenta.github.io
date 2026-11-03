@@ -531,7 +531,7 @@ function gallery(x) {
   const n = nPhotos(x);
   return `<div class="gal" data-n="${n}">${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
     <div class="strip">${n ? Array.from({ length: n }, (_, k) => `<div class="ph"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" loading="lazy" data-k="${k}"></div>`).join('')
-      : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}</div>
+      : x.source === 'tg' ? '<div class="none closed"><b>Закрытая продажа</b><br>уточняйте детали у собственника</div>' : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}</div>
     ${n > 1 ? `<button class="nav l" data-nav="-1" aria-label="Назад">‹</button><button class="nav r" data-nav="1" aria-label="Вперёд">›</button>
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     ${meta.features.selections ? `<label class="pick"><input type="checkbox" data-sel ${sel.has(x.num) ? 'checked' : ''}> В подборку</label>` : ''}
@@ -575,7 +575,7 @@ function card(x, mini = false) {
       ${!mini && x.descr ? `<div class="descr" data-d><p>${descrHtml(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
       ${mini ? '' : srcHtml(x)}
       ${!mini && x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
-      <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
+      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft" data-phone>${x.source === 'tg' ? '📞 Контакт' : '📞 Телефон'}</button>`}
         ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
         ${!mini ? `<a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>` : ''}</div>
@@ -584,13 +584,16 @@ function card(x, mini = false) {
 }
 // источник объявления ссылкой (Авито, Циан, ДомКлик…) — только агенту: в режиме «С клиентом» скрыт
 const srcHtml = x => x.src?.length ? `<div class="src agent-only">Источник: ${x.src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}</div>` : '';
-function phoneBox(p, owner) {
+// tg (v5.21) — профиль Telegram собственника (объявления из чатов ЖК): если телефона нет, контакт — «Написать в Telegram»
+function phoneBox(p, owner, tg) {
+  const tgA = tg ? `<a class="m-tg" href="https://t.me/${encodeURIComponent(tg)}" target="_blank" rel="noopener">Написать в Telegram</a>` : '';
+  if (!p) return `<div class="phone"><div>${owner ? esc(owner) + ' · ' : ''}<small>телефона в объявлении нет — напишите собственнику</small></div><div class="msgs">${tgA}</div></div>`;
   const d = p.replace(/\D/g, ''), t = encodeURIComponent(MSG);
   return `<div class="phone"><div><a class="num" href="tel:${esc(p)}">${esc(p)}</a>${owner ? ` — ${esc(owner)}` : ''} <small>может быть подменный</small></div>
     ${meta.features.messengers ? `<div class="msgs"><a class="m-call" href="tel:${esc(p)}">Позвонить</a>
       <a class="m-wa" href="https://wa.me/${d}?text=${t}" target="_blank" rel="noopener">WhatsApp</a>
       <a class="m-max" href="${mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}" title="MAX: номер скопируется — найдите контакт в MAX">MAX</a>
-      <button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>` : ''}</div>`;
+      ${tgA}<button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>` : tgA ? `<div class="msgs">${tgA}</div>` : ''}</div>`;
 }
 
 // действия в карточке
@@ -655,10 +658,10 @@ async function onCard(e, cardEl) {
   try {
     const p = await call('phone', { num });
     PLANS.counter(p.used);
-    if (!p.phone) throw new Error(p.error || 'номер не найден');
-    b.outerHTML = phoneBox(p.phone, p.owner);
+    if (!p.phone && !p.tg) throw new Error(p.error || 'номер не найден');
+    b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
     const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
-    if (y) { y.phone = p.phone; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
+    if (y) { y.phone = p.phone; if (p.tg) y.tg = p.tg; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
     if (p.src?.length) { cardEl.querySelector('.src')?.remove(); box.insertAdjacentHTML('beforebegin', srcHtml({ src: p.src })); }
     markSeen(cardEl, num);
   } catch (err) {
@@ -775,7 +778,7 @@ function itemView(x, k) {
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${srcHtml(x)}
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
-      <div class="actions agent-only">${x.phone ? phoneBox(x.phone, null) : '<button class="btn soft" data-phone>📞 Телефон</button>'}
+      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft" data-phone>${x.source === 'tg' ? '📞 Контакт' : '📞 Телефон'}</button>`}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
         <a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a></div>
