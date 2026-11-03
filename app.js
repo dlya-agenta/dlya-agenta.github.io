@@ -919,7 +919,8 @@ $('#sel-make').onclick = () => {
         ${r.phones != null && r.phones < r.total ? `<p class="hint">Телефоны собственников открыты: ${r.phones} из ${r.total}${limit ? ` (${esc(limit)})` : ''} — остальные можно открыть на странице «Ссылка агенту».</p>` : ''}
         <p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
       SHARE.bind($('#sheet-body'), toast);
-      if (r.link) NOTIFY.offerInstall('sel');   // первая подборка ссылкой — предложить «На экран Домой» (один раз)
+      // первая подборка ссылкой — предложить «На экран Домой» (один раз), но после того, как агент закроет окно: раньше оно сразу закрывало ссылку клиенту и агенту
+      if (r.link) { const sh = $('#sheet'), mo = new MutationObserver(() => { if (sh.hidden) { mo.disconnect(); setTimeout(() => NOTIFY.offerInstall('sel'), 400); } }); mo.observe(sh, { attributes: true, attributeFilter: ['hidden'] }); }
       if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
       selCache = null;   // «Мои подборки» перечитать
     };
