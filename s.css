@@ -16,8 +16,10 @@
 /* фото листаются пальцем; низ каждого фото (1/20) срезан — там водяные знаки площадок, как на сайте и в PDF */
 .s-ph { position: relative; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; background: #0f1218; scrollbar-width: none; }
 .s-ph::-webkit-scrollbar { display: none; }
-.s-im { flex: 0 0 100%; aspect-ratio: 4 / 3; overflow: hidden; scroll-snap-align: start; }
-.s-im img { width: 100%; height: calc(100% / .95); object-fit: cover; object-position: center top; display: block; cursor: zoom-in; }
+.s-im { position: relative; flex: 0 0 100%; aspect-ratio: 4 / 3; overflow: hidden; scroll-snap-align: start; }
+.s-im img { position: relative; width: 100%; height: calc(100% / .95); object-fit: cover; object-position: center top; display: block; cursor: zoom-in; }
+.s-im.tall::before { content: ''; position: absolute; inset: -20px; background: #0f1218 var(--bg) center / cover; filter: blur(18px) brightness(.75); }   /* вертикальное — целиком на размытом фоне, как на главной */
+.s-im.tall img { object-fit: contain; }   /* высота по-прежнему 100 % / .95 — низ 1/20 срезан и у вертикальных */
 .s-cnt { position: absolute; right: 8px; bottom: 8px; background: rgba(0, 0, 0, .6); color: #fff; font-size: 12px; border-radius: 6px; padding: 2px 8px; pointer-events: none; }
 .s-noph { aspect-ratio: 4 / 3; display: grid; place-content: center; color: #9aa3b2; font-size: 14px; }
 .s-body { padding: 12px 14px 14px; display: grid; gap: 8px; min-width: 0; }

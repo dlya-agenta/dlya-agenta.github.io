@@ -35,9 +35,56 @@
   const intl = p => { let d = digits(p); if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1); if (d.length === 10) d = '7' + d; return d.length >= 11 ? d : ''; };   // 8 918… → 7918…
 
   // v5.20: фото листаются, как на главной: стрелки, точки, свайп пальцем; на компьютере — ведёшь мышкой по фото; нажатие — на весь экран
-  const gal = (photos, i) => photos.length ? `<div class="s-gal"><div class="s-ph" data-i="${i}">${photos.map((u, k) => `<div class="s-im"><img src="${esc(u)}" alt="Фото ${k + 1}" loading="${i < 2 && !k ? 'eager' : 'lazy'}" referrerpolicy="no-referrer" data-k="${k}"></div>`).join('')}</div>
+  const gal = (photos, i) => photos.length ? `<div class="s-gal"><div class="s-ph" data-i="${i}">${photos.map((u, k) => `<div class="s-im"><img src="${esc(u)}" alt="Фото ${k + 1}" loading="${i < 2 && !k ? 'eager' : 'lazy'}" referrerpolicy="no-referrer" crossorigin="anonymous" data-k="${k}"></div>`).join('')}</div>
       ${photos.length > 1 ? `<button type="button" class="s-nav l" data-nav="-1" aria-label="Предыдущее фото">‹</button><button type="button" class="s-nav r" data-nav="1" aria-label="Следующее фото">›</button>
       <div class="s-dots">${photos.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div><span class="s-cnt">${photos.length} фото</span>` : ''}</div>` : '<div class="s-ph s-noph">Фото нет</div>';
+  // v5.23d: вертикальное фото — целиком на размытом фоне (как на главной), горизонтальное — на всю рамку; низ 1/20 срезан у всех.
+  // Чёрные поля по краям кадра (стоп-кадр из видео) обрезаются, чтобы в рамке не было чёрных полос
+  function bands(im) {
+    const w = im.naturalWidth, h = im.naturalHeight, sw = 48, sh = Math.max(8, Math.round(sw * h / w));
+    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, sw, sh);
+    const px = g.getImageData(0, 0, sw, sh).data, lum = (x, y) => { const o = (y * sw + x) * 4; return px[o] * .3 + px[o + 1] * .59 + px[o + 2] * .11; };
+    const dark = (len, at) => { for (let j = 0; j < len; j++) if (at(j) > 34) return false; return true; };
+    const row = y => dark(sw, x => lum(x, y)), col = x => dark(sh, y => lum(x, y));
+    let t = 0, b = 0, l = 0, r = 0;
+    while (t < sh / 2 && row(t)) t++;
+    while (b < sh / 2 - t && row(sh - 1 - b)) b++;
+    while (l < sw / 2 && col(l)) l++;
+    while (r < sw / 2 - l && col(sw - 1 - r)) r++;
+    if ((t + b) / sh < .04 && (l + r) / sw < .04) return null;   // полос нет — фото как есть
+    if (t + b > sh * .6 || l + r > sw * .6) return null;         // тёмное фото, а не поля
+    const px2 = (n, k) => n ? Math.ceil((n + 1) * k) : 0;          // +1 строка — край поля размыт сжатием JPEG
+    const x = px2(l, w / sw), y = px2(t, h / sh);
+    return { x, y, w: w - x - px2(r, w / sw), h: h - y - px2(b, h / sh) };
+  }
+  function cut(im) {
+    try {
+      const z = bands(im); if (!z || z.w < 40 || z.h < 40) return false;
+      const c = document.createElement('canvas'); c.width = z.w; c.height = z.h;
+      c.getContext('2d').drawImage(im, z.x, z.y, z.w, z.h, 0, 0, z.w, z.h);
+      im.dataset.src = im.src; im.src = c.toDataURL('image/jpeg', .9);   // data: — разрешён правилами страницы (blob: — нет)
+      return true;
+    } catch { return false; }   // фото без разрешения на чтение — показываем как есть
+  }
+  function fit(im) {
+    const box = im.parentElement, fw = box.clientWidth || 4, fh = box.clientHeight || 3;
+    const tall = im.naturalWidth / (im.naturalHeight * .95) < fw / fh * .8;   // в рамке осталось бы меньше 80 % высоты фото
+    box.classList.toggle('tall', tall);
+    if (tall) box.style.setProperty('--bg', `url("${im.src}")`);
+  }
+  document.addEventListener('load', e => {
+    const im = e.target;
+    if (im.tagName !== 'IMG' || !im.parentElement?.classList.contains('s-im')) return;
+    if (!im.dataset.cut) { im.dataset.cut = 1; if (cut(im)) return; }   // обрезали — придёт новый load уже с обрезанным фото
+    fit(im);
+  }, true);
+  // хранилище не дало разрешения на чтение — грузим фото обычным способом (без обрезки полос)
+  document.addEventListener('error', e => {
+    const im = e.target;
+    if (im.tagName !== 'IMG' || !im.parentElement?.classList.contains('s-im') || !im.crossOrigin) return;
+    im.removeAttribute('crossorigin'); im.dataset.cut = 1; im.src = im.src;
+  }, true);
   document.addEventListener('scroll', e => {
     const st = e.target; if (!st.classList?.contains('s-ph')) return;
     const k = Math.round(st.scrollLeft / st.clientWidth);
@@ -136,7 +183,11 @@
   // просмотр фото на весь экран
   let cur = null;
   function open(i, k) { cur = { i, k }; show(); $('#s-view').hidden = false; }
-  function show() { const p = data.items[cur.i].photos; cur.k = (cur.k + p.length) % p.length; $('#s-view img').src = p[cur.k]; }
+  function show() {
+    const p = data.items[cur.i].photos; cur.k = (cur.k + p.length) % p.length;
+    const el = document.querySelector(`.s-ph[data-i="${cur.i}"] img[data-k="${cur.k}"]`);   // уже без чёрных полей, если их обрезали
+    $('#s-view img').src = el?.dataset.src ? el.src : p[cur.k];
+  }
   $('#s-view').onclick = e => {
     const s = e.target.closest('[data-step]');
     if (s) { cur.k += +s.dataset.step; return show(); }
