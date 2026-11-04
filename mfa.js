@@ -40,6 +40,8 @@ window.MFA = (() => {
       if (!x?.token) { $('#gerr').textContent = 'Сервер не прислал вход — нажмите «Назад» и войдите ещё раз'; btn.disabled = false; btn.textContent = 'Войти'; return; }
       try { localStorage.setItem('token', JSON.stringify(x.token)); } catch { /* приватный режим */ }   // вход сохранён до запуска: перезагрузка страницы уже войдёт
       btn.textContent = 'Вход выполнен, открываю…';
+      setTimeout(() => { if (!document.getElementById('mfa-login')?.isConnected) return; window.__diag?.('после кода 12 с');   // сайт так и не открылся — сообщить и дать открыть заново (вход уже сохранён)
+        $('#gerr').innerHTML = `Сайт долго открывается (этап: ${esc(window.__stage || '?')}). <a href="./">Открыть сайт заново</a> — вход сохранён, код не нужен.`; }, 12000);
       try { await done(x.token); }
       catch (err) { $('#gerr').innerHTML = `Вход выполнен, но сайт не открылся: ${esc(err?.message ?? err)}. <a href="./">Открыть заново</a>`; }
     };

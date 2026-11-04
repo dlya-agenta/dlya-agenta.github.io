@@ -63,6 +63,7 @@ const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay', 'pw_res
 const NET_MSG = 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
 async function call(action, extra = {}, signal) {   // signal — отменить устаревший запрос (новый поиск вместо прежнего)
   const body = JSON.stringify({ action, auth, ...extra });
+  const trace = { a: action, t0: Date.now(), st: 'sent' }; (window.__calls ??= []).push(trace); if (window.__calls.length > 12) window.__calls.shift();   // v5.26e: для диагностики «зависаний»
   let r = null;
   for (let i = 0; ; i++) {
     try {
@@ -74,12 +75,14 @@ async function call(action, extra = {}, signal) {   // signal — отменит
       finally { clearTimeout(tm); signal?.removeEventListener('abort', off); }
       if (![502, 503, 504, 546].includes(r.status) || i >= 2 || NO_RETRY.has(action)) break;   // v5.20: «база занята» (busy) сервер уже повторил — приходит 500, не повторяем
     } catch (e) {
+      trace.st = `err ${e.name || ''} ${i}`;
       if (signal?.aborted || e.name === 'AbortError') throw e;
       if (e.name === 'TimeoutError') throw Object.assign(new Error(NET_MSG), { net: true });   // уже ждали 45 с — не повторяем, сразу «Нет связи · Повторить»
       if (i >= 2 || NO_RETRY.has(action)) throw Object.assign(new Error(NET_MSG), { net: true });
     }
     await new Promise(ok => setTimeout(ok, i ? 2000 : 800));
   }
+  trace.st = r.status; trace.ms = Date.now() - trace.t0;
   const data = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
   if (['no_auth', 'no_access', 'expired', 'kicked', 'off'].includes(data.error)) throw Object.assign(new Error(data.message), { gate: data.error, data });
   if (data.error === 'need_pro') PLANS.pro(data.message);   // Архив, Реклама, Рассылки — в PRO и MAX
