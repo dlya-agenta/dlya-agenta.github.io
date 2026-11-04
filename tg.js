@@ -18,10 +18,12 @@ window.__diag = why => { try {
   fetch(String(window.API || 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/web'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ action: 'diag', auth: tok ? { token: tok } : undefined, d }) }).catch(() => {});
   return d; } catch { return null; } };
 // v5.26: страховка от «вечной загрузки» (приложение с экрана «Домой»): если через 15 с всё ещё «Загрузка…» — кнопка «Обновить»
-setTimeout(() => {
+const __slow = () => {
+  if (document.visibilityState === 'hidden') return document.addEventListener('visibilitychange', () => setTimeout(__slow, 15000), { once: true });   // вкладка в фоне грузится медленно — это не зависание
   const g = document.getElementById('gate');
   if (!g || g.hidden || !/Загрузка/.test(g.textContent) || g.querySelector('[data-reload]')) return;
   g.insertAdjacentHTML('beforeend', `<p class="muted" style="margin-top:14px">Долго грузится — возможно, слабая связь.</p><p class="muted" style="font-size:12px;opacity:.6">этап: ${window.__stage || 'скрипты'} · sw: ${navigator.serviceWorker?.controller ? 'да' : 'нет'}${(window.__errs || []).length ? ' · ' + String(window.__errs.slice(-2).join(' | ')).replace(/[<>&]/g, '').slice(0, 200) : ''}</p><button class="btn primary" data-reload type="button">Обновить</button>`);
   g.querySelector('[data-reload]').onclick = () => location.reload();
   window.__diag?.('загрузка 15 с');
-}, 15000);
+};
+setTimeout(__slow, 15000);
