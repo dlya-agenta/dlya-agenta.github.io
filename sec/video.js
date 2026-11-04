@@ -1,7 +1,7 @@
 // «Видеомонтаж-СММ» (тариф MAX; v5.16 — по скиллу «Видеообзор с контактами»; v5.26 — шаблон «Мотион», объекты по порядку, ИИ-режиссёр).
 // Ролик 9:16, 30 кадров/с собирается прямо в браузере (canvas + MediaRecorder), без сервера и минут GitHub.
-// v5.26 (задача Алексея 04.11): фото идут СТРОГО по объектам — сначала все кадры 1-го, потом 2-го…; на каждый объект — свои 10 секунд, до 10 объектов.
-//   Один объект — ролик 10 с (8 с кадров + 2 с контакты). Несколько — крючок 1,6 с + по 10 с на объект + контакты 2,5 с.
+// v5.26 (задача Алексея 04.11): фото идут СТРОГО по объектам — сначала все кадры 1-го, потом 2-го…; на каждый объект — свои 15 секунд, до 10 объектов.
+//   По 15 с на квартиру (уточнение Алексея 04.11). Один объект — ролик 15 с (12 с кадров + 3 с контакты с призывом позвонить). Несколько — крючок 1,6 с + по 15 с на объект + контакты 3 с в конце.
 //   Шаблон «Мотион» (референс — моушн-реклама: цветные шторки, «выезд» слов из-под линии, плашки с цифрами, номер объекта 01/02):
 //   переходы wipe (шторка акцентного цвета), zoom (влёт), card (карточка уезжает вверх), leak (засветка), iris (круг), whip (хлыст), xf (растворение);
 //   плашки фактов «всплывают» с отскоком, площадь считается от нуля, полоса хода ролика сверху. «Классика» — прежний плавный ролик.
@@ -11,7 +11,7 @@
 (() => {
   const H = window.HUB, esc = H.esc;
   const PH = 'https://arojogajdamsyrrpcmso.supabase.co/storage/v1/object/public/photos/w', MEDIA = 'https://zpkqduhbymvadtwgcyhp.supabase.co/storage/v1/object/public/photos/w';
-  const W = 1080, HH = 1920, FPS = 30, PER = 10, HOOK = 1.6, SAFE_TOP = 200, SAFE_BOTTOM = 1300, MAXW = W - 120;
+  const W = 1080, HH = 1920, FPS = 30, PER = 15, ONE = 15, ENDS = 3, HOOK = 1.6, SAFE_TOP = 200, SAFE_BOTTOM = 1300, MAXW = W - 120;
   const ACC = { gold: '#d6b46a', sea: '#38bdf8', coral: '#fb7185', mint: '#34d399', sand: '#e9c99a' }, ACC_NAME = { gold: 'Золото', sea: 'Море', coral: 'Коралл', mint: 'Мята', sand: 'Песок' };
   const GOLD = ACC.gold, FONT = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   const FXM = ['wipe', 'zoom', 'card', 'leak', 'iris', 'whip'], FXC = ['xf', 'whip'];
@@ -49,7 +49,7 @@
 
   async function open(arg, ctx) {
     el = ctx.el; addCss();
-    if (!ctx.caps?.can?.video) { el.innerHTML = H.locked('Видеомонтаж-СММ', 'Видеообзор объектов за минуту: ролик 9:16 из фото — по 10 секунд на каждый объект, с вашим именем и контактами на финальном кадре, плюс готовое описание к посту — для Reels, Shorts, статусов и Rutube. В тарифе MAX.', 'max'); return; }
+    if (!ctx.caps?.can?.video) { el.innerHTML = H.locked('Видеомонтаж-СММ', 'Видеообзор объектов за минуту: ролик 9:16 из фото — по 15 секунд на каждую квартиру, с вашим именем и контактами на финальном кадре, плюс готовое описание к посту — для Reels, Shorts, статусов и Rutube. В тарифе MAX.', 'max'); return; }
     if (/^\d+$/.test(arg) && +arg < 100000) return show(+arg);   // готовый ролик по ссылке из уведомления
     const nums = [...new Set((arg ? arg.split(',') : []).map(Number).filter(n => n > 100000))].slice(0, 10);
     if (!nums.length) return empty();
@@ -58,7 +58,7 @@
     if (!prep.pick.length) { el.innerHTML = '<h2>🎬 Видеообзор</h2><p>У выбранных объектов ещё нет фото в нашем хранилище — они загружаются ночью. Выберите другие объекты.</p><p><a class="btn primary" href="./">К объявлениям</a></p>'; return; }
     blob = null; job = null; aiPlan = null; cov = 0;
     opt = { tpl: prep.tpl === 'classic' ? 'classic' : 'motion', acc: 'gold', style: -1 };
-    // объекты без своих фото — убираем из ролика (иначе у объекта были бы пустые 10 секунд)
+    // объекты без своих фото — убираем из ролика (иначе у объекта были бы пустые 15 секунд)
     const withPh = new Set(prep.pick.map(p => p.num)), skipped = prep.items.filter(x => !withPh.has(x.num));
     prep.items = prep.items.filter(x => withPh.has(x.num)); prep.skipped = skipped;
     scenes = prep.pick.map(p => ({ u: url(p.num, p.k, p.v), num: p.num, k: p.k, on: true, title: '', sub: '', fx: null }));
@@ -69,7 +69,7 @@
   function empty() {
     const sel = store.get('sel', []).filter(n => n > 100000);
     el.innerHTML = `<h2>🎬 Видеообзор объектов</h2>
-      <p>Ролик 9:16 из фото: по 10 секунд на каждый объект (до 10 объектов) — с вашим именем и контактами. Для Reels, Shorts, статусов и Rutube.</p>
+      <p>Ролик 9:16 из фото: по 15 секунд на каждую квартиру (до 10 в одном ролике), контакты и призыв позвонить — в конце — с вашим именем и контактами. Для Reels, Shorts, статусов и Rutube.</p>
       <ol><li>На главной отметьте объекты галочкой «В подборку» — в выдаче, в «★ Избранном» или нажмите «В подборку» у подборки в «Мои подборки».</li>
         <li>Внизу появится полоса выбора — нажмите <b>«🎬 Ролик»</b>. Объекты пойдут в ролике в том порядке, в каком вы их отметили.</li><li>Или попросите помощника: «сделай ролик по № 172480».</li></ol>
       ${sel.length ? `<p><button class="btn primary" data-sel-go="${sel.slice(0, 10).join(',')}">🎬 Ролик из отмеченных на главной (${Math.min(sel.length, 10)})</button></p>` : ''}
@@ -107,7 +107,7 @@
     const n = prep.items.length, places = [...new Set(prep.items.map(i => i.place).filter(Boolean))];
     if (n > 1) return [`${n} ${objW(n)} в Сочи`, f || places.slice(0, 3).join(' · ')];
     return [x.zk || [x.rooms, x.kind].filter(Boolean).join(' ') || 'Объект', [area(x.area), f].filter(Boolean).join(' · ')]; };
-  const durOf = () => multi() ? HOOK + PER * prep.items.length + 2.5 : PER;
+  const durOf = () => multi() ? HOOK + PER * prep.items.length + ENDS : ONE;
 
   function objBlock(x, o) {
     const list = scenes.map((s, i) => [s, i]).filter(([s]) => s.num === x.num), n = prep.items.length;
@@ -118,7 +118,7 @@
   function draw() {
     const a = prep.agent, x = prep.items[0], need = !a.name || !a.phone, n = prep.items.length, d = Math.round(durOf());
     el.innerHTML = `<h2>🎬 Видеообзор ${n > 1 ? `${n} ${objW(n)}` : 'объекта'}</h2>
-      <p class="hint">Роликов сегодня: ${prep.used} из ${prep.lim}. Ролик ~${d} с, 9:16${n > 1 ? ` — по 10 секунд на каждый объект, строго по порядку` : ''}; финальный кадр — ваше имя и контакты. Готовый ролик хранится на сервере 12 часов — он будет в «Моих роликах».</p>
+      <p class="hint">Роликов сегодня: ${prep.used} из ${prep.lim}. Ролик ~${d} с, 9:16${n > 1 ? ` — по 15 секунд на каждый объект, строго по порядку, контакты — в конце` : ''}; финальный кадр — ваше имя и контакты. Готовый ролик хранится на сервере 12 часов — он будет в «Моих роликах».</p>
       ${prep.skipped?.length ? `<p class="hub-warn">Без фото в нашем хранилище, в ролик не вошли: № ${prep.skipped.map(s => s.num).join(', № ')} (фото загружаются ночью).</p>` : ''}
       <div class="vid-two">
         <div class="vid-steps">
@@ -178,7 +178,7 @@
     el.onclick = onClick;
     cover();
   }
-  const cntText = () => { const on = scenes.filter(s => s.on).length; return multi() ? `в ролике ${on} фото: по 2–4 на объект, на каждый объект — 10 секунд` : `в ролике ${on} фото вместе с обложкой (лучше 4–6)`; };
+  const cntText = () => { const on = scenes.filter(s => s.on).length; return multi() ? `в ролике ${on} фото: по 2–5 на объект, на каждый объект — 15 секунд` : `в ролике ${on} фото вместе с обложкой (лучше 4–6)`; };
   // перерисовать окно, не теряя введённое
   function redraw() {
     const keep = { short: val('#v-short'), fish: val('#v-fish'), price: el.querySelector('#v-price')?.checked, c: contact(), save: el.querySelector('#v-save')?.checked };
@@ -329,7 +329,7 @@
     });
     ctx.restore();
   }
-  // «Мотион»: номер объекта в начале его 10 секунд — большой «01» и шторка, потом маленький «1/2» в углу
+  // «Мотион»: номер объекта в начале его 15 секунд — большой «01» и шторка, потом маленький «1/2» в углу
   function badge(ctx, o, n, t, t0, t1, acc, name) {
     const q = t - t0;
     ctx.save(); ctx.textBaseline = 'top';
@@ -354,7 +354,8 @@
     const add = (text, w, px, color, gap) => { const p = fit(ctx, text, w, px); L.push({ text, w, px: p, color, gap }); };
     if (c.agency) { add('АГЕНТСТВО НЕДВИЖИМОСТИ', 500, 40, '#dcdcdc', 24); add(`«${c.agency}»`, 700, 120, acc, 76); if (c.name) { bar = L.length; add(c.name, 600, 62, '#fff', 70); } }
     else if (c.name) { add('НЕДВИЖИМОСТЬ', 500, 40, '#dcdcdc', 24); add(c.name, 700, 96, acc, 76); }
-    if (c.phone) { if (bar == null) bar = L.length; add(phoneFmt(c.phone), 700, 72, '#fff', 24); }
+    add(c.cta || 'Звоните — покажу в удобное время', 600, 50, '#fff', 56);   // v5.26: призыв позвонить (последние 3 с)
+    if (c.phone) { if (bar == null) bar = L.length; add(phoneFmt(c.phone), 800, 84, '#fff', 24); L.at(-1).pulse = true; }
     if (c.messengers) add(c.messengers, 400, 38, '#e6e6e6', 26);
     if (c.address) add(c.address, 400, 40, '#e6e6e6', 26);
     const total = L.reduce((s, l) => s + l.px + l.gap, 0) - (L.at(-1)?.gap ?? 0);
@@ -396,19 +397,19 @@
     ctx.save(); poly(e1 - 70); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.globalAlpha = 0.25; ctx.fill(); ctx.restore();
     ctx.save(); poly(e2); ctx.clip(); B(ctx); ctx.restore();
   }
-  // раскладка по времени: сегменты (кадры) с переходами; для нескольких объектов — крючок 1,6 с, по 10 с на объект, контакты 2,5 с
+  // раскладка по времени: сегменты (кадры) с переходами; для нескольких объектов — крючок 1,6 с, по 15 с на объект, контакты 3 с
   function timeline(on) {
     const many = multi(), motion = opt.tpl === 'motion', TR = motion ? 0.5 : 0.3, segs = [], blocks = [];
     let t = 0;
     if (many) { segs.push({ s: scenes[cov] ?? on[0], hook: true, a: 0, b: HOOK }); t = HOOK; }
     prep.items.forEach((x, o) => {
       const list = on.filter(s => s.num === x.num); if (!list.length) return;
-      const len = many ? PER : PER - 2, d = len / list.length;
+      const len = many ? PER : ONE - ENDS, d = len / list.length;
       blocks.push({ o, x, t0: t, t1: t + len });
       list.forEach((s, j) => segs.push({ s, o, j, a: t + j * d, b: t + (j + 1) * d, hook: !many && j === 0 }));
       t += len;
     });
-    const END = many ? 2.5 : 2, fx = motion ? FXM : FXC;
+    const END = ENDS, fx = motion ? FXM : FXC;
     let fi = 0;
     segs.forEach((g, i) => { if (i) g.fx = (g.s.fx && (motion || FXC.includes(g.s.fx)) ? g.s.fx : fx[fi++ % fx.length]); });
     return { segs, blocks, TR, BODY: t, END, DUR: t + END };
@@ -458,7 +459,13 @@
       } else {
         ctx.drawImage(endbg, 0, 0);
         const { L, bar } = card(c, ctx, acc);
-        L.forEach((l, li) => { ctx.font = font(l.w, l.px); (motion ? rise : words)(ctx, [l.text], (W - ctx.measureText(l.text).width) / 2, l.y, BODY + li * 0.08, null, t, l.w, l.px, [l.color]); });
+        L.forEach((l, li) => { ctx.font = font(l.w, l.px); const tw = ctx.measureText(l.text).width;
+          if (l.pulse && t > BODY + 1) {   // телефон «дышит» и подсвечен плашкой акцента — взгляд на номер
+            const k = 1 + 0.045 * Math.sin((t - BODY - 1) * Math.PI * 2 / 1.1);
+            ctx.save(); ctx.translate(W / 2, l.y + l.px / 2); ctx.scale(k, k); ctx.translate(-W / 2, -(l.y + l.px / 2));
+            rrect(ctx, (W - tw) / 2 - 36, l.y - 22, tw + 72, l.px + 44, (l.px + 44) / 2); ctx.fillStyle = acc; ctx.globalAlpha = 0.95; ctx.fill(); ctx.globalAlpha = 1;
+            ctx.textBaseline = 'top'; ctx.fillStyle = '#14161b'; ctx.fillText(l.text, (W - tw) / 2, l.y); ctx.restore(); return; }
+          (motion ? rise : words)(ctx, [l.text], (W - tw) / 2, l.y, BODY + li * 0.08, null, t, l.w, l.px, [l.color]); });
         if (bar != null) { const pa = easeOut((t - BODY - 0.2) / 0.4); ctx.fillStyle = acc; ctx.fillRect(W / 2 - 80 * pa, L[bar].y - 30, 160 * pa, 5); }
       }
     };

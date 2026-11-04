@@ -59,7 +59,7 @@ function savePrefs() {
 
 // «Load failed» / «Failed to fetch» (v5.18): сеть или сервер на миг не ответили (холодный старт функции, смена Wi-Fi/LTE, 502–546 без заголовков CORS) —
 // повторяем ещё 2 раза через 0,8 и 2 с; действия, которые нельзя повторять (код входа, регистрация, подборка, оплата), — без повтора
-const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay']);
+const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay', 'pw_reset', 'pw_reset_set']);
 const NET_MSG = 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
 async function call(action, extra = {}, signal) {   // signal — отменить устаревший запрос (новый поиск вместо прежнего)
   const body = JSON.stringify({ action, auth, ...extra });
@@ -109,12 +109,15 @@ function showLogin(reason, tab = 'login') {
       <input name="password" type="password" placeholder="Пароль" autocomplete="current-password" required>
       <button class="btn primary" type="submit">Войти</button>
       <p class="err" id="gerr"></p></form>
+      <p><a href="#" id="pw-forgot">Забыли пароль? Восстановить через Telegram</a></p>
       <p class="hint">Сайт для риелторов: проверенные объекты от собственников Сочи.<br>Нет логина — зарегистрируйтесь по коду партнёра.</p>`
     : `<form id="reg" class="form">
       <input name="code" placeholder="Код партнёра" value="${esc(new URLSearchParams(location.search).get('r') ?? '')}" autocomplete="off" autocapitalize="characters">
       <p class="hint">Регистрация — только по коду партнёра. Попросите код у друга, который порекомендовал сервис: на сайте ему нужно нажать на своё имя вверху страницы → «Профиль» → блок «Код партнёра». Код есть у тех, кто оплатил подписку.</p>
       <input name="name" placeholder="Имя и фамилия" required>
       <input name="phone" type="tel" placeholder="Телефон" required>
+      <input name="telegram" placeholder="Telegram: @имя_пользователя" autocapitalize="none" autocomplete="off" required>
+      <details class="tip"><summary>Зачем и где посмотреть свой @ник?</summary><p class="hint">К вашему Telegram подключится бот «Для Агента»: туда придут уведомления о рассылках, ответах собственников и откликах клиентов на подборки, а ещё через него восстанавливается пароль.<br><b>Где посмотреть:</b> Telegram → «Настройки» → строка «Имя пользователя» (начинается с @). Если там пусто — нажмите и придумайте, это минута.<br>Нет Telegram, но есть код партнёра? Установите Telegram и зарегистрируйтесь или <a href="support.html" target="_blank">напишите в поддержку</a> — поможем.</p></details>
       <input name="email" type="email" placeholder="E-mail (необязательно)">
       <input name="company" placeholder="Агентство (необязательно)">
       <input name="login" placeholder="Придумайте логин (латиница)" autocapitalize="none" required>
@@ -136,14 +139,15 @@ function showLogin(reason, tab = 'login') {
       $('#gerr').textContent = err.message; btn.disabled = false;
     }
   });
+  $('#pw-forgot')?.addEventListener('click', e => { e.preventDefault(); pwForgot(); });
   $('#reg')?.addEventListener('submit', async e => {
     e.preventDefault();
     const fm = e.target, btn = fm.querySelector('button');
     btn.disabled = true; $('#gerr').textContent = '';
     try {
-      const r = await call('register', Object.fromEntries(['code', 'name', 'phone', 'email', 'company', 'login', 'password'].map(k => [k, fm[k].value]).concat([['agree', fm.agree.checked]])));
-      if (r.token) { token = r.token; store.set('token', token); auth = { token }; return start(); }   // по коду партнёра — сразу вход
-      gate(`<h2>Заявка отправлена</h2><p>${esc(r.message)}</p><button class="btn ghost" id="back">Ко входу</button>`);
+      const r = await call('register', Object.fromEntries(['code', 'name', 'phone', 'telegram', 'email', 'company', 'login', 'password'].map(k => [k, fm[k].value]).concat([['agree', fm.agree.checked]])));
+      if (r.token) { token = r.token; store.set('token', token); auth = { token }; return botStep(); }   // по коду партнёра — сразу вход, затем бот
+      gate(`<h2>Заявка отправлена</h2><p>${esc(r.message)}</p><p class="hint">После одобрения подключите бот: имя вверху → «Профиль» → «Привязать Telegram».</p><button class="btn ghost" id="back">Ко входу</button>`);
       $('#back').onclick = () => showLogin();
     } catch (err) { $('#gerr').textContent = err.message; btn.disabled = false; }
   });
@@ -153,6 +157,48 @@ function logout() { token = null; auth = null; store.set('token', null); showLog
 async function tgLogin() {
   try { const r = await call('tg_login', { auth: tg.initData, fp: await fp() }); token = r.token; store.set('token', token); auth = { token }; return true; }
   catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || (e.data ? e.message : 'no_auth')); return false; }   // текст сервера: админу Mini App закрыт, «Слишком часто…»
+}
+// v5.26: после регистрации — подключить бот одним нажатием (ссылка t.me/<бот>?start=l_<код> привязывает Telegram к учётке)
+async function botStep() {
+  let link = null; try { link = await call('tg_link'); } catch { /* бот выключен — пропускаем шаг */ }
+  if (!link?.url) return start();
+  gate(`<div data-brand></div><h2>Последний шаг — подключите бот</h2>
+    <p>Нажмите кнопку — откроется Telegram, нажмите там «Запустить» (Start). Бот пришлёт уведомления о рассылках, ответах собственников и откликах клиентов на подборки, через него же восстанавливается пароль.</p>
+    <p><a class="btn primary" id="bot-go" href="${esc(link.url)}" target="_blank" rel="noopener">✈️ Подключить бот @${esc(link.bot)}</a></p>
+    <p><button class="btn ghost" id="bot-skip">Позже — в «Профиле»</button></p><p class="hint">Ссылка действует 10 минут.</p>`);
+  $('#bot-go').onclick = () => setTimeout(() => { $('#bot-skip').textContent = 'Готово — на сайт'; }, 800);
+  $('#bot-skip').onclick = () => start();
+}
+// v5.26: «Забыли пароль?» — код из Telegram-бота (на привязанный Telegram), затем новый пароль и сразу вход
+function pwForgot(who = '') {
+  gate(`<div data-brand></div><h2>Восстановление пароля</h2>
+    <form id="pw1" class="form"><input name="who" placeholder="Логин или @ник в Telegram" value="${esc(who)}" autocapitalize="none" required>
+      <button class="btn primary" type="submit">Прислать код в Telegram</button><p class="err" id="gerr"></p></form>
+    <p class="hint">Код придёт в бот «Для Агента», если ваш Telegram к нему привязан. Не привязан — <a href="support.html" target="_blank">напишите в поддержку</a>.</p>
+    <p><a href="#" id="pw-back">← Ко входу</a></p>`);
+  $('#pw-back').onclick = e => { e.preventDefault(); showLogin(); };
+  $('#pw1').onsubmit = async e => {
+    e.preventDefault(); const w = e.target.who.value.trim(), btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await call('pw_reset', { who: w });
+      gate(`<div data-brand></div><h2>Введите код из Telegram</h2><p class="muted">${esc(r.message)}</p>
+        ${r.bot ? `<p><a class="btn soft" href="https://t.me/${esc(r.bot)}" target="_blank" rel="noopener">Открыть бот @${esc(r.bot)}</a></p>` : ''}
+        <form id="pw2" class="form"><input name="code" placeholder="Код из 6 цифр" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <input name="password" type="password" placeholder="Новый пароль (от 6 символов)" autocomplete="new-password" minlength="6" required>
+          <button class="btn primary" type="submit">Сменить пароль и войти</button><p class="err" id="gerr"></p></form>
+        <p><a href="#" id="pw-again">Прислать код ещё раз</a> · <a href="#" id="pw-back">Ко входу</a></p>`);
+      $('#pw-back').onclick = ev => { ev.preventDefault(); showLogin(); };
+      $('#pw-again').onclick = ev => { ev.preventDefault(); pwForgot(w); };
+      $('#pw2').onsubmit = async ev => {
+        ev.preventDefault(); const fm = ev.target, b2 = fm.querySelector('button'); b2.disabled = true; $('#gerr').textContent = '';
+        try {
+          const x = await call('pw_reset_set', { who: w, code: fm.code.value, password: fm.password.value, fp: await fp() });
+          if (x.token) { token = x.token; store.set('token', token); auth = { token }; toast('Пароль изменён'); return start(); }
+          showLogin(x.message || 'Пароль изменён — войдите с новым паролем');
+        } catch (er) { $('#gerr').textContent = er.message; b2.disabled = false; }
+      };
+    } catch (er) { $('#gerr').textContent = er.message; btn.disabled = false; }
+  };
 }
 // отпечаток браузера для «Активных устройств» и защиты партнёрки: хеш общих свойств браузера, не личные данные
 async function fp() {

@@ -941,3 +941,6 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
     border: 1px solid var(--line); border-left: 0; border-radius: 0 12px 12px 0; background: var(--card); color: var(--accent); font-size: 22px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); }
   body.fside:not(.fshown) .ftab:hover { width: 28px; background: var(--soft); }
 }
+/* v5.26: подсказка «где посмотреть @ник» в регистрации */
+.gate details.tip{margin:-4px 0 4px;font-size:14px}.gate details.tip summary{cursor:pointer;color:var(--accent,#1453d8);list-style:none}
+.gate details.tip summary::before{content:'ⓘ ';}.gate details.tip p{margin:6px 0 0;text-align:left}
