@@ -3,7 +3,7 @@
 // партнёры и начисления («Отменить» — например, при возврате денег). Всё решает сервер (функция pay: adm_ref*), решения — в журнале админа.
 window.PARTNERADM = (() => {
   const $ = s => document.querySelector(s);
-  let U = null, R = null, tab = 'pay';
+  let U = null, R = null, tab = 'found';
   const KIND = { ip: 'один IP', device: 'одно устройство и браузер', phone: 'общий телефон', tg: 'общий Telegram', wallet: 'общий кошелёк', fast: 'оплата сразу после регистрации с одного устройства' };
   const AST = { hold: 'в ожидании', check: 'на проверке', ready: 'к выплате', payout: 'в заявке', paid: 'выплачено', cancel: 'отменено' };
   const PST = { new: 'ждёт решения', ok: 'одобрена — переведите', paid: 'выплачено', rejected: 'отклонена' };
@@ -24,7 +24,8 @@ window.PARTNERADM = (() => {
       <section class="pcard"><h2>Партнёрская программа</h2>
         <form class="ra-set" id="ra-set">
           <label class="ra-nets" style="grid-column: 1 / -1"><input type="checkbox" name="enabled"${s.enabled ? ' checked' : ''}> Начисления включены</label>
-          <label>Процент с оплаты<input name="pct" type="number" min="0" max="100" step="0.5" value="${s.pct}"></label>
+          <input type="hidden" name="pct" value="${s.pct}">
+          <p class="hint" style="grid-column: 1 / -1">Ставки (v5.25a): Подписчик ${s.rates?.sub?.y1}% деньгами / ${s.rates?.sub?.service_y1}% услугами год, потом ${s.rates?.sub?.after}% / ${s.rates?.sub?.service_after}%; основатель от ${s.rates?.founder?.min} оплативших — ${s.rates?.founder?.y1?.join(' + ')}% год, потом ${s.rates?.founder?.after?.join(' + ')}% (2 уровня). Пробный после Telegram — ${s.trial?.phones} телефонов.</p>
           <label>«К выплате» через, дней<input name="hold_days" type="number" min="0" max="60" value="${s.hold_days}"></label>
           <label>Минимум выплаты, $<input name="min_usd" type="number" min="1" step="1" value="${s.min_usd}"></label>
           <label>После смены кошелька, часов<input name="wallet_hours" type="number" min="0" max="720" value="${s.wallet_hours}"></label>
@@ -35,9 +36,9 @@ window.PARTNERADM = (() => {
             <button type="button" class="btn soft" data-run>Создать заявки сейчас</button>
             <span class="hint">Заявки создаются сами по понедельникам в 10:00 МСК, ближайшие — ${U.day(R.next_run)}.</span></div>
         </form></section>
-      <div class="ra-tabs">${[['pay', `Заявки (${open.length})`], ['flags', `На проверке (${waiting.length})`], ['partners', `Партнёры (${R.partners.length})`], ['acc', 'Начисления']]
+      <div class="ra-tabs">${[['found', `Основатели и конкурсы (${R.partners.filter(p => p.founder).length})`], ['pay', `Заявки (${open.length})`], ['flags', `На проверке (${waiting.length})`], ['partners', `Партнёры (${R.partners.length})`], ['acc', 'Начисления']]
         .map(([k, t]) => `<button type="button" class="chip${tab === k ? ' on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div>
-      <section class="pcard">${tab === 'pay' ? pays(open) : tab === 'flags' ? flags(flagged) : tab === 'partners' ? partners() : accruals()}</section>`;
+      <section class="pcard">${tab === 'found' ? founders() : tab === 'pay' ? pays(open) : tab === 'flags' ? flags(flagged) : tab === 'partners' ? partners() : accruals()}</section>`;
   }
   function pays(open) {
     const { esc, money, when } = U, done = R.payouts.filter(p => !['new', 'ok'].includes(p.status)).slice(0, 30);
@@ -63,6 +64,22 @@ window.PARTNERADM = (() => {
     return `<h2>Проверка накруток</h2><p class="hint">Один IP — не повод для бана: коллеги из одного офиса сидят с одного IP. «Заблокировать» закрывает программу партнёру навсегда: его начисления и заявки отменяются, код больше не действует.</p>
       ${list.length ? list.map(card).join('') : '<p class="muted">Совпадений нет.</p>'}`;
   }
+  // v5.25a: основатели (коды блогерам — кнопкой), лидеры конкурсов, итоги
+  function founders() {
+    const { esc, when, day } = U, c = R.contest ?? {}, s = R.settings, list = R.partners.filter(p => p.founder);
+    const board = l => l?.length ? `<ol class="rboard">${l.map(x => `<li><span>${esc(x.name || x.login)} <span class="muted">(${esc(x.login)})</span></span><b>${x.paid}</b></li>`).join('')}</ol>` : '<p class="muted">Пока никого.</p>';
+    const PZ = { max_year: 'MAX на год', max_forever: 'MAX навсегда', none: 'победителя нет' };
+    return `<h2>Основатели</h2><p class="hint">Код есть у каждого участника. Сделайте блогера основателем — ему придёт сообщение с кодом и условиями. Он сначала регистрируется на сайте сам (или вы создаёте учётку в «Участниках»).</p>
+      <form class="ra-act" id="ra-found"><input name="login" placeholder="логин участника" autocomplete="off" spellcheck="false" required><button class="btn primary">⭐ Сделать основателем</button></form>
+      ${list.length ? `<div class="ra-wrap"><table class="ra-table"><thead><tr><th>Основатель</th><th>Код</th><th>Пригл.</th><th>Оплатили</th><th>Ставка</th><th></th></tr></thead><tbody>${list.map(p => `<tr>
+        <td>${esc(p.name || p.login)}<br><span class="muted">${esc(p.login)} · с ${day(p.founder_at)}</span></td><td><code>${esc(p.code)}</code> <button type="button" class="btn ghost" data-copy="${esc(p.code)}">Копировать</button></td>
+        <td>${p.invited}</td><td>${p.paid}</td><td>${p.founder_ok ? `<span class="tag ok">${s.rates?.founder?.y1?.join(' + ')}%</span>` : `<span class="tag warn">до порога ${Math.max(0, (s.rates?.founder?.min ?? 10) - p.paid)}</span>`}</td>
+        <td><button type="button" class="btn ghost" data-founder="${esc(p.login)}" data-on="0">Снять</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Основателей пока нет.</p>'}
+      <h2>Конкурс основателей — до ${when(s.contest?.founders_until)} МСК</h2><p class="hint">Тройка лидеров от ${s.contest?.founders_min} оплативших — MAX на год; 1 место при ${s.contest?.forever_min - 1}+ — MAX навсегда. Призы подключаются сами в 12:00 МСК.</p>${board(c.founders)}
+      <h2>Конкурс месяца (не основатели)</h2><p class="hint">С ${day(c.month_from)}: лучший от ${s.contest?.month_min} оплативших — MAX на год, итоги 1-го числа в 12:00 МСК.</p>${board(c.month)}
+      <h3>Итоги</h3>${(c.awards ?? []).length ? `<ul class="rterms">${c.awards.map(a => `<li>${a.contest === 'founders' ? 'Основатели' : `Месяц ${esc(a.period)}`}: ${a.place ? `${a.place} место — ` : ''}${a.login ? who(a.login) : ''} ${a.paid ? `(${a.paid})` : ''} — ${PZ[a.prize] ?? esc(a.prize)}</li>`).join('')}</ul>` : '<p class="muted">Итогов ещё не было.</p>'}
+      <div class="ra-act"><button type="button" class="btn soft" data-awards>Проверить итоги сейчас</button><span class="hint">Призы выдаются только когда срок конкурса прошёл; повторно — нет.</span></div>`;
+  }
   function partners() {
     const { esc, money } = U;
     return `<h2>Партнёры</h2><div class="ra-wrap"><table class="ra-table"><thead><tr><th>Партнёр</th><th>Код</th><th>Пригл.</th><th>Оплат.</th><th>Начислено</th><th>К выплате</th><th>Выплачено</th><th>Кошелёк</th></tr></thead>
@@ -85,6 +102,8 @@ window.PARTNERADM = (() => {
       if (t.dataset.tab) tab = t.dataset.tab;
       else if ('run' in t.dataset) { const r = await call('adm_ref_run'); toast(`Заявок создано: ${r.made.length}${r.skip.length ? `, пропущено: ${r.skip.length}` : ''}`, 5000); R = await call('adm_ref'); }
       else if (t.dataset.copy) U.copy(t.dataset.copy);
+      else if (t.dataset.founder) { if (!confirm('Снять статус основателя? Ставки станут как у Подписчика для новых оплат.')) { t.disabled = false; return; } R = await call('adm_ref_founder', { login: t.dataset.founder, on: false }); toast('Статус снят'); }
+      else if ('awards' in t.dataset) { const r = await call('adm_ref_awards'); toast(r.awards?.length ? `Призы выданы: ${r.awards.length}` : 'Итогов пока нет — срок конкурса ещё не прошёл', 5000); R = await call('adm_ref'); }
       else if (t.dataset.po) {
         const d = t.dataset.do, txid = d === 'paid' ? document.querySelector(`[data-txid="${t.dataset.po}"]`)?.value.trim() : undefined;
         if (d === 'paid' && !txid) throw new Error('Вставьте txid перевода');
@@ -105,10 +124,17 @@ window.PARTNERADM = (() => {
   }
   document.addEventListener('click', e => {
     if (location.hash !== '#admin' || !R) return;
-    const t = e.target.closest('[data-tab], [data-run], [data-po], [data-flag], [data-cancel], #ref [data-copy]');
+    const t = e.target.closest('[data-tab], [data-run], [data-po], [data-flag], [data-cancel], [data-founder], [data-awards], #ref [data-copy]');
     if (t) act(t);
   });
   document.addEventListener('submit', async e => {
+    if (e.target.id === 'ra-found') {
+      e.preventDefault();
+      const b = e.target.querySelector('.btn'); b.disabled = true;
+      try { R = await U.call('adm_ref_founder', { login: e.target.login.value.trim(), on: true }); U.toast('Готово: основатель получил сообщение с кодом', 5000); paint(); }
+      catch (err) { U.toast(err.message, 6000); b.disabled = false; }
+      return;
+    }
     if (e.target.id !== 'ra-set') return;
     e.preventDefault();
     const f = e.target, b = f.querySelector('.btn.primary');

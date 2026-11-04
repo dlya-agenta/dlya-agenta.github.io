@@ -75,11 +75,16 @@ window.PAYUI = (() => {
       : { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : defPlan(), months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1 };
     offerId = +q.get('offer') || null;
     if (offerId) sel = { kind: 'plan', plan: 'pro', months: 1 };
+    if (q.has('gift')) { sel = { kind: 'plan', plan: RANK[q.get('plan')] ? q.get('plan') : 'pro', months: [1, 3, 12].includes(+q.get('months')) ? +q.get('months') : 1, gift: /^[A-Za-z0-9]{4,12}$/.test(q.get('gift')) ? q.get('gift').toUpperCase() : '' }; offerId = null; }   // v5.25a: оплатить / подарить коллеге
     if (!I.can) return closed(q);
     render();
     if (+q.get('id')) openInvoice(+q.get('id'));
   }
   addEventListener('hashchange', () => location.reload());
+  document.addEventListener('input', e => {   // код коллеги — пересчёт через полсекунды
+    if (e.target.id !== 'p-gift') return;
+    clearTimeout(document.gt); document.gt = setTimeout(() => { sel.gift = e.target.value.trim().toUpperCase(); requote(); }, 500);
+  });
 
   // ---------- выбор: что оплачиваем и как ----------
   function render() {
@@ -96,6 +101,9 @@ window.PAYUI = (() => {
       <section class="pcard" id="p-what"><h2>1. Что оплачиваем</h2>
         <div class="segs"><button type="button" class="chip ${sel.kind === 'plan' ? 'on' : ''}" data-kind="plan">Тариф</button><button type="button" class="chip ${sel.kind === 'pack' ? 'on' : ''}" data-kind="pack">Пакет номеров</button><button type="button" class="chip ${sel.kind === 'topup' ? 'on' : ''}" data-kind="topup">Пополнить баланс</button>${sel.kind === 'urgent' ? '<button type="button" class="chip on">Срочное объявление</button>' : ''}</div>
         <p class="hint">На балансе: <b>${money(I.balance ?? 0)}</b> — им можно оплатить тариф или пакет номеров.</p>
+        ${sel.kind === 'plan' ? `<div class="segs"><button type="button" class="chip ${sel.gift == null ? 'on' : ''}" data-for="me">Себе</button><button type="button" class="chip ${sel.gift != null ? 'on' : ''}" data-for="gift">🎁 Коллеге</button></div>
+          ${sel.gift != null ? `<label class="field">Код коллеги (есть у него в профиле и на странице «Партнёрская программа»)<input id="p-gift" value="${esc(sel.gift)}" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="Например, 8NCW49"></label>
+          <p class="hint">Подписка подключится коллеге сразу после оплаты, мы сообщим ему, что это подарок от вас. Процент партнёра с оплаты за коллегу не начисляется.</p>` : ''}` : ''}
         <div id="p-body"></div><div id="p-quote" class="quote" aria-live="polite"></div></section>
       <section class="pcard" id="p-way"><h2>2. Способ оплаты</h2><div id="p-ways"></div>
         <button type="button" class="btn primary pgo" id="p-go" disabled>Перейти к оплате</button>
@@ -110,7 +118,7 @@ window.PAYUI = (() => {
     p.opts?.mail_items && `Рассылки в мессенджеры: до ${p.opts.mail_items} объявлений`, p.opts?.house_chats && 'Поиск по домовым чатам Сочи (скоро)'].filter(Boolean);
   // что считать: тариф, пакет, пополнение (сумма), срочное объявление чата (номер сообщения)
   const args = () => sel.kind === 'pack' ? { kind: 'pack' } : sel.kind === 'topup' ? { kind: 'topup', amount: sel.amount } : sel.kind === 'urgent' ? { kind: 'urgent', msg_id: sel.msg_id }
-    : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId };
+    : { kind: 'plan', plan: sel.plan, months: sel.months, offer: offerId, ...(sel.gift != null ? { gift: sel.gift } : {}) };
   function body() {
     const el = $('#p-body');
     if (sel.kind === 'topup') {
@@ -124,7 +132,7 @@ window.PAYUI = (() => {
       el.innerHTML = `<p>Пакет <b>${I.pack.qty} номеров за ${money(I.pack.usd)}</b> добавляется к лимиту на день и на месяц до конца вашего месяца${I.quota?.month_end ? ` (до ${day(I.quota.month_end)})` : ''}. Повтор уже открытого номера — бесплатно.</p>`;
       return;
     }
-    const cur = I.me.plan, act = I.me.active, adm = I.me.role === 'admin', gst = I.me.guest;
+    const gf = sel.gift != null, cur = gf ? null : I.me.plan, act = !gf && I.me.active, adm = gf || I.me.role === 'admin', gst = gf || I.me.guest;   // за коллегу — без своих отметок
     el.innerHTML = `<div class="plans">${I.plans.map(p => {
       const low = act && !adm && RANK[p.id] < RANK[cur], mine = p.id === cur && !adm && !gst;
       const seat = p.seats == null ? '' : p.free === 0 && !(mine && act) ? '<span class="tag grey">мест нет</span>' : `<span class="muted small">свободно мест: ${p.free} из ${p.seats}</span>`;
@@ -157,14 +165,14 @@ window.PAYUI = (() => {
     const note = q.kind === 'upgrade' ? `Переход на ${plan(q.plan).name}: неиспользованные дни засчитаны, новый период — с даты оплаты.`
       : q.renew ? `Продление: ${q.months} мес. добавятся к текущему сроку.` : q.kind === 'plan' ? 'Период начнётся с даты оплаты.' : '';
     const off = q.offer ? `Скидка по вашему предложению действует до ${when(q.offer.expires_at)} МСК; следующий месяц — ${money(q.price)}.` : '';
-    return `${q.offer_note ? `<p class="pnote warn">${esc(q.offer_note)}</p>` : ''}${rows.map(([a, b]) => `<div class="qrow"><span>${esc(a)}</span><span>${b}</span></div>`).join('')}
+    return `${q.gift ? `<p class="pnote ok">🎁 Подписка для коллеги: <b>${esc(q.gift.name)}</b></p>` : ''}${q.offer_note ? `<p class="pnote warn">${esc(q.offer_note)}</p>` : ''}${rows.map(([a, b]) => `<div class="qrow"><span>${esc(a)}</span><span>${b}</span></div>`).join('')}
       <div class="qrow total"><span>К оплате</span><span>${money(q.total)}</span></div>${note ? `<p class="hint">${esc(note)}</p>` : ''}${off ? `<p class="hint">${esc(off)}</p>` : ''}`;
   }
   function ways() {
     const m = I.methods, el = $('#p-ways'), chips = list => `<div class="segs">${list.map(([mt, x, label]) =>
       `<button type="button" class="chip ${way?.method === mt && way?.x === x ? 'on' : ''}" data-way="${mt}" data-x="${x}">${esc(label)}</button>`).join('')}</div>`;
     const cb = m.cryptobot ? m.cryptobot.assets.map(a => ['cryptobot', a, coin(a)]) : [], nets = m.nets.map(n => ['direct', n.id, n.name]);
-    const bal = sel.kind !== 'topup' && Number(I.balance) > 0 ? [['balance', 'USD', `С баланса (${window.HUB?.rub(I.balance) || `${I.balance} $`})`]] : [];
+    const bal = sel.kind !== 'topup' && sel.gift == null && Number(I.balance) > 0 ? [['balance', 'USD', `С баланса (${window.HUB?.rub(I.balance) || `${I.balance} $`})`]] : [];
     const all = [...cb, ...nets, ...bal];
     if (!all.length) { el.innerHTML = '<p class="muted">Способы оплаты ещё не подключены — напишите администратору.</p>'; way = null; return; }
     if (!way || !all.some(([mt, x]) => mt === way.method && x === way.x)) way = { method: all[0][0], x: all[0][1] };   // по умолчанию — USDT через CryptoBot, без него — первая сеть
@@ -306,6 +314,7 @@ window.PAYUI = (() => {
     const t = e.target.closest('button, a');
     if (!t || !$('#pay').contains(t)) return;
     if (t.dataset.kind) { sel = t.dataset.kind === 'pack' ? { kind: 'pack' } : t.dataset.kind === 'topup' ? { kind: 'topup', amount: 50 } : { kind: 'plan', plan: defPlan(), months: 1 }; render(); }
+    else if (t.dataset.for) { sel.gift = t.dataset.for === 'gift' ? (sel.gift ?? '') : undefined; if (sel.gift === undefined) delete sel.gift; render(); }   // v5.25a: себе / коллеге
     else if (t.dataset.plan) { sel.plan = t.dataset.plan; body(); requote(); }
     else if (t.dataset.months) { sel.months = +t.dataset.months; body(); requote(); }
     else if (t.dataset.way) { way = { method: t.dataset.way, x: t.dataset.x }; ways(); }

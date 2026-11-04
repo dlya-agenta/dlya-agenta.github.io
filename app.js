@@ -701,6 +701,7 @@ async function onCard(e, cardEl) {
     PLANS.counter(p.used);
     if (!p.phone && !p.tg) throw Object.assign(new Error(p.error || 'номер не найден'), { pending: !!p.pending });
     b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
+    window.INVITE?.hit('phone');   // v5.25a: «Позвать коллегу» после удачного момента (invite.js)
     const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
     if (y) { y.phone = p.phone; if (p.tg) y.tg = p.tg; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
     if (p.src?.length) { cardEl.querySelector('.src')?.remove(); box.insertAdjacentHTML('beforebegin', srcHtml({ src: p.src })); }
@@ -1046,6 +1047,7 @@ $('#sel-make').onclick = () => {
       const r = await call('sel_create', { ...args, partial: partial || !!limit });
       if (r.used) PLANS.counter(r.used);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
+      window.INVITE?.hit('sel');
     } catch (e) { if (e.gate) return showLogin(e.gate); $('#s-err').textContent = e.message; b.disabled = false; b.textContent = 'Сформировать'; }
   };
 };

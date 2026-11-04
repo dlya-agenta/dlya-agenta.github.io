@@ -70,3 +70,19 @@
   .ra-table { font-size: 12.5px; }
 }
 #r-wallet p { margin: 0; }
+
+/* v5.25a: «деньгами / услугами», доска лидеров, подпись в подборках */
+.rmode { display: grid; gap: 10px; }
+.rmode label { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 12px; cursor: pointer; line-height: 1.45; }
+.rmode label:has(input:checked) { border-color: var(--accent, #1453d8); box-shadow: 0 0 0 1px var(--accent, #1453d8) inset; }
+.rmode input { margin-top: 3px; flex: none; }
+.rboard { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: rb; display: grid; gap: 6px; }
+.rboard li { counter-increment: rb; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--soft, rgba(0,0,0,.04)); }
+.rboard li::before { content: counter(rb); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--line, rgba(0,0,0,.1)); flex: none; }
+.rboard li:nth-child(1)::before { background: #d9b45a; color: #1d1606; }
+.rboard li:nth-child(2)::before { background: #c9ced6; color: #1d2230; }
+.rboard li:nth-child(3)::before { background: #c98a55; color: #24140a; }
+.rboard li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.rboard li.me { outline: 2px solid var(--accent, #1453d8); }
+.rcheck { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.rstats { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }

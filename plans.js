@@ -74,6 +74,7 @@ window.PLANS = (() => {
       <div class="ptable-wrap"><table class="ptable"><thead><tr><th></th>${info.plans.map(p => `<th class="${p.id === my ? 'my' : ''}">${esc(p.name)}</th>`).join('')}</tr></thead>
         <tbody>${ROWS.map(([t, f]) => `<tr><th>${t}</th>${info.plans.map(p => `<td class="${p.id === my ? 'my' : ''}">${f(p)}</td>`).join('')}</tr>`).join('')}</tbody>
         <tfoot><tr><th></th>${info.plans.map(p => `<td class="${p.id === my ? 'my' : ''}">${btn(p)}</td>`).join('')}</tr></tfoot></table></div>
+      <p><a class="btn ghost" href="pay.html?gift=&plan=pro">🎁 Подарить PRO коллеге — по его коду</a></p>
       <p class="hint">Номера считаются по МСК: день — с 00:00, месяц — от даты оплаты. Повтор того же номера — бесплатно. Пакет ${esc(packText())} добавляется к дню и месяцу до конца периода.</p>`;
     $('#sheet-body').onclick = async e => {
       const p = e.target.closest('[data-pay]'), w = e.target.closest('[data-wait]');

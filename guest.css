@@ -7,3 +7,4 @@ body.guest .card .body::after { content: '🔒 Адрес, цена и теле�
 .guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; max-width: 1448px; margin: 12px auto 0; width: calc(100% - 32px); padding: 10px 14px; border-radius: var(--radius);
   background: var(--soft); font-size: 14.5px; }
 .guest-bar .btn { text-decoration: none; }
+.guest-act { display: flex; gap: 8px; flex-wrap: wrap; }
