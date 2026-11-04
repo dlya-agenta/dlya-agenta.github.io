@@ -405,7 +405,7 @@
     const low = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е');
     const zkOwn = x.complex ? items.filter(i => i.num !== x.num && low(i.complex) === low(x.complex)) : [];
     let base = { mode: 'none', items: [] };
-    if (x.lat && x.lng) try { base = await H.web('similar', { lat: x.lat, lng: x.lng, kind: x.kind, rooms: x.rooms, area: x.area, price: x.price, floor: x.floor, zk: x.zk_id ? [x.zk_id] : [] }); } catch { /* без базы — только эксклюзивы */ }
+    if (x.lat && x.lng && canView) try { base = await H.web('similar', { lat: x.lat, lng: x.lng, kind: x.kind, rooms: x.rooms, area: x.area, price: x.price, floor: x.floor, zk: x.zk_id ? [x.zk_id] : [] }); } catch { /* без базы — только эксклюзивы */ }
     if (!box.isConnected) return;
     const zkBase = base.mode === 'zk' || base.mode === 'house' ? base.items : [];
     let head, sub = '', list;
