@@ -21,7 +21,7 @@ window.__diag = why => { try {
 setTimeout(() => {
   const g = document.getElementById('gate');
   if (!g || g.hidden || !/Загрузка/.test(g.textContent) || g.querySelector('[data-reload]')) return;
-  g.insertAdjacentHTML('beforeend', `<p class="muted" style="margin-top:14px">Долго грузится — возможно, слабая связь.</p><p class="muted" style="font-size:12px;opacity:.6">этап: ${window.__stage || 'скрипты'} · sw: ${navigator.serviceWorker?.controller ? 'да' : 'нет'}</p><button class="btn primary" data-reload type="button">Обновить</button>`);
+  g.insertAdjacentHTML('beforeend', `<p class="muted" style="margin-top:14px">Долго грузится — возможно, слабая связь.</p><p class="muted" style="font-size:12px;opacity:.6">этап: ${window.__stage || 'скрипты'} · sw: ${navigator.serviceWorker?.controller ? 'да' : 'нет'}${(window.__errs || []).length ? ' · ' + String(window.__errs.slice(-2).join(' | ')).replace(/[<>&]/g, '').slice(0, 200) : ''}</p><button class="btn primary" data-reload type="button">Обновить</button>`);
   g.querySelector('[data-reload]').onclick = () => location.reload();
   window.__diag?.('загрузка 15 с');
 }, 15000);

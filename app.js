@@ -221,14 +221,19 @@ async function start() {
     return $('#again').onclick = () => start();
   }
   me = meta.me;
-  if (me.guest) GUEST.use(me);   // гостевой доступ: только посмотреть (site/guest.js)
-  PLANS.use({ call, sheet, toast }, meta);
-  PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } });
-  NOTIFY.start({ call, sheet, toast }, meta);   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
-  CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta);   // клиенты и задачи (site/crm.js, шаг 3.4)
-  window.LINKS?.use({ call, sheet, closeSheet, toast, me: () => me, agent: () => !!me && !me.guest });   // v5.23c: связи под карточкой — собственник, подборки, клиенты (site/links.js)
-  RK.use({ sheet, closeSheet, toast, auth: () => auth });   // «Реклама»: черновики на площадках (site/reklama/rk.js, шаг 4.1)
-  ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } });
+  // v5.26f (iPhone, приложение с экрана «Домой»: «этап: init ok», а сайт не открывался — один из модулей падал, и запуск обрывался):
+  // каждый модуль подключается отдельно — сбой одного не держит сайт на «Загрузка…», ошибка уходит в отчёт (tg.js → window.__diag)
+  const safe = (name, fn) => { window.__stage = name; try { fn(); } catch (e) { (window.__errs ??= []).push(`${name}: ${e?.message ?? e}`); console.error(name, e); } };
+  safe('GUEST', () => { if (me.guest) GUEST.use(me); });   // гостевой доступ: только посмотреть (site/guest.js)
+  safe('PLANS', () => { PLANS.use({ call, sheet, toast }, meta); });
+  safe('PROFILE', () => { PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } }); });
+  safe('NOTIFY', () => { NOTIFY.start({ call, sheet, toast }, meta); });   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
+  safe('CRM', () => { CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta); });   // клиенты и задачи (site/crm.js, шаг 3.4)
+  safe('LINKS', () => { window.LINKS?.use({ call, sheet, closeSheet, toast, me: () => me, agent: () => !!me && !me.guest }); });   // v5.23c: связи под карточкой — собственник, подборки, клиенты (site/links.js)
+  safe('RK', () => { window.RK?.use({ sheet, closeSheet, toast, auth: () => auth }); });   // «Реклама»: черновики на площадках (site/reklama/rk.js, шаг 4.1)
+  safe('ADMIN', () => { ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } }); });
+  window.__stage = 'prefs';
+  try {   // v5.26f: сохранённые настройки с ошибкой — не повод не открыть сайт
   const p = me.prefs;
   if (p && typeof p === 'object') {
     if (p.f && typeof p.f === 'object') f = p.f;
@@ -249,7 +254,8 @@ async function start() {
     f.d = [...new Set(f.d.map(k => OLD_AREAS[k] ?? (String(k).startsWith('mkr:') ? subOf(k) : k)).filter(k => k && known.has(k)))];
     if (!f.d.length) delete f.d;
   }
-  document.title = 'Для Агента — объекты от собственников Сочи';
+  } catch (e) { (window.__errs ??= []).push(`prefs: ${e?.message ?? e}`); console.error('prefs', e); }
+  window.__stage = 'show'; document.title = 'Для Агента — объекты от собственников Сочи';
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#who').textContent = me.name || me.login;
   if (me.role === 'admin') { $('#until').textContent = me.login === 'admin' ? 'главный администратор' : 'администратор'; $('#go-admin').hidden = false; $('#go-hidden').hidden = false; }
@@ -278,7 +284,7 @@ async function start() {
   search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
-  if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest) { sheetGo = 'rk'; RK.open(location.hash); }
+  if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest && window.RK) { sheetGo = 'rk'; RK.open(location.hash); }
   // «📄 Сформировать подборку» из «Моего помощника» (v5.16): объекты уже в store 'sel', комиссия — 'sel_cm'
   if (location.hash === '#selmake' && sel.size && !me.guest) {
     history.replaceState(null, '', location.pathname + location.search);
@@ -1396,7 +1402,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'selhow') selHow();
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
-  if (g === 'rk') { if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/reklama/rk.js (шаг 4.1)
+  if (g === 'rk') { if (!window.RK) return toast('Раздел «Реклама» не загрузился — возможно, его режет блокировщик рекламы в браузере', 6000); if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/plc/plc.js (шаг 4.1; v5.26f: папка была reklama/ — её вырезают блокировщики рекламы в Safari, сайт на iPhone не запускался)
   if (g === 'mail') { if (me.can_mail) location.href = 'mail.html'; else PLANS.locked('mail'); }   // рассылки — своя страница mail.html (шаг 4.2)
   if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
