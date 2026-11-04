@@ -183,10 +183,12 @@
     const keyOpt = (v) => Object.keys(r.keys).map(k => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(r.key_labels[k])}</option>`).join('');
     const modOpt = v => Object.entries(r.models).map(([k, t]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(t)}</option>`).join('');
     const by = S.ai.by_feature30 ?? {};
-    body(`<section class="hub-sec"><h3>Ключи ИИ</h3><p class="hint">Три ключа (посредник BetterToken или Anthropic). Если ключ не ответил, функция берёт запасной из своей строки ниже. Командовать Управляющим может только администратор — запасной ключ лишь выполняет ту же рутинную работу.</p>
+    body(`<section class="hub-sec"><h3>Ключи ИИ</h3><p class="hint">Три ключа, у каждого свой адрес подключения API: посредник BetterToken (https://bettertoken.ai) или Anthropic напрямую (https://api.anthropic.com, пустое поле — тоже Anthropic). Если ключ не ответил, функция берёт запасной из своей строки ниже. Командовать Управляющим может только администратор — запасной ключ лишь выполняет ту же рутинную работу.</p>
         ${Object.entries(r.keys).map(([k, x]) => `<div class="adm-key"><b>${esc(x.label)}</b><span class="${x.set ? 'tag ok' : 'tag warn'}">${x.set ? (x.from === 'admin' ? 'задан здесь ••••' : 'из настроек функции') : 'не задан'}</span>
-          <input type="password" data-key="${k}" placeholder="Вставьте новый ключ" autocomplete="off"><button class="btn soft" data-save-key="${k}">Сохранить</button><button class="btn ghost" data-test="${k}">Проверить</button></div>`).join('')}
-        <label class="field">Адрес API<input id="ai-base" value="${esc(r.base_url)}" placeholder="https://bettertoken.ai"></label></section>
+          <input type="password" data-key="${k}" placeholder="Вставьте новый ключ" autocomplete="off"><button class="btn soft" data-save-key="${k}">Сохранить</button><button class="btn ghost" data-test="${k}">Проверить</button>
+          <label class="field adm-base">Адрес API<input data-base="${k}" value="${esc(r.base_urls?.[k] ?? '')}" placeholder="https://api.anthropic.com" list="ai-base-list" autocomplete="off"></label></div>`).join('')}
+        <datalist id="ai-base-list"><option value="https://bettertoken.ai">BetterToken</option><option value="https://api.anthropic.com">Anthropic (Claude) напрямую</option></datalist>
+        <p><button class="btn primary" data-save-base>Сохранить адреса API</button> <small class="muted">«Проверить» у ключа идёт через его сохранённый адрес.</small></p></section>
       <section class="hub-sec"><h3>Какая функция через какой ключ и модель</h3><p class="hint">«Цена = качество»: Haiku — короткие частые задачи, Sonnet — разбор, Opus — где ошибка дорога. Расходы — по ценам Anthropic (у посредника ~68 %).</p>
         <div class="adm-routes"><b>Функция</b><b>Ключ</b><b>Запасной</b><b>Модель</b><b>Усилие</b><b>Вкл.</b><b>30 дней</b>
         ${Object.entries(r.routes).map(([f, x]) => `<span title="${esc(x.hint)}">${esc(x.label)}</span><select data-r="${f}.key">${keyOpt(x.key)}</select>
@@ -217,13 +219,15 @@
       if (sk) { const k = sk.dataset.saveKey, v = $(`[data-key="${k}"]`).value.trim(); if (!v && !confirm('Пустое значение удалит ключ. Удалить?')) return;
         try { await H.call('adm_secret_set', { name: k, value: v }); H.toast(v ? 'Ключ сохранён' : 'Ключ удалён'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
       const t = e.target.closest('[data-test]');
-      if (t) { t.disabled = true; try { const x = await H.call('adm_key_test', { key: t.dataset.test }); H.toast(x.ok ? `Ключ работает: «${x.text}»` : `Ключ не ответил: ${x.error}`, 6000); } catch (er) { H.toast(er.message, 5000); } t.disabled = false; return; }
+      if (t) { t.disabled = true; try { const x = await H.call('adm_key_test', { key: t.dataset.test }); H.toast(x.ok ? `Ключ работает (${x.base}): «${x.text}»` : `Ключ не ответил (${x.base}): ${x.error}`, 8000); } catch (er) { H.toast(er.message, 5000); } t.disabled = false; return; }
+      if (e.target.closest('[data-save-base]')) { const base_urls = {}; document.querySelectorAll('[data-base]').forEach(i => { base_urls[i.dataset.base] = i.value.trim(); });
+        try { await H.call('adm_ai_set', { base_urls }); H.toast('Адреса API сохранены'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
       if (e.target.closest('[data-save-video]')) { try { await H.call('adm_ai_set', { video: { ai: $('#vid-ai').checked, tpl: $('#vid-tpl').value } }); H.toast('Видеомонтаж: сохранено'); } catch (er) { H.toast(er.message, 5000); } return; }
       if (e.target.closest('[data-save-routes]')) {
         const routes = {};
         for (const f of Object.keys(r.routes)) routes[f] = { key: $(`[data-r="${f}.key"]`).value, fallback: [$(`[data-r="${f}.fb"]`).value].filter(Boolean), model: $(`[data-r="${f}.model"]`).value,
           effort: $(`[data-r="${f}.effort"]`).value, on: $(`[data-r="${f}.on"]`).checked };
-        try { await H.call('adm_ai_set', { routes, base_url: $('#ai-base').value, night: { descr: +$('#n-descr').value, repair: +$('#n-repair').value } }); H.toast('Сохранено'); } catch (er) { H.toast(er.message, 5000); }
+        try { await H.call('adm_ai_set', { routes, night: { descr: +$('#n-descr').value, repair: +$('#n-repair').value } }); H.toast('Сохранено'); } catch (er) { H.toast(er.message, 5000); }
       }
     };
   }

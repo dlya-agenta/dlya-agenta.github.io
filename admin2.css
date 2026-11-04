@@ -32,6 +32,7 @@ body.adm2 { background: color-mix(in srgb, var(--soft) 60%, var(--bg, #f4f6fa));
 .adm-key { display: grid; grid-template-columns: 220px auto 1fr auto auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
 .adm-key small { grid-column: 1 / -1; margin-top: -6px; }
 .adm-key input { font-size: 15px; min-width: 0; }
+.adm-key .adm-base { grid-column: 1 / -1; display: grid; grid-template-columns: 220px 1fr; gap: 8px; align-items: center; margin: 0; }
 .adm-routes { display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(4, minmax(110px, 1fr)) 50px minmax(120px, 1fr); gap: 6px 8px; align-items: center; font-size: 14px; overflow-x: auto; }
 .adm-panel { background: var(--card); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); display: grid; gap: 10px; }
 .tag { border-radius: 6px; padding: 1px 8px; font-size: 12px; background: var(--soft); white-space: nowrap; }
@@ -46,6 +47,7 @@ body.adm2 { background: color-mix(in srgb, var(--soft) 60%, var(--bg, #f4f6fa));
   .adm-grid2 { grid-template-columns: 1fr; }
   .adm-key { grid-template-columns: 1fr auto; }
   .adm-key input { grid-column: 1 / -1; }
+  .adm-key .adm-base { grid-template-columns: 1fr; gap: 4px; }
 }
 /* v5.16: «Стиль сайта» — три карточки-превью (мини-макет шапки, карточек и кнопки в цветах стиля) */
 .dz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
