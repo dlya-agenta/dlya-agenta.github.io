@@ -16,17 +16,21 @@ window.SHARE = (() => {
     link: `<b>Ссылка клиенту</b>: цены с вашей комиссией, без телефонов собственников. Клиент ставит ✓ «подходит» или ✗ «не подходит» и пишет комментарий — вам придёт сообщение. Ссылка действует 30 дней, её можно продлить. ${AGENT}`,
     both: `PDF и ссылка для клиента (до 10 объектов). ${AGENT}`,
   };
+  // v5.25b: подборка эксклюзивов — то же, но на ссылке агенту не собственники, а агенты-коллеги, разместившие объекты
+  const AGENTX = 'Для вас — <b>ссылка агенту</b>: агенты, разместившие эксклюзивы, их контакты и комиссия (по подписке), «Написать всем» агентам через мессенджеры.';
+  const HINTX = Object.fromEntries(Object.entries(HINT).map(([k, v]) => [k, v.replace(AGENT, AGENTX).replace('без контактов собственника', 'без контактов агентов').replace('без телефонов собственников', 'без контактов агентов')]));
+  const hintOf = (k, v) => (k === 'excl' ? HINTX : HINT)[v] ?? (k === 'excl' ? HINTX : HINT).both;
   const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
   const obj = n => `${n} ${plural(n, 'объект', 'объекта', 'объектов')}`;
 
   // n — сколько объектов выбрано: больше 10 — PDF и «Оба» недоступны (с подсказкой), выбран формат «Ссылка»
-  const formatHtml = (n = 0) => {
+  const formatHtml = (n = 0, kind = 'own') => {
     let v = get('selFmt', 'both');
     if (n > MAX[v]) v = 'link';
-    return `<div class="field"><span>Как отправить клиенту</span><div class="chips fmt" id="s-fmt" role="radiogroup">${FMT.map(([k, t]) => { const off = n > MAX[k];
+    return `<div class="field"><span>Как отправить клиенту</span><div class="chips fmt" id="s-fmt" role="radiogroup" data-kind="${kind}">${FMT.map(([k, t]) => { const off = n > MAX[k];
       return `<label class="chip${v === k ? ' on' : ''}${off ? ' dis' : ''}"${off ? ` title="В PDF до ${MAX.pdf} объектов"` : ''}><input type="radio" name="s-fmt" value="${k}"${v === k ? ' checked' : ''}${off ? ' disabled' : ''}> ${t}</label>`; }).join('')}</div></div>
       ${n > MAX.pdf ? `<div class="hint warn-hint">Выбрано ${obj(n)}: ссылкой можно до ${MAX.link}, в PDF — до ${MAX.pdf}. Для PDF уберите ${obj(n - MAX.pdf)}.</div>` : ''}
-      <div class="hint" id="s-fmt-hint">${HINT[v] ?? HINT.both}</div>`;
+      <div class="hint" id="s-fmt-hint">${hintOf(kind, v)}</div>`;
   };
   const format = () => document.querySelector('[name="s-fmt"]:checked')?.value ?? 'both';
   // переключение: подсказка и поля только для PDF
@@ -36,7 +40,7 @@ window.SHARE = (() => {
     const sync = save => {
       const v = format();
       box.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.querySelector('input').checked));
-      $('#s-fmt-hint').innerHTML = HINT[v];
+      $('#s-fmt-hint').innerHTML = hintOf(box.dataset.kind, v);
       document.querySelectorAll('.pdf-only').forEach(x => x.hidden = v === 'link');
       if (save) put('selFmt', v);   // выбор человека; «Ссылка» при 11+ объектах — не запоминаем
     };
@@ -52,12 +56,12 @@ window.SHARE = (() => {
   // ссылка агенту — относительная (s.html#… на том же адресе сайта, где агент вошёл) и в Telegram-приложении — в том же окне: во внешнем браузере входа нет
   const rel = u => String(u ?? '').replace(/^https?:\/\/[^#]*?s\.html#/, 's.html#');
   const ablank = () => window.Telegram?.WebApp?.initData ? '' : ' target="_blank" rel="noopener"';
-  const agentBtn = r => r.agent_link ? `<div class="share-agent agent-only"><a class="btn soft" href="${esc(rel(r.agent_link))}"${ablank()}>🔗 Ссылка агенту</a>
-      <span class="hint">собственники, переписка, актуальность — только для вас, клиенту не отправляйте${r.phones != null && r.total ? ` · телефоны открыты: ${r.phones} из ${r.total}` : ''}</span></div>` : '';
-  const resultHtml = r => (r.link ? `<div class="share-box"><label class="field">Ссылка для клиента<input id="s-link" readonly value="${esc(r.link)}"></label>
+  const agentBtn = (r, kind) => r.agent_link ? `<div class="share-agent agent-only"><a class="btn soft" href="${esc(rel(r.agent_link))}"${ablank()}>🔗 Ссылка агенту</a>
+      <span class="hint">${kind === 'excl' ? 'агенты эксклюзивов, их контакты и «Написать всем»' : 'собственники, переписка, актуальность'} — только для вас, клиенту не отправляйте${r.phones != null && r.total ? ` · телефоны открыты: ${r.phones} из ${r.total}` : ''}</span></div>` : '';
+  const resultHtml = (r, kind = 'own') => (r.link ? `<div class="share-box"><label class="field">Ссылка для клиента<input id="s-link" readonly value="${esc(r.link)}"></label>
       <div class="sheet-foot"><button class="btn primary" data-copy="${esc(r.link)}">Скопировать ссылку</button>${navigator.share ? `<button class="btn soft" data-share="${esc(r.link)}">Поделиться</button>` : ''}
         <a class="btn ghost" href="${esc(r.link)}" target="_blank" rel="noopener" data-url="${esc(r.link)}">Открыть</a></div>
-      <p class="hint">${r.query ? `${esc(r.query)} · ` : ''}действует до ${day(r.until)}. Когда клиент откроет подборку или отметит объекты, вам придёт уведомление: в Telegram (привяжите его в профиле), в браузер и на сайте.</p></div>` : '') + agentBtn(r);
+      <p class="hint">${r.query ? `${esc(r.query)} · ` : ''}действует до ${day(r.until)}. Когда клиент откроет подборку или отметит объекты, вам придёт уведомление: в Telegram (привяжите его в профиле), в браузер и на сайте.</p></div>` : '') + agentBtn(r, kind);
   function bind(el, toast) {   // окно (#sheet-body) одно на всю страницу — обработчик вешается один раз
     if (el.dataset.shareOn) return;   // не data-share: иначе любой клик в окне ловился как «Поделиться»
     el.dataset.shareOn = 1;
@@ -69,7 +73,8 @@ window.SHARE = (() => {
   }
 
   // ---------- «Мои подборки» — раздел на главной ----------
-  const TABS = [['all', 'Все подборки', 'Все'], ['own', 'Ответы собственников', 'Собственники'], ['fb', 'Отклики клиентов', 'Клиенты']];
+  const TABS = [['all', 'Все подборки', 'Все'], ['own', 'Ответы собственников', 'Собственники'], ['fb', 'Отклики клиентов', 'Клиенты'], ['ex', 'Подборки эксклюзивов', 'Эксклюзивы']];
+  const isEx = s => s.kind === 'excl';   // v5.25b: подборки эксклюзивов — своя вкладка «Подборки эксклюзивов» (в «Все» не входят)
   const agentLink = s => rel(s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`));
   let css = false;
   const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.23e1">'); };
@@ -85,8 +90,15 @@ window.SHARE = (() => {
     s.comments && `💬 ${s.comments}`].filter(Boolean).join(' · ') : '';
   const linkBadge = s => s.link ? (s.live ? `<span class="sp-b">🔗 ссылка до ${day(s.link_until)}</span>` : '<span class="sp-b off">ссылка закончилась</span>')
     : s.url ? `<span class="sp-b">PDF до ${day(s.pdf_until)}</span>` : '<span class="sp-b off">PDF удалён</span>';
-  const meta = s => [when(s.created_at), obj(s.nums.length), s.markup ? `+${s.markup}% клиенту` : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ');
-  const acts = s => [
+  const meta = s => [when(s.created_at), obj(s.nums.length), s.markup ? `+${s.markup}% клиенту` : isEx(s) ? 'цены агентов' : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ');
+  const acts = s => isEx(s) ? [   // v5.25b: подборка эксклюзивов — те же ссылки и PDF; «В подборку» — на странице эксклюзивов, реклама и ролик — у объявлений собственников
+    s.link && s.live && `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a>`,
+    s.link && s.live && `<button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>`,
+    s.link && s.live && navigator.share && `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>`,
+    `<a class="btn soft" href="${esc(agentLink(s))}"${ablank()} title="Агенты эксклюзивов, их контакты, «Написать всем» — только для вас">🔗 Ссылка агенту</a>`,
+    s.link && `<button class="btn ghost" data-extend="${s.id}" title="Ссылка клиенту будет действовать ещё 30 дней">Продлить</button>`,
+    s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
+    `<a class="btn ghost" href="excl.html#sel=${s.nums.join(',')}">💎 В подборку</a>`].filter(Boolean).join('') : [
     s.link && s.live && `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a>`,
     s.link && s.live && `<button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>`,
     s.link && s.live && navigator.share && `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>`,
@@ -98,7 +110,7 @@ window.SHARE = (() => {
     `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`,
     `<button class="btn ghost" data-rk="${s.nums.join(',')}">📣 В рекламу</button>`,
     `<button class="btn ghost" data-video="${s.nums.slice(0, 6).join(',')}">🎬 Ролик</button>`].filter(Boolean).join('');
-  const head = s => `<div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${s.checked ? '<span class="sp-b ok" title="Собрана со страницы агента из объектов, где собственник ответил «актуально»">✓ проверенная</span>' : ''}${linkBadge(s)}</div>
+  const head = s => `<div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${isEx(s) ? '<span class="sp-b ex">💎 эксклюзивы</span>' : ''}${s.checked ? '<span class="sp-b ok" title="Собрана со страницы агента из объектов, где собственник ответил «актуально»">✓ проверенная</span>' : ''}${linkBadge(s)}</div>
     <div class="sp-meta muted">${meta(s)}</div>
     ${s.from ? `<div class="sp-rel muted">Собрана из подборки ${s.from.title ? `«${esc(s.from.title)}»` : `№ ${s.from.id}`}</div>` : ''}`;
   function cardAll(s, marks) {
@@ -122,16 +134,19 @@ window.SHARE = (() => {
     all: 'Подборок пока нет. Отметьте объекты галочкой «Выбрать» и нажмите внизу «В подборку»: ссылкой — до 20 объектов, PDF — до 10. Ссылки живут 30 дней (можно продлить), PDF — 7.',
     own: 'Ответов собственников пока нет. Откройте «🔗 Ссылку агенту» у подборки и нажмите «Написать всем» — кто ответил «актуально», появится здесь, и из них можно собрать проверенную подборку.',
     fb: 'Откликов пока нет. Когда клиент откроет ссылку и отметит объекты ✓ / ✗ или напишет комментарий, это появится здесь, а вам придёт уведомление.',
+    ex: 'Подборок эксклюзивов пока нет. Откройте <a href="excl.html">💎 Эксклюзивы</a>, отметьте объекты галочкой «Выбрать» и нажмите внизу «В подборку» — ссылкой до 20, PDF до 10, как у собственников.',
   };
   const HOW = 'Как собрать: отметьте объекты галочкой «Выбрать» в выдаче или в «Избранном» → внизу «В подборку» → отправьте клиенту ссылку, а себе откройте «Ссылку агенту».';
   // d — { items, marks } ; tab — all | own | fb
   function page(d, tab) {
     style();
     const marks = d.marks ?? null, items = d.items ?? [];
-    const own = marks ? items.filter(s => ownSum(s, marks)) : [], fb = items.filter(s => s.link && (s.views || s.fb?.length));
-    const list = tab === 'own' ? own : tab === 'fb' ? fb : items, n = { all: items.length, own: own.length, fb: fb.length };
+    const base = items.filter(s => !isEx(s)), ex = items.filter(isEx);
+    const own = marks ? base.filter(s => ownSum(s, marks)) : [], fb = items.filter(s => s.link && (s.views || s.fb?.length));
+    const list = tab === 'own' ? own : tab === 'fb' ? fb : tab === 'ex' ? ex : base, n = { all: base.length, own: own.length, fb: fb.length, ex: ex.length };
     return `<div class="sp-head"><h1>Мои подборки</h1><p class="muted">${HOW}</p></div>
       <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${TABS.map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
+      ${tab === 'ex' ? '<p class="hint sp-exh">💎 Подборки из «Эксклюзивов» коллег: ссылка клиенту и PDF — как у собственников, на «Ссылке агенту» — агенты, разместившие объекты, и «Написать всем».</p>' : ''}
       ${list.length ? `<div class="sp-list">${list.map(s => tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${tab === 'own' && d.pending ? 'Загружаю ответы собственников…' : EMPTY[tab]}</p>`}`;
   }
 

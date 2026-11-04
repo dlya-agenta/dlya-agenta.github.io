@@ -2,6 +2,9 @@
 // смотреть чужие — по тарифу. Лента с фильтром как на главной (те же поля и подсказки FUI), карточка с галереей, избранное, «Мои размещения»
 // (изменить, продлить на 30 дней, продано, снять, удалить), форма с фото до 15 (сжатие на странице, порядок, обложка), комиссия коллеге.
 // Адреса: excl.html — лента, #fav — избранное, #my — мои, #new — разместить, #edit=<id> — изменить, #o=<номер> — карточка объекта.
+// v5.25b (Алексей 04.11): ленту видят и размещают все вошедшие (гость и без подписки), контакт агента — только с подпиской (у объекта locked).
+// Как у объявлений собственников: галочка «Выбрать» и полоса выбора (В подборку · В рассылку), в карточке — В подборку, В рассылку, Клиенту, В сделку,
+// у своего — «📣 В рекламу» (готовый текст и фото). Подборка — web sel_create {kind: 'excl'}: ссылкой до 20, PDF до 10, те же лимиты; #sel=<номера> — сразу окно подборки.
 (() => {
   const $ = s => document.querySelector(s);
   const H = window.HUB, esc = H.esc;
@@ -14,6 +17,10 @@
   const ST = { draft: ['Черновик', 'warn'], active: ['В ленте', 'ok'], hidden: ['Снят с показа', 'muted'], sold: ['Продано', 'ok'], archived: ['В архиве', 'muted'] };
   const FN = Object.fromEntries(FIN);
   let caps = null, ref = null, items = [], canView = true, f = {}, sort = 'new', my = null, fopen = false;
+  const MAXSEL = 20, MAXPDF = 10, SKEY = 'excl_sel';
+  const jget = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const jset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } };
+  let sel = new Set(jget(SKEY, []).filter(n => n >= 900001).slice(0, MAXSEL));
   let view = localStorage.getItem('excl_view') === 'map' ? 'map' : 'list';   // v5.20: «Список / Карта», как на главной
   try { const p = JSON.parse(localStorage.getItem('excl_f') || 'null'); if (p) { f = p.f ?? {}; sort = p.sort ?? 'new'; } } catch { /* нет */ }
   const keep = () => localStorage.setItem('excl_f', JSON.stringify({ f, sort }));
@@ -86,6 +93,7 @@
     }
     $('#gate').hidden = true; $('#app').hidden = false;
     H.ping();
+    selbar();
     addEventListener('hashchange', route);
     route();
     markNav();
@@ -103,6 +111,8 @@
     if (k === 'my') return showMy();
     if (k === 'new') return form(null, +v || 0);   // v5.23c: #new=<номер> — из объявления, где собственник ответил «актуально»
     if (k === 'edit') return form(+v);
+    if (k === 'sel') { const ns = String(v ?? '').split(',').map(Number).filter(n => n >= 900001); if (ns.length) { sel = new Set(ns.slice(0, MAXSEL)); jset(SKEY, [...sel]); }
+      history.replaceState(null, '', location.pathname); feed(false).then(() => { selbar(); selMake(); }); return; }
     feed(k === 'fav').then(() => { if (k === 'o' && v) card(+v); });
   }
 
@@ -123,8 +133,8 @@
     }
     el.querySelector('.ex-feed').dataset.only = favOnly ? 1 : '';
     try { await load(); } catch (e) { $('#ex-grid').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-    $('#ex-lock').innerHTML = canView ? '' : `<div class="hub-lock ex-lock"><b>🔒 Объекты коллег — по подписке</b><p>Разместить свой объект можно и без подписки — коллеги с подпиской увидят его и приведут покупателя.
-      Чтобы видеть объекты коллег, оформите подписку.</p><a class="btn primary" href="pay.html">Оформить подписку</a> <a class="btn soft" href="#new">＋ Разместить объект</a></div>`;
+    $('#ex-lock').innerHTML = canView ? '' : `<div class="hub-lock ex-lock"><b>🔒 Контакты агентов — по подписке</b><p>Смотреть эксклюзивы коллег и размещать свои можно без подписки — коллеги увидят ваш объект и приведут покупателя.
+      Чтобы видеть контакты агентов и писать им, оформите подписку.</p><a class="btn primary" href="pay.html">Оформить подписку</a> <a class="btn soft" href="#new">＋ Разместить объект</a></div>`;
     draw();
   }
   function filtered() {
@@ -171,7 +181,8 @@
         ${x.area && x.price ? `<small class="muted">${esc(dots(Math.round(x.price / x.area)))} ₽/м²</small>` : ''}
         <span class="ex-what">${esc(what(x))}</span><span class="ex-place muted">${esc(place(x) || 'Сочи')}</span>
         <span class="ex-meta muted">${x.sea_m ? `🌊 ${esc(sea(x.sea_m))} · ` : ''}${x.finish ? `${esc(FN[x.finish] ?? '')} · ` : ''}${esc(ago(x.at))}</span>
-        ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : ''}</div></article>`;
+        ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : x.locked ? '<span class="ex-ag muted">🔒 Контакт агента — по подписке</span>' : ''}
+        <label class="ex-pick"><input type="checkbox" data-pick="${x.num}"${sel.has(x.num) ? ' checked' : ''}> Выбрать</label></div></article>`;
   }
 
   // ---------- v5.20: карта, как в основном поиске: метки с ценой, группы «N · от X млн», окно точки, список видимой области под картой ----------
@@ -346,12 +357,23 @@
           <div class="ex-acts">${ag.phone ? `<a class="btn primary" href="tel:+${esc(String(ag.phone).replace(/\D/g, ''))}">📞 Позвонить</a>` : ''}
           ${waNum ? `<a class="btn soft" href="https://wa.me/${esc(waNum)}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
           ${tgLink ? `<a class="btn soft" href="${esc(tgLink)}" target="_blank" rel="noopener">Telegram</a>` : ''}
-          ${ag.phone ? `<a class="btn soft" href="${H.mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(String(ag.phone).replace(/\D/g, ''))}">MAX</a>` : ''}</div></div>`
+          ${ag.phone ? `<a class="btn soft" href="https://web.max.ru/" target="_blank" rel="noopener" data-max="${esc(String(ag.phone).replace(/\D/g, ''))}">MAX</a>` : ''}</div>
+          <small class="muted">WhatsApp, Telegram и MAX открываются в приложении; нет приложения — веб-версия.</small></div>`
+        : x.locked ? `<div class="ex-agent ex-agent-lock"><b>🔒 Контакт агента — по подписке</b><small class="muted">Позвонить и написать агенту, который разместил объект, — с подпиской.</small>
+          <div class="ex-acts"><a class="btn primary" href="pay.html">Оформить подписку</a></div></div>`
         : '<p class="muted">Агент скрыл контакт — напишите в чат подписчиков.</p>'}
         <div class="ex-acts">
           <button type="button" class="btn soft" data-fav="${x.id}" aria-pressed="${!!x.fav}">${x.fav ? '★ В избранном' : '☆ В избранное'}</button>
           <button type="button" class="btn soft" data-share>🔗 Ссылка</button>
-          ${x.mine ? `<a class="btn soft" href="#edit=${x.id}">✏️ Изменить</a>` : `<a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a>`}
+          ${x.mine ? `<a class="btn soft" href="#edit=${x.id}">✏️ Изменить</a>` : ''}
+        </div>
+        <div class="ex-acts ex-to" aria-label="Отметить объект">
+          <button type="button" class="btn soft" data-pick-one aria-pressed="${sel.has(x.num)}">${sel.has(x.num) ? '✓ Выбран' : '☐ Выбрать'}</button>
+          <button type="button" class="btn soft" data-to="sel">📄 В подборку</button>
+          <button type="button" class="btn ghost" data-to="mail">✉️ В рассылку</button>
+          <button type="button" class="btn ghost" data-to="client">👥 Клиенту</button>
+          <a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>
+          ${x.mine ? '<button type="button" class="btn ghost" data-to="ad">📣 В рекламу</button>' : ''}
         </div><p class="hint">Контакты собственника не публикуются — только контакт агента, разместившего объект.</p></div></div>
       <section class="ex-sim" id="ex-sim" aria-live="polite"><p class="muted">Подбираю похожие объекты…</p></section>`, '', true);
     s.dataset.back = back;
@@ -364,6 +386,13 @@
       const m = e.target.closest('[data-mini]'); if (m) { e.preventDefault(); card(+m.dataset.mini); return; }
       const gi = e.target.closest('[data-gi]'); if (gi && G) { xgGo(G, +gi.dataset.gi); mark(+gi.dataset.gi); }
       if (e.target.closest('[data-share]')) H.copy(`${location.origin}${location.pathname}#o=${x.num}`, 'Ссылка скопирована — откроется у агентов сервиса');
+      const po = e.target.closest('[data-pick-one]');
+      if (po) { pick(x.num, !sel.has(x.num)); po.setAttribute('aria-pressed', sel.has(x.num)); po.textContent = sel.has(x.num) ? '✓ Выбран' : '☐ Выбрать'; return; }
+      const to = e.target.closest('[data-to]')?.dataset.to;
+      if (to === 'sel') { pick(x.num, true); return selMake(); }
+      if (to === 'mail') return toMail([x.num], e.target.closest('[data-to]'));
+      if (to === 'client') return toClient(x.num);
+      if (to === 'ad') return adText(x);
     });
     s.addEventListener('keydown', e => { if (G && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.target.closest('input, textarea')) xgGo(G, k + (e.key === 'ArrowRight' ? 1 : -1)); });
     similar(x, s.querySelector('#ex-sim'));
@@ -412,12 +441,102 @@
       if ($('.ex-feed')?.dataset.only === '1' && !$('#ex-sheet')) draw();
       return;
     }
+    const pk = e.target.closest('[data-pick]');
+    if (pk) { e.stopPropagation(); pick(+pk.dataset.pick, pk.checked); return; }
+    if (e.target.closest('.ex-pick')) return;
     if (e.target.closest("[data-ftog]")) { fopen = !fopen; $('.ex-feed')?.classList.toggle('fopen', fopen); return; }
     if (e.target.closest('[data-reset]')) { f = {}; keep(); const fav = $('.ex-feed')?.dataset.only === '1'; $('#ex').innerHTML = ''; feed(fav); return; }
     const c = e.target.closest('.ex-card');
     if (c && !e.target.closest('a, button')) card(+c.dataset.num);
   });
   document.addEventListener('keydown', e => { const c = e.target.closest?.('.ex-card'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); card(+c.dataset.num); } });
+
+  // ---------- v5.25b: выбор, полоса выбора, подборка, рассылка, клиенту, реклама — как у объявлений собственников ----------
+  function pick(num, on) {
+    if (on && !sel.has(num) && sel.size >= MAXSEL) { H.toast(`В подборке до ${MAXSEL} объектов (PDF — до ${MAXPDF})`, 3500); on = false; }
+    on ? sel.add(num) : sel.delete(num); jset(SKEY, [...sel]);
+    document.querySelectorAll(`[data-pick="${num}"]`).forEach(c => { c.checked = sel.has(num); c.closest('.ex-card')?.classList.toggle('picked', sel.has(num)); });
+    selbar();
+  }
+  function selbar() {
+    let b = $('#ex-selbar');
+    if (!b) {
+      document.body.insertAdjacentHTML('beforeend', `<div id="ex-selbar" class="ex-selbar" role="region" aria-label="Выбранные эксклюзивы" hidden>
+        <span class="ex-sb-n"><b id="ex-sb-n">0</b><small class="muted">ссылкой до ${MAXSEL}, PDF до ${MAXPDF}</small></span>
+        <button type="button" class="btn ghost" data-sb="clear">Очистить</button>
+        <span class="ex-sb-go"><button type="button" class="btn soft" data-sb="mail">✉️ В рассылку</button><button type="button" class="btn primary" data-sb="make">📄 В подборку</button></span></div>`);
+      b = $('#ex-selbar');
+      b.addEventListener('click', e => {
+        const k = e.target.closest('[data-sb]')?.dataset.sb;
+        if (k === 'clear') { const was = [...sel]; sel.clear(); jset(SKEY, []); was.forEach(n => pick(n, false)); }
+        if (k === 'make') selMake();
+        if (k === 'mail') toMail([...sel], e.target.closest('[data-sb]'));
+      });
+    }
+    b.hidden = !sel.size;
+    $('#ex-sb-n').textContent = `Выбрано: ${sel.size}`;
+    document.body.classList.toggle('ex-hassel', !!sel.size);
+  }
+  // окно подборки — те же поля, что на главной (SHARE из share.js): название, формат, комиссия сверху, имя и телефон для клиента
+  function selMake() {
+    if (!sel.size) return H.toast('Отметьте объекты галочкой «Выбрать»');
+    if (!window.SHARE) return H.toast('Страница не догрузилась — обновите её');
+    const prof = jget('agent', { name: '', phone: '' }), n = sel.size, mk = jget('exMarkup', 3);
+    const s = sheet('Подборка эксклюзивов', `<div id="sheet-body" class="ex-selform">
+      <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к у моря" maxlength="80"></label>
+      ${SHARE.formatHtml(n, 'excl')}
+      <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${mk}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${mk}"></label>
+      <div class="hint">Цены для клиента увеличатся на этот процент (округление до 10 000 ₽). 0% — цены агентов. Адрес дома и контакты коллег клиент не увидит.</div>
+      <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
+      <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
+      <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}). Все подборки эксклюзивов — в «Моих подборках» → «Подборки эксклюзивов».</div>
+      <p class="err" id="s-err"></p></div>`, '<button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button>');
+    SHARE.mount(); SHARE.bind(s, H.toast);
+    s.querySelector('#s-mk').oninput = e => { s.querySelector('#s-mk-v').textContent = `${e.target.value}%`; };
+    s.querySelector('#s-go').onclick = async e => {
+      const b = e.target, fmt = SHARE.format(), nums = [...sel];
+      if (fmt !== 'link' && nums.length > MAXPDF) { s.querySelector('#s-err').textContent = `В PDF до ${MAXPDF} объектов — уберите ${nums.length - MAXPDF} или выберите «Ссылка»`; return; }
+      b.disabled = true; b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'; s.querySelector('#s-err').textContent = '';
+      jset('agent', { name: s.querySelector('#s-name').value, phone: s.querySelector('#s-phone').value }); jset('exMarkup', +s.querySelector('#s-mk').value);
+      try {
+        const r = await H.web('sel_create', { kind: 'excl', nums, format: fmt, title: s.querySelector('#s-title').value, markup: +s.querySelector('#s-mk').value,
+          agent: s.querySelector('#s-name').value, agent_phone: s.querySelector('#s-phone').value });
+        s.querySelector('#sheet-body').innerHTML = `<p>Подборка готова — ${fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента'}.</p>
+          ${r.url ? `<div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener">PDF клиенту</a></div><p class="hint">Ссылка на PDF действует час; сам PDF хранится 7 дней в «Моих подборках».</p>` : ''}
+          ${SHARE.resultHtml(r, 'excl')}<p class="hint">Все подборки эксклюзивов, ссылки и отклики клиентов — <a href="./#sels=ex">«Мои подборки» → «Подборки эксклюзивов»</a>.</p>`;
+        s.querySelector('.sheet-box > .sheet-foot')?.remove();
+      } catch (er) { s.querySelector('#s-err').textContent = er.message; b.disabled = false; b.textContent = 'Сформировать'; }
+    };
+  }
+  // «✉️ В рассылку» — в «Список рассылки» (auto mail_list_add, как на главной); без PRO/MAX сервер ответит, что рассылки — в PRO и MAX
+  async function toMail(nums, btn) {
+    if (!nums.length) return H.toast('Отметьте объекты галочкой «Выбрать»');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await fetch(String(window.API).replace(/\/web$/, '/auto'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'mail_list_add', auth: { token: H.token() }, nums }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.message || j.error || 'Не получилось');
+      H.toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`, 4500);
+    } catch (er) { H.toast(er.message, 5000); } finally { if (btn) btn.disabled = false; }
+  }
+  // «👥 Клиенту» — то же окно, что на главной (crm.js), в своём листе
+  let crmOn = false;
+  function toClient(num) {
+    if (!window.CRM) return H.toast('Страница не догрузилась — обновите её');
+    if (!crmOn) { crmOn = true; CRM.use({ call: (a, x) => H.web(a, x), toast: H.toast, closeSheet, photo: x => x.pics?.[0] ?? '',
+      sheet: (t, html) => sheet(t, `<div id="sheet-body">${html}</div>`) }, null); }
+    CRM.pick(num);
+  }
+  // «📣 В рекламу» у своего эксклюзива: готовый текст объявления и фото — разместить на площадках самому (черновики на площадках делаются из объявлений собственников)
+  function adText(x) {
+    const t = [`${title(x)}${x.floor ? `, ${x.floor}/${x.floors ?? '?'} этаж` : ''}`, `Цена: ${money(x.price)}`, place(x) ? `Район: ${place(x)}` : '', x.sea_m ? `До моря: ${sea(x.sea_m).replace(' до моря', '')}` : '',
+      x.finish ? `Отделка: ${FN[x.finish] ?? ''}` : '', '', x.descr ?? ''].filter((l, i, a) => l !== '' || (i && a[i - 1] !== '')).join('\n').trim();
+    const s = sheet(`📣 В рекламу · № ${x.num}`, `<p class="hint">Текст для Авито, Циан и ДомКлик — скопируйте и вставьте в объявление; фото — сохраните (нажмите на фото).</p>
+      <textarea class="ex-adt" rows="10" readonly>${esc(t)}</textarea>
+      <div class="ex-adph">${x.photos.map((p, i) => `<a href="${esc(p)}" target="_blank" rel="noopener" download="foto-${i + 1}.jpg"><img src="${esc(p)}" alt="Фото ${i + 1}" loading="lazy"></a>`).join('')}</div>`,
+      '<button class="btn ghost" data-close>Закрыть</button><button class="btn primary" data-cpad>Скопировать текст</button>');
+    s.querySelector('[data-cpad]').onclick = () => H.copy(t, 'Текст объявления скопирован');
+  }
 
   // ---------- мои размещения ----------
   async function showMy() {

@@ -333,7 +333,58 @@
       const L = data.items.map((x, i) => shown(x) ? row(x, i) : '').join('');
       return L || `<p class="muted sa-nolist">${data.items.length ? 'В этом фильтре пока пусто.' : 'В подборке нет объектов.'}</p>`;
     }
+    // ---------- v5.25b: страница агента у подборки эксклюзивов — агенты-коллеги, их контакты (по подписке), комиссия, «Написать всем» агентам ----------
+    const TPLX = 'Здравствуйте! По вашему эксклюзиву {объект}, {ЖК}, {цена} на «Для Агента» — есть покупатель. Объект актуален? Комиссия — как указана?';
+    const XKEY = 'saTextX', xpick = new Set(get(`${KEY}:x`, null) ?? []);
+    const xOk = x => !x.mine && !x.gone && !!x.agent?.phone;   // кому можно написать
+    const xSel = () => data.items.filter(x => xOk(x) && (!xpick.size || xpick.has(x.num)));
+    const tgOf = a => a?.tg ? `https://t.me/${String(a.tg).replace(/^@/, '').replace(/^https?:\/\/t\.me\//, '')}` : a?.phone ? `https://t.me/+${intl(a.phone)}` : '';
+    function xRow(x, i) {
+      const a = x.agent, d = intl(a?.phone), w = intl(a?.wa || a?.phone), m = marks[x.num], k = kind(m?.st), tx = fill($('#sa-text')?.value.trim() || get(XKEY, TPLX), x);
+      const who = x.mine ? '<p class="muted">Это ваш эксклюзив.</p>'
+        : x.locked ? `<div class="sa-owner sa-xlock"><span>🔒 <b>Контакт агента — по подписке</b></span><a class="btn primary" href="pay.html">Оформить подписку</a></div>`
+        : x.hidden || !a ? '<p class="muted">Агент скрыл контакт — напишите в чат подписчиков.</p>'
+        : `<div class="sa-owner"><span>👤 <b>${esc(a.name)}</b>${a.company ? ` · ${esc(a.company)}` : ''}</span>${d ? `<a class="sa-ph" href="tel:+${d}">${fmtPh(d)}</a>` : ''}</div>`;
+      const btns = x.mine || x.locked || x.hidden || !a ? '' : `<div class="sa-btns">${d ? `<a class="btn primary" href="tel:+${d}">📞 Позвонить</a>` : ''}
+        ${w ? `<a class="btn soft sa-wa" href="https://wa.me/${w}?text=${encodeURIComponent(tx)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+        ${tgOf(a) ? `<a class="btn soft sa-tg" href="${esc(tgOf(a))}" target="_blank" rel="noopener" data-xcp>Telegram</a>` : ''}
+        ${d ? `<a class="btn soft sa-max" href="https://web.max.ru/" target="_blank" rel="noopener" data-max="${d}" data-xcp>MAX</a>` : ''}
+        ${xOk(x) ? `<label class="sa-xpick"><input type="checkbox" data-xpick="${x.num}"${!xpick.size || xpick.has(x.num) ? ' checked' : ''}> в «Написать всем»</label>` : ''}</div>`;
+      return `<article class="sa-card sa-open${k ? ` sa-${k}` : ''}" data-num="${x.num}">${x.photos?.length ? gal(x.photos, i) : noPhoto()}
+        <div class="sa-body">
+          <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
+          ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
+          ${x.gone ? '<p class="s-gone">Снято с размещения</p>' : ''}
+          ${x.comm ? `<div class="sa-ad"><span class="tag ok">🤝 Комиссия коллеге: ${esc(x.comm)}</span>${x.comm_note ? `<small class="muted">${esc(x.comm_note)}</small>` : ''}</div>` : ''}
+          ${stHtml(m)}
+          ${who}
+          ${x.descr ? `<details class="sa-xd"><summary>Описание</summary><div class="sa-descr">${descrHtml(x.descr)}</div></details>` : ''}
+          ${btns}
+          <small class="muted s-no-num">${i + 1} из ${data.items.length} · 💎 № ${x.num}</small>
+        </div></article>`;
+    }
+    function xDraw() {
+      const n = data.items.length, ok = data.items.filter(xOk).length, ags = new Set(data.items.filter(xOk).map(x => intl(x.agent.phone))).size;
+      data.items.forEach(x => { x.phone = xOk(x) && (!xpick.size || xpick.has(x.num)) ? x.agent.phone : null; });   // для «Написать всем» (svcHtml считает x.phone)
+      $('#s-app').innerHTML = `<header class="s-hero">
+          <a class="link sa-back" href="./#sels=ex">← Подборки эксклюзивов</a>
+          <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь контакты коллег и комиссия. Клиенту — «Ссылка для клиента».</div>
+          <h1>${esc(data.title)}</h1>
+          <p class="muted">💎 Эксклюзивы коллег · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · агентов: ${ags} · цены агентов</p>
+        </header>
+        ${data.can_view ? `<section class="sa-box">
+          <label class="sa-lbl" for="sa-text">Сообщение агентам ${ic(I.mail)}</label>
+          <textarea id="sa-text" rows="3" maxlength="600">${esc(get(XKEY, TPLX))}</textarea>
+          <small class="muted">{объект}, {ЖК} и {цена} подставятся у каждого объекта; в конце — № эксклюзива. Одному агенту — одно сообщение (все его объекты подборки). <button type="button" class="link" data-tplx>Вернуть шаблон</button></small>
+          ${window.MSGAPP?.warn('агентам') ?? ''}
+          <div class="sa-all"><div class="sa-h">Написать всем выбранным агентам сразу — с ваших аккаунтов</div><div id="sa-svc">${svcHtml()}</div><div id="sa-job">${jobHtml()}</div></div>
+          ${ok ? '' : '<p class="muted">Написать некому: у объектов нет контактов агентов (или все объекты — ваши).</p>'}
+        </section>` : `<section class="sa-box"><div class="sa-xlock-box"><b>🔒 Контакты агентов — по подписке</b><p>Подборку клиенту можно отправлять и без подписки. Чтобы видеть контакты коллег и писать им — оформите подписку.</p>
+          <a class="btn primary" href="pay.html">Оформить подписку</a></div></section>`}
+        <div class="sa-list">${data.items.map(xRow).join('') || '<p class="muted sa-nolist">В подборке нет объектов.</p>'}</div>`;
+    }
     function draw() {
+      if (data.kind === 'excl') return xDraw();
       const n = data.items.length, wp = data.items.filter(x => x.phone).length, closed = n - wp;
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels">← Мои подборки</a>
@@ -352,7 +403,8 @@
         <div id="sa-sum">${sumHtml()}</div>
         <div class="sa-list">${listHtml()}</div>`;
     }
-    const redraw = () => { const y = scrollY, v = $('#sa-text')?.value, f = document.activeElement?.id === 'sa-text';
+    const redraw = () => { if (data.kind === 'excl' && $('#sa-text')) put(XKEY, $('#sa-text').value.trim() || TPLX);
+      const y = scrollY, v = $('#sa-text')?.value, f = document.activeElement?.id === 'sa-text';
       draw(); if (v != null) $('#sa-text').value = v; if (f) $('#sa-text').focus({ preventScroll: true }); scrollTo(0, y); };   // v5.23e: поле на телефоне раскрыто, пока в нём пишут — не сворачивать при обновлении
 
     async function loadMarks() {
@@ -465,6 +517,8 @@
     }
 
     document.addEventListener('input', e => {
+      if (e.target.id === 'sa-text' && data?.kind === 'excl') { put(XKEY, e.target.value); clearTimeout(AGENT.t); AGENT.t = setTimeout(() => {   // v5.25b: агентам — свой шаблон
+        document.querySelectorAll('.sa-card').forEach(c => { const x = data.items.find(i => i.num === +c.dataset.num), a = c.querySelector('.sa-wa'); if (x && a) a.href = `https://wa.me/${intl(x.agent?.wa || x.agent?.phone)}?text=${encodeURIComponent(fill(text(), x))}`; }); }, 400); return; }
       if (e.target.id === 'sa-text') { put(TKEY, e.target.value); clearTimeout(AGENT.t); AGENT.t = setTimeout(() => {
         document.querySelectorAll('.sa-card').forEach(c => { const x = data.items.find(i => i.num === +c.dataset.num), a = c.querySelector('.sa-wa'); if (x && a) a.href = `https://wa.me/${intl(x.phone)}?text=${encodeURIComponent(fill(text(), x))}`; }); }, 400); }
       if (e.target.id === 'sa-nt') { const x = data.items.find(i => i.num === +$('#sa-note').dataset.num); clearTimeout(AGENT.n); if ($('#sa-nt-st')) $('#sa-nt-st').textContent = '';
@@ -503,6 +557,15 @@
         return;
       }
       const c = e.target.closest('.sa-card'), x = c && data.items.find(i => i.num === +c.dataset.num);
+      if (data?.kind === 'excl') {   // v5.25b: эксклюзивы — свои кнопки (ссылки мессенджеров открывает msgapp.js)
+        if (e.target.closest('[data-tplx]')) { $('#sa-text').value = TPLX; put(XKEY, TPLX); return redraw(); }
+        const xp = e.target.closest('[data-xpick]');
+        if (xp) { const all = data.items.filter(xOk).map(i => i.num); if (!xpick.size) all.forEach(n => xpick.add(n));
+          xp.checked ? xpick.add(+xp.dataset.xpick) : xpick.delete(+xp.dataset.xpick); if (xpick.size === all.length) xpick.clear(); put(`${KEY}:x`, [...xpick]);
+          if (!all.some(n => xpick.has(n)) && !xpick.size) {} return redraw(); }
+        if (e.target.closest('[data-xcp]') && x) { const ok = await copyTxt(fill(text(), x)); if (ok) toast('Текст скопирован — вставьте его в чат', 3500); return; }
+        if (!e.target.closest('[data-all]')) return;
+      }
       if (e.target.closest('[data-tpl]')) { $('#sa-text').value = TPL; put(TKEY, TPL); return; }
       const f = e.target.closest('[data-flt]'); if (f) { filter = f.dataset.flt; put(FKEY, filter); return redraw(); }
       if (e.target.closest('[data-tgl-all]')) { put(OKEY, !allOpen()); opened.clear(); put(`${KEY}:o`, []); return redraw(); }
@@ -530,8 +593,9 @@
       }
       const all = e.target.closest('[data-all]');
       if (all) {
-        const svc = all.dataset.all, nums = data.items.filter(i => i.phone).map(i => i.num);
-        if (!confirm(`Отправить сообщение ${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')} через ${SV[svc]} с вашего аккаунта? У каждого подставятся ЖК, адрес, цена и № объекта, к сообщению — 1 фото.\n\nНезнакомым — не больше 30 в день: мессенджер может посчитать это спамом.`)) return;
+        const svc = all.dataset.all, nums = data.items.filter(i => i.phone).map(i => i.num), xw = data.kind === 'excl';
+        if (xw && !nums.length) return toast('Отметьте хотя бы одного агента галочкой «в «Написать всем»»');
+        if (!confirm(`Отправить сообщение ${xw ? `агентам выбранных объектов (${nums.length})` : `${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')}`} через ${SV[svc]} с вашего аккаунта? У каждого подставятся ЖК, адрес, цена и № объекта, к сообщению — 1 фото.\n\nНезнакомым — не больше 30 в день: мессенджер может посчитать это спамом.`)) return;
         all.disabled = true;
         try {
           const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...selArg() });
@@ -541,10 +605,11 @@
     });
 
     call('sel_agent').then(async d => {
-      data = d; document.title = `Собственники — ${d.title || 'подборка'}`;
+      data = d; document.title = `${d.kind === 'excl' ? 'Агенты эксклюзивов' : 'Собственники'} — ${d.title || 'подборка'}`;
       d.items.forEach(x => { if (x.st) marks[x.num] = { st: x.st, wrote: true }; });
       draw();
-      await loadMarks(); await migrate(); redraw();
+      await loadMarks(); if (d.kind !== 'excl') await migrate(); redraw();
+      if (d.kind === 'excl' && !d.can_view) return;   // v5.25b: без подписки «Написать всем» нет (сервер мессенджеров — по подписке)
       call('own_init', { _fn: 'auto', ...selArg() }).then(r => { svcs = { svcs: r.svcs ?? [], day_left: r.day_left ?? null }; }, e => { svcs = { error: e.message }; })
         .finally(() => { const el = $('#sa-svc'); if (el) el.innerHTML = svcHtml(); });
     }, e => fail2(e.data?.error === 'owner' ? 'Чужая подборка' : 'Подборка недоступна', e.message));

@@ -7,7 +7,14 @@
 (() => {
   const V = '5.24', IDS = ['classic', 'sky', 'lagoon', 'sapphire', 'dune', 'premium'], NAMES = { classic: 'Классика', sky: 'Небо', lagoon: 'Лагуна', sapphire: 'Сапфир', dune: 'Дюна', premium: 'Премиум' };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
+  // v5.25b (Алексей 04.11): «Премиум» — глубокий тёмный фон, золото и шампань, тонкая линия; цвета внутри знака (style), одинаковы во всех стилях и темах
   const LOGOS = {
+    gold: { name: 'Дом-скважина, золото', text: 'Тонкий золотой дом с замочной скважиной на глубоком тёмном фоне, в тонкой рамке — «ключи от объекта у агента».',
+      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><path d="M13.5 31.5 32 16.5l18.5 15" style="fill:none;stroke:#f2e3bb;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round"/><path d="M19.5 28.5V48h25V28.5" style="fill:none;stroke:#e0c27c;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round"/><circle cx="32" cy="35.6" r="3.4" style="fill:#f2e3bb;stroke:none"/><path d="M30.4 37.6h3.2l1.1 6.2h-5.4z" style="fill:#f2e3bb;stroke:none"/>' },
+    goldmono: { name: 'Монограмма «ДА», золото', text: 'Буквы «Д» и «А» с засечками золотом в двойной тонкой рамке — как клеймо ювелирного дома.',
+      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><text x="32" y="41.8" text-anchor="middle" style="fill:#f2e3bb;stroke:none;font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:25px;font-weight:600;letter-spacing:-.5px">ДА</text>' },
+    goldroof: { name: 'Крыша-«А» и бриллиант', text: 'Тонкая золотая «А» — она же крыша, под перекладиной — огранённый камень: «эксклюзив», «премиум».',
+      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><path d="M16.5 48 32 15.5 47.5 48" style="fill:none;stroke:#f2e3bb;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round"/><path d="M24 36.5h16" style="fill:none;stroke:#e0c27c;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"/><path d="M32 39.6l3.4 3.6-3.4 4.2-3.4-4.2z" style="fill:#e0c27c;stroke:none"/><path d="M28.6 43.2h6.8" style="fill:none;stroke:#11161f;stroke-width:0.7;stroke-linecap:round;stroke-linejoin:round"/>' },
     keyhole: { name: 'Дом-замок', text: 'Крыша и дом, вместо двери — замочная скважина: «ключи от объекта у агента».',
       svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><path class="lg-s" d="M14.5 31.5 32 17l17.5 14.5" stroke-width="3.6"/><path class="lg-s" d="M20 28.5V47h24V28.5" stroke-width="3"/><circle class="lg-f" cx="32" cy="35" r="3.7"/><path class="lg-f" d="M30.2 37.2h3.6l1.3 6.6h-6.2z"/>' },
     mono: { name: 'Монограмма «ДА»', text: 'Буквы «Д» и «А» с засечками в тонкой рамке — как клеймо ювелирного дома или частного банка.',
@@ -29,7 +36,7 @@
   if (okLogo(qs.get('logo'))) ls.set('logo', qs.get('logo'));
   if (okIcons(qs.get('icons'))) ls.set('icons', qs.get('icons'));
   let def = ok(ls.get('design_def')) ?? 'classic', mine = ok(ls.get('design')), d = mine ?? def;
-  let logoDef = okLogo(ls.get('logo_def')) ?? 'keyhole', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
+  let logoDef = okLogo(ls.get('logo_def')) ?? 'gold', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
   const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef;
   document.write(`<link rel="stylesheet" id="design-css" href="design-${d}.css?v=${V}">`);
   const root = document.documentElement;

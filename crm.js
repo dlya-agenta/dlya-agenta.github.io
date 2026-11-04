@@ -117,7 +117,7 @@ window.CRM = (() => {
           ${n > 10 ? `<p class="hint">В PDF войдут 10 последних объектов, ссылкой — ${n > 20 ? '20 последних' : `все ${n}`}.</p>` : ''}` : '<p class="muted crm-empty">Объектов нет. На карточке объекта нажмите «👥 Клиенту» — он появится здесь.</p>'}
         <div class="crm-objs">${C.items.map(x => `<div class="crm-obj" data-num="${x.num}">
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
-          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
+          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
           <button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
       <p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p></div>`;
     bind(onClient);
@@ -183,7 +183,7 @@ window.CRM = (() => {
     }
     if (obj && t.closest('[data-show-obj]')) { const x = C.items.find(i => i.num === +obj.dataset.num); return show(+obj.dataset.num, { client_id: c.id, what: x ? what(x) : '' }); }
     if (t.closest('[data-lk-sels]')) { e.preventDefault(); ui.closeSheet?.(); return document.querySelector('.top [data-go="sels"][data-tab="fb"]')?.click(); }
-    if (obj && t.closest('[data-open-obj], img')) return ui.openItem?.(+obj.dataset.num);
+    if (obj && t.closest('[data-open-obj], img')) return +obj.dataset.num >= 900001 ? location.assign(`excl.html#o=${obj.dataset.num}`) : ui.openItem?.(+obj.dataset.num);   // v5.25b: эксклюзив — на его странице
     if (t.closest('[data-del-client]')) {
       if (!confirm(`Удалить клиента «${c.name || c.phone}»? Объекты у него пропадут, задачи останутся без клиента.`)) return;
       try { await ui.call('crm_client_del', { id: c.id }); ui.toast('Клиент удалён'); return open(); } catch (er) { ui.toast(er.message, 5000); }

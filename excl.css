@@ -239,3 +239,34 @@ body.ex-modal { overflow: hidden; }
 .ex-nophb { font-size: 12.5px !important; color: var(--muted); }
 .ex-mapw { padding: 24px; margin: 0; }
 .ex-pre { background: var(--soft); border-radius: 10px; padding: 8px 12px; }   /* v5.23c: форма заполнена из объявления (#new=<номер>) */
+
+/* v5.25b: галочка «Выбрать», полоса выбора, связь «по подписке», «Отметить объект», текст для рекламы */
+.ex-pick { display: inline-flex; align-items: center; gap: 7px; margin-top: 6px; padding: 5px 10px 5px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  color: var(--text); background: var(--soft); width: fit-content; cursor: pointer; user-select: none; }
+.ex-pick input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.ex-card.picked, .ex-card:has([data-pick]:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ex-card:has([data-pick]:checked) .ex-pick { background: color-mix(in srgb, var(--accent) 14%, var(--card)); border-color: var(--accent); }
+.ex-selbar { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 8px 12px;
+  flex-wrap: wrap; width: min(760px, calc(100vw - 24px)); padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 34px rgba(16, 24, 40, .22); }
+.ex-selbar[hidden] { display: none; }
+.ex-sb-n { display: grid; line-height: 1.2; margin-right: auto; }
+.ex-sb-n small { font-size: 12px; }
+.ex-sb-go { display: flex; gap: 8px; }
+body.ex-hassel .ex-main { padding-bottom: 120px; }
+body.ex-hassel .sup-fab { bottom: calc(96px + env(safe-area-inset-bottom)); }
+.ex-agent-lock { background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+.ex-to { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.ex-to [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ex-adt { width: 100%; font: inherit; font-size: 14px; line-height: 1.45; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); color: var(--text); resize: vertical; }
+.ex-adph { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 10px; }
+.ex-adph img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; display: block; }
+.ex-selform .field { display: grid; gap: 6px; margin-bottom: 10px; }
+.ex-selform input[type=range] { width: 100%; }
+@media (max-width: 560px) {
+  .ex-selbar { width: calc(100vw - 16px); bottom: calc(8px + env(safe-area-inset-bottom)); padding: 8px 10px; }
+  .ex-sb-go { width: 100%; }
+  .ex-sb-go .btn { flex: 1 1 0; }
+  body.ex-hassel .ex-main { padding-bottom: 170px; }
+  body.ex-hassel .sup-fab { bottom: calc(140px + env(safe-area-inset-bottom)); }
+}
+.ex-selform .hint { margin: -2px 0 12px; }

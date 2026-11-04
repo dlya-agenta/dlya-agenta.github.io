@@ -2,13 +2,15 @@
 // веб-версия (web.whatsapp.com, web.max.ru, web.telegram.org) — тот же «привязанный браузер», что держит наш сервер для рассылок и проверки ответов,
 // и второй такой вход в браузере агента сбивает вход сервера. Поэтому все ссылки wa.me / t.me / web.max.ru на сайте при нажатии открывают приложение
 // (whatsapp://, tg://, max://), а в первый раз за день — окно с предупреждением (и про 30 незнакомых в день, и про не основной аккаунт).
+// v5.25b (Алексей 04.11): приложение не установлено — веб-версия: кнопка «Открыть веб-версию» в подсказке; выбрал её — дальше этот мессенджер
+// сразу открывается в веб-версии (localStorage msgappWeb:<svc>, «Снова через приложение» — сброс).
 // window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
 window.MSGAPP = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const SV = { wa: 'WhatsApp', tg: 'Telegram', max: 'MAX' };
   const KEY = 'msgappWarn', day = () => new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
   const TEXT = {
-    app: 'Пишите через <b>приложение</b> WhatsApp, Telegram или MAX на телефоне или компьютере — не через веб-версию в браузере: она сбивает вход нашего сервера, который делает рассылки и проверяет ответы собственников.',
+    app: 'Пишите через <b>приложение</b> WhatsApp, Telegram или MAX на телефоне или компьютере. Если приложения нет — откроется веб-версия в браузере; она может сбить вход нашего сервера (рассылки и проверка ответов), если он подключён к тому же аккаунту, — тогда войдите на сервере заново.',
     spam: '<b>Не больше 30 незнакомым людям в день</b> — иначе мессенджер посчитает это спамом и может заблокировать аккаунт. Лучше писать с <b>не основного</b> аккаунта.',
   };
   const warn = (where = '') => `<div class="ma-warn" role="note"><b class="ma-t">⚠️ Перед тем как писать${where ? ` ${esc(where)}` : ''}</b><p>${TEXT.app}</p><p>${TEXT.spam}</p></div>`;
@@ -31,20 +33,36 @@ window.MSGAPP = (() => {
     if (h === 'web.max.ru' || h === 'max.ru') return { svc: 'max', url: 'max://' };
     return null;
   }
+  // веб-версия того же чата: WhatsApp — web.whatsapp.com с номером и текстом, Telegram — t.me (там «Открыть в веб-версии»), MAX — web.max.ru
+  function webUrl(svc, phone = '', text = '') {
+    const p = digits(phone);
+    if (svc === 'wa') return `https://web.whatsapp.com/send?${p ? `phone=${p}` : ''}${text ? `${p ? '&' : ''}text=${encodeURIComponent(text)}` : ''}`;
+    if (svc === 'tg') return p ? `https://t.me/+${p}` : 'https://web.telegram.org/k/';
+    return 'https://web.max.ru/';
+  }
+  const WKEY = svc => `msgappWeb:${svc}`;
+  const webOn = svc => { try { return localStorage.getItem(WKEY(svc)) === '1'; } catch { return false; } };
+  const webSet = (svc, on) => { try { on ? localStorage.setItem(WKEY(svc), '1') : localStorage.removeItem(WKEY(svc)); } catch { /* приватный режим */ } };
   function toast(t, ms = 6000) {
     let el = document.querySelector('.ma-toast');
     if (!el) { el = document.createElement('div'); el.className = 'ma-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
     el.innerHTML = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, ms);
   }
   // приложение не открылось (страница осталась видна 1,6 с) — подсказка вместо веб-версии
-  function go(svc, url) {
+  function go(svc, url, web = '') {
+    if (web && webOn(svc)) {   // уже выбрали веб-версию для этого мессенджера
+      window.open(web, '_blank', 'noopener');
+      toast(`Открыта веб-версия ${SV[svc]}. <button type="button" class="link" data-ma-app="${svc}">Снова через приложение</button>`, 5000);
+      return;
+    }
     let left = false;
     const off = () => { left = true; };
     addEventListener('blur', off, { once: true }); document.addEventListener('visibilitychange', off, { once: true });
     location.href = url;
     setTimeout(() => {
       removeEventListener('blur', off); document.removeEventListener('visibilitychange', off);
-      if (!left && !document.hidden) toast(`Приложение ${SV[svc]} не открылось. Установите ${SV[svc]} на компьютер или напишите с телефона — веб-версию не используйте: она сбивает вход сервера.${svc === 'max' ? ' Номер собственника уже скопирован.' : ''}`, 9000);
+      if (!left && !document.hidden) toast(`Приложение ${SV[svc]} не открылось — похоже, оно не установлено.${svc === 'max' ? ' Номер уже скопирован.' : ''}
+        ${web ? `<a class="btn primary sm ma-web" href="${esc(web)}" target="_blank" rel="noopener" data-web data-ma-web="${svc}">Открыть веб-версию ${SV[svc]}</a>` : ''}`, 12000);
     }, 1600);
   }
   function confirmOnce(svc, then) {
@@ -65,8 +83,13 @@ window.MSGAPP = (() => {
   }
   const open = (svc, phone = '', text = '') => {
     const url = svc === 'wa' ? `whatsapp://send?phone=${digits(phone)}${text ? `&text=${encodeURIComponent(text)}` : ''}` : svc === 'tg' ? `tg://resolve?phone=${digits(phone)}` : 'max://';
-    confirmOnce(svc, () => go(svc, url));
+    confirmOnce(svc, () => go(svc, url, webUrl(svc, phone, text)));
   };
+  // кнопки в подсказке: «Открыть веб-версию» — запомнить выбор; «Снова через приложение» — забыть
+  document.addEventListener('click', e => {
+    const w = e.target.closest?.('[data-ma-web]'); if (w) { webSet(w.dataset.maWeb, true); w.closest('.ma-toast').hidden = true; return; }
+    const a = e.target.closest?.('[data-ma-app]'); if (a) { webSet(a.dataset.maApp, false); a.closest('.ma-toast').hidden = true; }
+  });
   // все ссылки на мессенджеры на странице: в окне клиента (s.html без входа агента) — не трогаем, клиент пишет агенту как ему удобно
   document.addEventListener('click', e => {
     const a = e.target.closest?.('a[href]');
@@ -78,7 +101,11 @@ window.MSGAPP = (() => {
     // MAX: номер в ссылке не передаётся — копируем его (как раньше data-cp / data-max)
     const ph = a.dataset.max || (m.svc === 'max' ? a.closest('[data-num]')?.querySelector('[href^="tel:"]')?.getAttribute('href')?.slice(4) : '');
     if (m.svc === 'max' && ph) navigator.clipboard?.writeText(ph).catch(() => {});
-    confirmOnce(m.svc, () => go(m.svc, m.url));
+    // веб-версия того же чата: номер и текст — из исходной ссылки (wa.me/<номер>?text=…, t.me/+<номер>)
+    let wph = '', wtx = '';
+    try { const u = new URL(a.getAttribute('href'), location.href); wph = m.svc === 'tg' ? (/^\/\+(\d{6,})$/.exec(u.pathname)?.[1] ?? '') : digits(u.pathname.slice(1)) || digits(u.searchParams.get('phone')); wtx = u.searchParams.get('text') ?? ''; } catch { /* нет */ }
+    const web = m.svc === 'tg' && !wph ? a.getAttribute('href') : webUrl(m.svc, wph, wtx);
+    confirmOnce(m.svc, () => go(m.svc, m.url, /^https:/.test(web) ? web : ''));
   }, true);
   // стили — здесь же (файл подключается на всех страницах, в том числе s.html со своим s.css)
   const st = document.createElement('style');
@@ -88,7 +115,8 @@ window.MSGAPP = (() => {
 .ma-box{background:var(--card,#fff);color:var(--text,#1f2a33);border-radius:16px;padding:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .ma-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .ma-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5001;max-width:min(520px,calc(100vw - 24px));background:var(--text,#1f2a33);color:var(--card,#fff);padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.3)}
-.ma-toast[hidden]{display:none}`;
+.ma-toast[hidden]{display:none}
+.ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, text: TEXT };
+  return { warn, open, appUrl, webUrl, text: TEXT };
 })();
