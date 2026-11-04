@@ -11,6 +11,7 @@ body.adm2 { background: color-mix(in srgb, var(--soft) 60%, var(--bg, #f4f6fa));
 .adm-side nav a.on { background: #3b82f6; color: #fff; font-weight: 600; }
 .adm-back { margin-top: auto; opacity: .8; }
 .adm-main { padding: 16px 20px 40px; min-width: 0; display: grid; gap: 14px; align-content: start; }
+.adm-main > * { min-width: 0; }   /* v5.27: таблица маршрутов на телефоне прокручивается внутри, а не растягивает страницу */
 .adm-head { display: flex; align-items: center; gap: 10px; }
 .adm-head h1 { font-size: 22px; margin: 0; }
 .adm-burger { display: none; }
