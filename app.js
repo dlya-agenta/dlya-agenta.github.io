@@ -66,10 +66,16 @@ async function call(action, extra = {}, signal) {   // signal — отменит
   let r = null;
   for (let i = 0; ; i++) {
     try {
-      r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal });
+      // v5.26: без ответа 45 с (поиск с внешними источниками бывает до ~30 с) — считаем, что связи нет (раньше запрос мог висеть бесконечно — «вечная загрузка» в приложении с экрана «Домой»)
+      const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 45_000), off = () => ctl.abort();
+      signal?.addEventListener('abort', off, { once: true });
+      try { r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: ctl.signal }); }
+      catch (e) { if (!signal?.aborted && ctl.signal.aborted) throw Object.assign(new Error('timeout'), { name: 'TimeoutError' }); throw e; }
+      finally { clearTimeout(tm); signal?.removeEventListener('abort', off); }
       if (![502, 503, 504, 546].includes(r.status) || i >= 2 || NO_RETRY.has(action)) break;   // v5.20: «база занята» (busy) сервер уже повторил — приходит 500, не повторяем
     } catch (e) {
       if (signal?.aborted || e.name === 'AbortError') throw e;
+      if (e.name === 'TimeoutError') throw Object.assign(new Error(NET_MSG), { net: true });   // уже ждали 45 с — не повторяем, сразу «Нет связи · Повторить»
       if (i >= 2 || NO_RETRY.has(action)) throw Object.assign(new Error(NET_MSG), { net: true });
     }
     await new Promise(ok => setTimeout(ok, i ? 2000 : 800));
@@ -957,7 +963,7 @@ $('#sel-mail').onclick = async () => {
     toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`, 4500);
   } catch (err) { toast(err.message, 4500); } finally { b.disabled = false; }
 };
-$('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 6).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
+$('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
   const prof = store.get('agent', { name: me.name || '', phone: '' });
@@ -1351,6 +1357,15 @@ $('#logout').onclick = () => { menuOpen(false); logout(); };
 // телефон: шапка в одну строку — логотип, профиль со счётчиком номеров и «☰ Меню» (все разделы — в панели под шапкой)
 function menuOpen(on) { $('.top').classList.toggle('open', on); $('#burger').setAttribute('aria-expanded', on); }
 $('#burger').onclick = () => menuOpen(!$('.top').classList.contains('open'));
+// v5.26 (п. 4 задачи 04.11): «Для Агента» в шапке — на домашнюю: закрыть окна и меню, «Все объявления» (из Избранного, Подборок), наверх
+$('#brand-home')?.addEventListener('click', e => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;   // в новой вкладке — как обычная ссылка
+  e.preventDefault(); menuOpen(false); mgClose(); closeSheet(); if (!$('#viewer').hidden) closeViewer();
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  if (selTab) leaveSelections();
+  if (favMode) document.querySelector('.top [data-go="all"]')?.click();
+  requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }));
+});
 // группы меню («Объявления», «Моё», «Продвижение»…): поведение — общий nav.js (нажатие; на компьютере с мышью — и наведение)
 function mgClose(except) { window.NAV?.close(except); }
 // группа видна, если в ней есть видимый пункт; подсвечена, если открыт её пункт

@@ -195,6 +195,10 @@
           <input type="checkbox" data-r="${f}.on"${x.on ? ' checked' : ''}><small>${by[f] ? `${usd(by[f][0])} · ${by[f][1]} выз.${by[f][2] ? ` · ош. ${by[f][2]}` : ''}` : '—'}</small>`).join('')}</div>
         <div class="hub-form"><label class="field">Ночью описаний за раз<input type="number" id="n-descr" value="${r.night.descr}" min="0" max="5000"></label><label class="field">Ночью проверок фото<input type="number" id="n-repair" value="${r.night.repair}" min="0" max="5000"></label></div>
         <p><button class="btn primary" data-save-routes>Сохранить маршруты</button></p></section>
+      <section class="hub-sec"><h3>🎬 Видеомонтаж</h3><p class="hint">Без ИИ ролик собирается по шаблону сам (переходы, титры, цифры). С ИИ-режиссёром (PRO и MAX): ИИ смотрит фото, ставит лучший порядок кадров внутри каждого объекта, подписи по тому, что видно на фото, переходы и цвет — по тому же шаблону. Порядок объектов не меняется. Расход — строка «Видеомонтаж» выше (~1–3 ₽ за ролик).</p>
+        <label class="hub-chk"><input type="checkbox" id="vid-ai"${r.video?.ai ? ' checked' : ''}> Готовить ролики через ИИ (для PRO и MAX; у PRO должен быть включён «Ролики из фото» в тарифах)</label>
+        <label class="field">Шаблон по умолчанию<select id="vid-tpl"><option value="motion"${r.video?.tpl !== 'classic' ? ' selected' : ''}>«Мотион» — динамичный (v5.26)</option><option value="classic"${r.video?.tpl === 'classic' ? ' selected' : ''}>«Классика» — плавный (как раньше)</option></select></label>
+        <p><button class="btn primary" data-save-video>Сохранить</button></p></section>
       <section class="hub-sec"><h3>Ключи сервисов и API</h3><p class="hint">Меняются здесь, без программиста. Значения не показываются — только «задан» или нет. Остальные секреты (вход в источник, токен бота, CryptoBot) — в своих разделах: бот — «Участники и настройки», CryptoBot — «Продажи и оплаты».</p>
         ${r.secrets.filter(x => !x.name.startsWith('ai_key')).map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
           <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button></div>`).join('')}</section>`
@@ -214,6 +218,7 @@
         try { await H.call('adm_secret_set', { name: k, value: v }); H.toast(v ? 'Ключ сохранён' : 'Ключ удалён'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
       const t = e.target.closest('[data-test]');
       if (t) { t.disabled = true; try { const x = await H.call('adm_key_test', { key: t.dataset.test }); H.toast(x.ok ? `Ключ работает: «${x.text}»` : `Ключ не ответил: ${x.error}`, 6000); } catch (er) { H.toast(er.message, 5000); } t.disabled = false; return; }
+      if (e.target.closest('[data-save-video]')) { try { await H.call('adm_ai_set', { video: { ai: $('#vid-ai').checked, tpl: $('#vid-tpl').value } }); H.toast('Видеомонтаж: сохранено'); } catch (er) { H.toast(er.message, 5000); } return; }
       if (e.target.closest('[data-save-routes]')) {
         const routes = {};
         for (const f of Object.keys(r.routes)) routes[f] = { key: $(`[data-r="${f}.key"]`).value, fallback: [$(`[data-r="${f}.fb"]`).value].filter(Boolean), model: $(`[data-r="${f}.model"]`).value,

@@ -109,7 +109,7 @@ window.SHARE = (() => {
     s.url_agent && `<a class="btn ghost" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}" title="Старый PDF агенту — хранится 7 дней, новые не делаются">PDF агенту</a>`,
     `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`,
     `<button class="btn ghost" data-rk="${s.nums.join(',')}">📣 В рекламу</button>`,
-    `<button class="btn ghost" data-video="${s.nums.slice(0, 6).join(',')}">🎬 Ролик</button>`].filter(Boolean).join('');
+    `<button class="btn ghost" data-video="${s.nums.slice(0, 10).join(',')}">🎬 Ролик</button>`].filter(Boolean).join('');
   const head = s => `<div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${isEx(s) ? '<span class="sp-b ex">💎 эксклюзивы</span>' : ''}${s.checked ? '<span class="sp-b ok" title="Собрана со страницы агента из объектов, где собственник ответил «актуально»">✓ проверенная</span>' : ''}${linkBadge(s)}</div>
     <div class="sp-meta muted">${meta(s)}</div>
     ${s.from ? `<div class="sp-rel muted">Собрана из подборки ${s.from.title ? `«${esc(s.from.title)}»` : `№ ${s.from.id}`}</div>` : ''}`;

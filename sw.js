@@ -1,20 +1,25 @@
 // Service worker сайта (ТЗ v2, шаг 3.2): «На экран Домой» (PWA) и push-уведомления.
 // Кэш — только оболочка сайта (страницы, скрипты, стили, иконки) на случай без сети: всегда сначала сеть, поэтому новая версия видна сразу.
 // Данные (функция web), фото и карты идут с других адресов — их service worker не трогает и не кэширует.
-const CACHE = 'shell-v1';
+const CACHE = 'shell-v2';   // v5.26: свои копии карты (vendor/) и навигация с таймаутом
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'manifest.json', 'icons/192.png'])).catch(() => {})); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
+// v5.26 (п. 5 задачи 04.11, «вечная загрузка» приложения с экрана «Домой»): страница — из сети, но не дольше 8 с, потом из кэша;
+// ответ-перенаправление для навигации не отдаём как есть (Chrome отказывается показывать такой ответ) — строим чистый ответ
+const timeout = (p, ms) => new Promise((ok, no) => { const t = setTimeout(() => no(new Error('timeout')), ms); p.then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); no(e); }); });
+const clean = async res => res.redirected ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers }) : res;
+const put = (r, res) => { if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)).catch(() => {}); } return res; };
+const fromCache = r => caches.match(r, { ignoreSearch: r.mode === 'navigate' }).then(m => m ?? (r.mode === 'navigate' ? caches.match('./') : undefined));
 self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== 'GET' || u.origin !== location.origin) return;
-  const shell = r.mode === 'navigate' || ['script', 'style', 'manifest'].includes(r.destination) || u.pathname.includes('/icons/');
+  const nav = r.mode === 'navigate';
+  const shell = nav || ['script', 'style', 'manifest'].includes(r.destination) || u.pathname.includes('/icons/') || u.pathname.includes('/vendor/');
   if (!shell) return;
-  e.respondWith(fetch(r).then(res => {
-    if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
-    return res;
-  }).catch(() => caches.match(r).then(m => m ?? (r.mode === 'navigate' ? caches.match('./') : undefined)).then(m => m ?? Response.error())));
+  const net = fetch(r).then(res => nav ? clean(res) : res).then(res => put(r, res));
+  e.respondWith((nav ? timeout(net, 8000) : net).catch(async () => (await fromCache(r)) ?? (nav ? net : Response.error())).catch(() => Response.error()));
 });
 
 // push: {title, body, url, tag} от функции web (_shared/notify.ts). Открытые вкладки сайта узнают сразу и обновляют окно уведомлений

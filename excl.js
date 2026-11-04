@@ -202,8 +202,10 @@
   const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
   const js = src => new Promise((ok, no) => { const t = document.createElement('script'); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
   const css = href => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-  const needL = () => lp ??= (css(CDN + 'leaflet/1.9.4/leaflet.min.css'), css(CDN + 'leaflet.markercluster/1.5.3/MarkerCluster.min.css'),
-    js(CDN + 'leaflet/1.9.4/leaflet.min.js').then(() => js(CDN + 'leaflet.markercluster/1.5.3/leaflet.markercluster.min.js').catch(() => null)).catch(e => { lp = null; throw e; }));
+  // v5.26: Leaflet — со своего сайта (site/vendor), cdnjs в России бывает медленным; CDN — запасной
+  const V = 'vendor/', alt = (a, b) => js(a).catch(() => js(b));
+  const needL = () => lp ??= (css(V + 'leaflet/leaflet.min.css'), css(V + 'markercluster/MarkerCluster.min.css'),
+    alt(V + 'leaflet/leaflet.min.js', CDN + 'leaflet/1.9.4/leaflet.min.js').then(() => alt(V + 'markercluster/leaflet.markercluster.min.js', CDN + 'leaflet.markercluster/1.5.3/leaflet.markercluster.min.js').catch(() => null)).catch(e => { lp = null; throw e; }));
   function drawMap(xs) {
     const el = $('#ex-map');
     if (!window.L) { el.innerHTML = '<p class="muted ex-mapw">Загружаю карту…</p>';
