@@ -10,6 +10,6 @@
 setTimeout(() => {
   const g = document.getElementById('gate');
   if (!g || g.hidden || !/Загрузка/.test(g.textContent) || g.querySelector('[data-reload]')) return;
-  g.insertAdjacentHTML('beforeend', '<p class="muted" style="margin-top:14px">Долго грузится — возможно, слабая связь.</p><button class="btn primary" data-reload type="button">Обновить</button>');
+  g.insertAdjacentHTML('beforeend', `<p class="muted" style="margin-top:14px">Долго грузится — возможно, слабая связь.</p><p class="muted" style="font-size:12px;opacity:.6">этап: ${window.__stage || 'скрипты'} · sw: ${navigator.serviceWorker?.controller ? 'да' : 'нет'}</p><button class="btn primary" data-reload type="button">Обновить</button>`);
   g.querySelector('[data-reload]').onclick = () => location.reload();
 }, 15000);

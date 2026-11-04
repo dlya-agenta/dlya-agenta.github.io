@@ -207,10 +207,11 @@ async function fp() {
 }
 
 async function start() {
+  window.__stage = 'start';   // v5.26d: этап запуска — виден на «Загрузка…» через 15 с (tg.js)
   tg?.ready(); tg?.expand(); try { tg?.disableVerticalSwipes?.(); } catch { /* старый Telegram */ }
   if (!auth && tg?.initData && !(await tgLogin())) return;
   if (!auth) return showLogin(undefined, location.search.includes('r=') ? 'reg' : 'login');   // ссылка партнёра ?r=код — сразу регистрация
-  try { meta = await call('init'); }
+  window.__stage = 'init'; try { meta = await call('init'); window.__stage = 'init ok'; }
   catch (e) {
     if (e.gate) return showLogin(e.gate);
     gate(`<h2>${e.net ? 'Нет связи' : 'Ошибка'}</h2><p>${esc(e.message)}</p><button class="btn primary" id="again">Повторить</button>`);
