@@ -25,12 +25,23 @@ window.MFA = (() => {
       e.preventDefault();
       const code = fm.code.value.trim();
       if (!code) return;
-      btn.disabled = true; $('#gerr').textContent = '';
-      try { const x = await call('login_code', { ticket: r.ticket, code, fp: await fp() }); done(x.token); }
+      btn.disabled = true; btn.textContent = 'Проверяю код…'; $('#gerr').textContent = '';
+      // v5.26 (Алексей 04.11, iPhone, приложение с экрана «Домой»: «зависает на этом этапе»): код уже принят сервером, а страница ждала без конца.
+      // Теперь: ответа нет 20 с — подсказка и кнопка «Открыть сайт»; токен пришёл — входим, а если запуск сайта упал — показываем ошибку, не висим.
+      const slow = setTimeout(() => { $('#gerr').innerHTML = 'Сервер долго отвечает. Если код уже принят — <a href="./" id="mfa-reload">откройте сайт заново</a>, вход сохранится.'; }, 20000);
+      let x = null;
+      try { x = await call('login_code', { ticket: r.ticket, code, fp: await fp() }); }
       catch (err) {
+        clearTimeout(slow);
         if (err.data?.restart) return back(err.message);   // код или билет истёк, вход заблокирован — снова с пароля
-        $('#gerr').textContent = err.message; btn.disabled = false; fm.code.select();
+        $('#gerr').textContent = err.message; btn.disabled = false; btn.textContent = 'Войти'; fm.code.select(); return;
       }
+      clearTimeout(slow);
+      if (!x?.token) { $('#gerr').textContent = 'Сервер не прислал вход — нажмите «Назад» и войдите ещё раз'; btn.disabled = false; btn.textContent = 'Войти'; return; }
+      try { localStorage.setItem('token', JSON.stringify(x.token)); } catch { /* приватный режим */ }   // вход сохранён до запуска: перезагрузка страницы уже войдёт
+      btn.textContent = 'Вход выполнен, открываю…';
+      try { await done(x.token); }
+      catch (err) { $('#gerr').innerHTML = `Вход выполнен, но сайт не открылся: ${esc(err?.message ?? err)}. <a href="./">Открыть заново</a>`; }
     };
   }
 
