@@ -7,14 +7,14 @@ window.INVITE = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let me = null, busy = false;
   const css = () => document.getElementById('inv-css') || document.head.insertAdjacentHTML('beforeend', `<style id="inv-css">
-.inv-pop { position: fixed; right: 16px; bottom: 16px; z-index: 3900; width: min(380px, calc(100vw - 32px)); background: var(--card, #fff); color: var(--text, #111);
+.inv-pop { position: fixed; right: 16px; bottom: 80px; z-index: 3900; width: min(380px, calc(100vw - 32px)); background: var(--card, #fff); color: var(--text, #111);
   border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 16px; padding: 16px 16px 14px; box-shadow: 0 12px 40px rgba(0,0,0,.22);
   transform: translateY(16px); opacity: 0; transition: transform .25s ease, opacity .25s ease; }
 .inv-pop.on { transform: none; opacity: 1; }
 .inv-pop p { margin: 6px 0 10px; line-height: 1.45; font-size: 14px; }
 .inv-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .inv-x { position: absolute; top: 8px; right: 8px; border: 0; background: none; font-size: 16px; cursor: pointer; color: inherit; opacity: .6; min-width: 32px; min-height: 32px; }
-@media (max-width: 760px) { .inv-pop { left: 12px; right: 12px; bottom: 12px; width: auto; } }
+@media (max-width: 760px) { .inv-pop { left: 12px; right: 12px; bottom: 84px; width: auto; } }
 @media (prefers-reduced-motion: reduce) { .inv-pop { transition: none; } }
 </style>`);
   async function info() {

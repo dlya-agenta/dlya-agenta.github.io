@@ -8,7 +8,7 @@
     const a = document.createElement('a');
     a.id = 'da-promo'; a.href = r.url; a.target = '_blank'; a.rel = 'noopener'; a.dataset.web = '1';
     a.textContent = r.text;
-    a.style.cssText = 'display:block;margin:28px auto 18px;max-width:520px;padding:12px 16px;border-radius:12px;text-align:center;font:500 14px/1.4 system-ui,sans-serif;'
+    a.style.cssText = 'display:block;box-sizing:border-box;margin:28px auto 18px;width:calc(100% - 32px);max-width:520px;padding:12px 16px;border-radius:12px;text-align:center;font:500 14px/1.4 system-ui,sans-serif;'
       + 'text-decoration:none;color:#e9d9b0;background:linear-gradient(135deg,#14161c,#23252d);border:1px solid rgba(217,180,90,.45);box-shadow:0 2px 10px rgba(0,0,0,.18)';
     document.body.appendChild(a);
   };
