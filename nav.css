@@ -86,3 +86,7 @@ nav[data-nav] { align-items: center; }
 /* v5.23e: запас для «Линий на плитке» и шрифтов «Неба»/«Дюны» (на 980 и 1280 px строка была на 3–48 px шире окна) — отступы пунктов чуть меньше */
 @media (min-width: 980px) and (max-width: 1099px) { .top .menu > .link, .top .menu .mg-b { padding-left: 5px !important; padding-right: 5px !important; } }
 @media (min-width: 1280px) and (max-width: 1365px) { .top .menu > .link, .top .menu .mg-b { padding-left: 7px !important; padding-right: 7px !important; } }
+
+/* v5.31c: раздел «👤 Профиль» в меню телефона (nav.js tools) — «Мой профиль», «Стиль», «Прокси», «Выйти»; на компьютере тот же список — под «Профилем» */
+@media (min-width: 761px) { .top .menu > .mg-prof { display: none !important; } }
+.prof-proxy { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }

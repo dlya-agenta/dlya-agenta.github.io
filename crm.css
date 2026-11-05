@@ -77,3 +77,10 @@
 .crm a.btn { text-decoration: none; }
 .crm-selrow { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); }
 .crm-selrow .crm-sel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+/* v5.31c: статус «Отложили» и окно «Когда вернуться к клиенту?» */
+.crm-st-later { background: color-mix(in srgb, #b45309 13%, var(--card)); color: #b45309; }
+@media (prefers-color-scheme: dark) { .crm-st-later { color: #f0b46a; } }
+.crm-later-ask h3 { margin: 4px 0 6px; }
+.crm-lgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
+.crm-lgrid .btn { min-height: 48px; padding: 10px; font-size: 15px; }
+@media (min-width: 720px) { .crm-lgrid { grid-template-columns: repeat(4, 1fr); } }

@@ -43,10 +43,22 @@ window.NAV = (() => {
     const nm = w.querySelector('#who');
     if (nm) { const t = () => { if (nm.textContent.trim()) w.title = `Профиль: ${nm.textContent.trim()} — тариф, номера, контакты, устройства`; }; t(); new MutationObserver(t).observe(nm, { childList: true, characterData: true, subtree: true }); }
   }
-  // v5.20: «Стиль» и «Выйти» — в меню под «Профилем» (компьютер; наведение или ▾): строка разделов всегда в одну линию (раньше «Выйти» уходил на 2–3-ю строку).
-  // Телефон — как раньше, в «☰ Меню». Кнопки переносятся сами (обработчики app.js и design.js остаются на них)
+  // v5.20: «Стиль» и «Выйти» — в меню под «Профилем» (компьютер; наведение или ▾): строка разделов всегда в одну линию.
+  // v5.31c (п. 5 Алексея): «Стиль» (выбор стиля и темы — окно design.js), «🌐 Прокси» (окно proxy.js вкладки B) и «Выйти» — только под «Профилем»:
+  // компьютер — выпадающее меню у «Профиля», телефон — раздел «👤 Профиль» в «☰ Меню» (плитки «Мой профиль», «Стиль», «Прокси», «Выйти»). Отдельной кнопки «Стиль» в шапке нет нигде.
+  // Кнопки переносятся сами (обработчики app.js и design.js остаются на них)
   const wide = matchMedia('(min-width: 761px)');
+  const PROF_ITEMS = ':scope [data-style], :scope [data-proxy], :scope [data-prof-tile], :scope #logout, :scope [data-logout]';
   let placing = false;
+  function proxyBtn(menu, who) {
+    let b = document.querySelector('.top [data-proxy]');
+    if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'link agent-only'; b.dataset.proxy = ''; b.textContent = '🌐 Прокси'; b.title = 'Свой прокси для WhatsApp, Telegram и MAX'; menu.appendChild(b); }
+    // гость (не вошёл) — прокси не нужен: прячем вместе с «Выйти» (на главной #logout скрыт до входа)
+    const out = document.querySelector('.top #logout, .top [data-logout]');
+    const off = out ? out.hidden : !who;
+    if (b.hidden !== off) b.hidden = off;
+    return b;
+  }
   function tools() {
     const top = document.querySelector('.top');
     if (!top || placing || document.body.classList.contains('adm2')) return;
@@ -56,21 +68,58 @@ window.NAV = (() => {
     if (!menu || !who) return;
     placing = true;
     try {
+      proxyBtn(menu, who);
+      let mob = menu.querySelector(':scope > .mg-prof');
       if (wide.matches) {
         if (!box) {
           box = document.createElement('div'); box.className = 'mg whomg'; box.dataset.g = 'prof';
           top.insertBefore(box, who); box.appendChild(who);
-          box.insertAdjacentHTML('beforeend', '<button type="button" class="mg-b who-more" aria-expanded="false" aria-haspopup="true" title="Стиль, выход"><span class="mg-a" aria-hidden="true">▾</span></button><div class="mg-p" role="menu"></div>');
+          box.insertAdjacentHTML('beforeend', '<button type="button" class="mg-b who-more" aria-expanded="false" aria-haspopup="true" title="Стиль, прокси, выход"><span class="mg-a" aria-hidden="true">▾</span></button><div class="mg-p" role="menu"></div>');
           wire(top);
         }
         const p = box.querySelector('.mg-p');
-        menu.querySelectorAll(':scope [data-style], :scope #logout, :scope [data-logout]').forEach(b => { b.classList.add('link'); p.appendChild(b); });
-      } else if (box) {
-        box.querySelectorAll('.mg-p > *').forEach(b => menu.appendChild(b));
-        top.insertBefore(who, box); box.remove();
+        [...menu.querySelectorAll(PROF_ITEMS)].filter(b => !b.matches('[data-prof-tile]')).forEach(b => { b.classList.add('link'); p.appendChild(b); });
+        if (mob) { mob.querySelectorAll('.mg-p > :not([data-prof-tile])').forEach(b => p.appendChild(b)); mob.remove(); }
+        order(p);
+      } else {
+        if (box) { top.insertBefore(who, box); box.querySelectorAll('.mg-p > *').forEach(b => menu.appendChild(b)); box.remove(); }
+        if (!mob) {
+          menu.insertAdjacentHTML('beforeend', '<div class="mg mg-prof" data-g="profm"><button type="button" class="link mg-b" tabindex="-1">👤 Профиль</button><div class="mg-p" role="menu">'
+            + '<a class="link" role="menuitem" href="./#prof" data-prof-tile>👤 Мой профиль</a></div></div>');
+          mob = menu.querySelector(':scope > .mg-prof'); wire(menu);
+        }
+        const p = mob.querySelector('.mg-p');
+        menu.querySelectorAll(':scope > [data-style], :scope > [data-proxy], :scope > #logout, :scope > [data-logout]').forEach(b => { b.classList.add('link'); p.appendChild(b); });
+        if (menu.lastElementChild !== mob) menu.appendChild(mob);   // раздел профиля — последним
+        order(p);
       }
     } finally { placing = false; }
   }
+  // порядок под «Профилем»: Мой профиль → Стиль → Прокси → Выйти
+  function order(p) {
+    const want = ['[data-prof-tile]', '[data-style]', '[data-proxy]', '#logout, [data-logout]'].map(q => p.querySelector(`:scope > :is(${q})`)).filter(Boolean);
+    if (want.some((b, i) => p.children[i] !== b)) want.forEach(b => p.appendChild(b));
+  }
+  // «🌐 Прокси» (контракт с вкладкой B): окно рисует site/proxy.js — window.PROXY.open(); скрипта нет — подгружаем и открываем
+  function say(t) {
+    let el = document.getElementById('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
+    el.textContent = t; el.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => { el.hidden = true; }, 2600);
+  }
+  let proxyLoading = null;
+  function openProxy() {
+    if (window.PROXY?.open) return window.PROXY.open();
+    say('Окно прокси загружается…');
+    proxyLoading ??= new Promise((ok, bad) => { const sc = document.createElement('script'); sc.src = 'proxy.js?v=5.31b1'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+    proxyLoading.then(() => window.PROXY?.open ? window.PROXY.open() : say('Прокси пока недоступен — попробуйте позже'))
+      .catch(() => { proxyLoading = null; say('Не удалось открыть настройки прокси — проверьте интернет'); });
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-proxy]')) { e.preventDefault(); close(); document.querySelector('.top')?.classList.remove('open'); openProxy(); return; }
+    // «Мой профиль» на телефоне: на главной — окно профиля той же кнопкой, что «Профиль» в шапке; на других страницах — ссылка ./#prof
+    const t = e.target.closest('[data-prof-tile]'), w = document.querySelector('.top .who');
+    if (t && w?.tagName === 'BUTTON') { e.preventDefault(); document.querySelector('.top')?.classList.remove('open'); w.click(); }
+  });
   wide.addEventListener?.('change', tools);
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -160,5 +209,5 @@ window.NAV = (() => {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   const start = () => { build(); wire(); dress(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  return { close, open, sync, wire, iconize, tools, groups: G };
+  return { close, open, sync, wire, iconize, tools, groups: G, openProxy };
 })();

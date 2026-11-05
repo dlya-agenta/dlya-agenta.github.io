@@ -1,5 +1,6 @@
 // Профиль участника (ТЗ v2, шаг 2.1) — окно из шапки (нажатие на имя): тариф и срок, номера, имя, телефон, мессенджеры, агентство, «О себе»,
 // соцсети (тариф MAX — для продающих роликов позже), активные устройства с кнопкой «Выйти».
+// v5.31c: блок «Оформление» (5 стилей кружками + светлая/тёмная/как в системе — design.js pickerHtml) и «🌐 Прокси» (окно proxy.js, открывает nav.js по [data-proxy]).
 // Кошелёк для выплат и партнёрская программа (шаг 3.1) — блок site/partner.js. «Привязать Telegram» и уведомления в браузере (шаг 3.2) — site/notify.js.
 window.PROFILE = (() => {
   const $ = s => document.querySelector(s);
@@ -40,6 +41,12 @@ window.PROFILE = (() => {
         <p class="err wide" id="prof-err"></p>
         <div class="sheet-foot wide"><span></span><button class="btn primary">Сохранить</button></div>
       </form>
+      <div class="group">Оформление</div>
+      <div id="dz-box">${window.DESIGN?.pickerHtml ? window.DESIGN.pickerHtml() : ''}</div>
+      <p class="hint">Стиль и тема — только у вас на этом устройстве. Тот же выбор — в меню под «Профилем» → «🎨 Стиль».</p>
+      <div class="group agent-only">Свой прокси</div>
+      <div class="agent-only prof-proxy"><button type="button" class="btn soft" data-proxy>🌐 Прокси для мессенджеров</button>
+        <small class="muted">Свой постоянный адрес для WhatsApp, Telegram и MAX — чтобы вход не слетал.</small></div>
       <div class="group">Активные устройства${r.max_devices ? ` — можно ${r.max_devices}` : ''}</div>
       <div id="devs">${devs(r.devices)}</div>
       ${r.max_devices ? `<p class="hint">${r.max_devices === 1 ? 'Вход на другом устройстве сразу выходит из этого.' : `Вход на ${r.max_devices + 1}-м устройстве выходит из самого старого.`}</p>` : ''}

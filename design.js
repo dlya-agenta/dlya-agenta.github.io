@@ -5,7 +5,10 @@
 // (админка → «🎨 Стиль сайта», app_settings.design {default, logo, icons}; без входа — hub design_public, кэш в localStorage design_def / logo_def / icons_def).
 // Кнопка «Стиль» ([data-style]) переключает стиль по кругу; личный выбор — localStorage design / logo / icons. ?design= ?logo= ?icons= — примерить.
 (() => {
-  const V = '5.24', IDS = ['classic', 'sky', 'lagoon', 'sapphire', 'dune', 'premium'], NAMES = { classic: 'Классика', sky: 'Небо', lagoon: 'Лагуна', sapphire: 'Сапфир', dune: 'Дюна', premium: 'Премиум' };
+  // v5.31c (Алексей 05.11): порядок — Небо, Премиум, Лагуна, Сапфир, Классика; «Дюна» убрана из выбора (сохранённая «Дюна» → «Небо», файл стиля оставлен); «Небо» — по умолчанию
+  const V = '5.24', IDS = ['sky', 'premium', 'lagoon', 'sapphire', 'classic'], NAMES = { sky: 'Небо', premium: 'Премиум', lagoon: 'Лагуна', sapphire: 'Сапфир', classic: 'Классика' };
+  // образцы для выбора: фон, акцент, линия (кружки в профиле и в окне «Стиль»)
+  const SW = { sky: ['#fbf7ef', '#2f78aa', '#d6bb92'], premium: ['#0d0e11', '#d6b25e', '#f2e3bb'], lagoon: ['#f2faf8', '#0d7a72', '#9fd8cf'], sapphire: ['#f4f6fb', '#1e4db3', '#e0c27c'], classic: ['#eef2f8', '#2563eb', '#1e293b'] };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
   // v5.25b (Алексей 04.11): «Премиум» — глубокий тёмный фон, золото и шампань, тонкая линия; цвета внутри знака (style), одинаковы во всех стилях и темах
   const LOGOS = {
@@ -29,13 +32,13 @@
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* приватный режим */ } } };
   const ok = x => IDS.includes(x) ? x : null, okLogo = x => x in LOGOS ? x : null, okIcons = x => x in ICONS ? x : null;
   // старые «Море» и «Песок» (v5.5), «Аврора» (v5.16) и «Резиденция» (v5.17) — на нынешние
-  const OLD = { a: 'classic', b: 'premium', aurora: 'sky', residence: 'sky' };
+  const OLD = { a: 'classic', b: 'premium', aurora: 'sky', residence: 'sky', dune: 'sky' };
   for (const k of ['design', 'design_def']) { const o = ls.get(k); if (OLD[o]) ls.set(k, OLD[o]); }
   const qs = new URLSearchParams(location.search);
   if (ok(qs.get('design'))) ls.set('design', qs.get('design'));
   if (okLogo(qs.get('logo'))) ls.set('logo', qs.get('logo'));
   if (okIcons(qs.get('icons'))) ls.set('icons', qs.get('icons'));
-  let def = ok(ls.get('design_def')) ?? 'classic', mine = ok(ls.get('design')), d = mine ?? def;
+  let def = ok(ls.get('design_def')) ?? 'sky', mine = ok(ls.get('design')), d = mine ?? def;
   let logoDef = okLogo(ls.get('logo_def')) ?? 'gold', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
   const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef;
   document.write(`<link rel="stylesheet" id="design-css" href="design-${d}.css?v=${V}">`);
@@ -43,9 +46,17 @@
   const apply = () => { root.dataset.design = d; root.dataset.logo = logo(); root.dataset.icons = icons(); };
   apply();
   const label = () => document.querySelectorAll('[data-style]').forEach(b => {
-    b.textContent = '🎨 Стиль'; b.title = `Сейчас «${NAMES[d]}». Нажмите — «${NAMES[IDS[(IDS.indexOf(d) + 1) % IDS.length]]}»`; b.setAttribute('aria-label', `Стиль оформления: ${NAMES[d]}. Сменить`); });
+    b.textContent = '🎨 Стиль'; b.title = `Сейчас «${NAMES[d]}». Выбрать стиль и тему`; b.setAttribute('aria-label', `Стиль оформления: ${NAMES[d]}. Выбрать`); });
   // знак логотипа во всех шапках (.logo) и большой блок бренда на входе ([data-brand])
-  const markSvg = (id = logo()) => `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS[id].svg}</svg>`;
+  // v5.31c (Алексей 05.11): знак бренда — в цветах «Небо» на всех стилях и темах (не меняется со стилем): у знаков с классами .lg-* цвета вписываются прямо в SVG
+  // (style сильнее правил стилей вида `.logo rect {fill}`), плюс тонкая песочная рамка; золотые знаки (gold*) — со своими цветами, как выбрал администратор
+  const BRAND = { bg: '#3b86bb', ink: '#fbf3e3', sand: '#e2c79a' };
+  const skyfy = svg => !/class="lg-/.test(svg) ? svg : svg
+    .replace(/<rect class="lg-bg"([^>]*)\/>/, `<rect$1 style="fill:${BRAND.bg};stroke:none"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" style="fill:none;stroke:${BRAND.sand};stroke-width:1.2;opacity:.75"/>`)
+    .replace(/class="lg-s"/g, `style="fill:none;stroke:${BRAND.ink};stroke-linecap:round;stroke-linejoin:round"`)
+    .replace(/class="lg-f"/g, `style="fill:${BRAND.ink};stroke:none"`)
+    .replace(/class="lg-t"/g, `style="fill:${BRAND.ink};stroke:none;font-family:Prata,'Playfair Display',Georgia,serif;font-weight:600;letter-spacing:-.4px"`);
+  const markSvg = (id = logo()) => `<svg viewBox="0 0 64 64" aria-hidden="true" style="background:none">${skyfy(LOGOS[id].svg)}</svg>`;
   const brandHtml = (id, small = '5 минут — вместо тысячи часов!', fixed = false) => `<div class="gbrand"><span class="logo"${fixed ? ' data-fixed' : ''}>${markSvg(id)}</span><span class="gbrand-t"><b>Для Агента</b><small>${small}</small></span></div>`;
   function paintLogos(el = document) {
     el.querySelectorAll('.logo:not([data-fixed])').forEach(s => { if (s.dataset.lg !== logo()) { s.innerHTML = markSvg(); s.dataset.lg = logo(); } });
@@ -57,7 +68,7 @@
     d = x; apply();
     const was = document.getElementById('design-css'), l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = `design-${d}.css?v=${V}`;
-    l.onload = l.onerror = () => { was?.remove(); l.id = 'design-css'; };
+    l.onload = l.onerror = () => { was?.remove(); l.id = 'design-css'; applyTheme(); };
     (was ?? document.head.lastChild).after(l);
     label();
   }
@@ -69,7 +80,85 @@
     if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
     el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 2200);
   }
-  function next() { const x = IDS[(IDS.indexOf(d) + 1) % IDS.length]; set(x); toast(`Стиль «${NAMES[x]}»`); }
+  // ---------- v5.31c: светлая / тёмная / как в системе (localStorage theme = light | dark, нет — как в системе) ----------
+  // тёмные правила во всех файлах стилей записаны условием @media (prefers-color-scheme: dark): при выборе руками условие переписывается
+  // (тёмная — всегда, светлая — никогда), исходный текст условия хранится, «как в системе» его возвращает; новые файлы стилей (смена стиля, окна) — тоже
+  const THEMES = { auto: 'Как в системе', light: 'Светлая', dark: 'Тёмная' };
+  const theme = () => { const t = ls.get('theme'); return t === 'light' || t === 'dark' ? t : 'auto'; };
+  const mq0 = new WeakMap(), ON = '(min-width: 0px)', OFF = '(max-width: 0px)';
+  function fixRules(rules, t) {
+    for (const r of rules) {
+      try {
+        if (r.styleSheet) fixSheet(r.styleSheet, t);   // @import (Лагуна и Сапфир импортируют «Небо»)
+        if (r.media && r.cssRules) {
+          if (!mq0.has(r)) mq0.set(r, r.media.mediaText);
+          const o = mq0.get(r);
+          if (/prefers-color-scheme/.test(o)) {
+            const x = t === 'auto' ? o : o.replace(/\(\s*prefers-color-scheme\s*:\s*dark\s*\)/g, t === 'dark' ? ON : OFF).replace(/\(\s*prefers-color-scheme\s*:\s*light\s*\)/g, t === 'light' ? ON : OFF);
+            if (r.media.mediaText !== x) r.media.mediaText = x;
+          }
+        }
+        if (r.cssRules) fixRules(r.cssRules, t);
+      } catch { /* правило без условий */ }
+    }
+  }
+  function fixSheet(sh, t) { let rules; try { rules = sh.cssRules; } catch { return; } if (rules) fixRules(rules, t); }   // чужие (шрифты Google) — недоступны, пропускаем
+  let themeSeen = false;
+  function applyTheme() {
+    const t = theme();
+    if (t === 'auto' && !themeSeen) return;   // ничего не меняли — и не трогаем
+    themeSeen = true;
+    root.dataset.theme = t; root.style.colorScheme = t === 'auto' ? '' : t;
+    for (const sh of document.styleSheets) fixSheet(sh, t);
+    // цвет строки браузера/телефона: в разметке две строки (светлая и тёмная по системе) — при выборе руками обе под выбранную тему
+    document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.dataset.c0 ??= m.content; m.content = t === 'auto' ? m.dataset.c0 : t === 'dark' ? '#0f1a22' : '#fbf7ef'; });
+  }
+  function setTheme(t) { ls.set('theme', t === 'light' || t === 'dark' ? t : null); applyTheme(); }
+  // файлы стилей, подключённые позже (окна, страницы), — тоже под выбранную тему
+  new MutationObserver(ms => { if (theme() === 'auto' && !themeSeen) return; for (const m of ms) for (const n of m.addedNodes) if (n.tagName === 'LINK' || n.tagName === 'STYLE') { n.addEventListener?.('load', applyTheme); applyTheme(); } })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener('load', applyTheme);
+
+  // ---------- v5.31c: выбор стиля — кружки-образцы (окно «Стиль» из меню под «Профилем» и блок «Оформление» в профиле) ----------
+  const swatch = id => { const [b, a, l] = SW[id]; return `<i class="dz-sw" style="background:${b};box-shadow:inset 0 0 0 1px ${l}"><i style="background:${a}"></i><i style="background:${l}"></i></i>`; };
+  const pickerHtml = () => `<div class="dz-pk" data-dz-box>
+      <div class="dz-row" role="radiogroup" aria-label="Стиль сайта">${IDS.map(id => `<button type="button" class="dz-it${id === d ? ' on' : ''}" role="radio" aria-checked="${id === d}" data-dz-set="${id}">${swatch(id)}<span>${NAMES[id]}</span></button>`).join('')}</div>
+      <div class="dz-th" role="radiogroup" aria-label="Тема">${Object.entries(THEMES).map(([k, t]) => `<button type="button" class="dz-tb${k === theme() ? ' on' : ''}" role="radio" aria-checked="${k === theme()}" data-dz-theme="${k}">${{ auto: '🌗', light: '☀️', dark: '🌙' }[k]} ${t}</button>`).join('')}</div>
+      ${mine && mine !== def ? `<button type="button" class="dz-reset" data-dz-reset>Вернуть стиль по умолчанию («${NAMES[def]}»)</button>` : ''}</div>`;
+  const repaint = () => document.querySelectorAll('[data-dz-box]').forEach(b => { b.outerHTML = pickerHtml(); });
+  function css() {
+    if (document.getElementById('dz-css')) return;
+    document.head.insertAdjacentHTML('beforeend', `<style id="dz-css">
+      .dz-pk{display:grid;gap:12px}.dz-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+      .dz-it{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;font-size:13px;cursor:pointer}
+      .dz-it.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
+      .dz-sw{position:relative;display:block;width:38px;height:38px;border-radius:50%;overflow:hidden}
+      .dz-sw i{position:absolute;right:0;bottom:0;width:50%;height:50%;display:block}.dz-sw i+i{right:auto;left:0;width:50%;height:22%}
+      .dz-th{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+      .dz-tb{min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:13.5px;cursor:pointer;padding:6px}
+      .dz-tb.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
+      .dz-reset{justify-self:start;background:none;border:0;color:var(--link);font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer;padding:4px 0}
+      .dz-win{position:fixed;inset:0;z-index:6000;display:flex;align-items:center;justify-content:center;background:rgba(10,14,20,.45);padding:12px}
+      .dz-card{width:min(520px,100%);background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.3);padding:16px}
+      .dz-card header{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;font-weight:800;font-size:17px}
+      .dz-x{min-width:40px;min-height:40px;border:0;background:none;color:var(--text);font-size:22px;cursor:pointer;border-radius:10px}
+      @media (max-width:480px){.dz-win{align-items:flex-end;padding:0}.dz-card{border-radius:16px 16px 0 0;padding:14px 12px calc(14px + env(safe-area-inset-bottom))}.dz-it{font-size:11.5px;padding:8px 2px}.dz-sw{width:34px;height:34px}}
+    </style>`);
+  }
+  function pick() {
+    css(); document.querySelector('.dz-win')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `<div class="dz-win" role="dialog" aria-modal="true" aria-label="Стиль сайта"><div class="dz-card"><header><span>🎨 Стиль сайта</span><button type="button" class="dz-x" data-dz-close aria-label="Закрыть">×</button></header>${pickerHtml()}</div></div>`);
+    const w = document.querySelector('.dz-win');
+    w.addEventListener('click', e => { if (e.target === w || e.target.closest('[data-dz-close]')) w.remove(); });
+    w.querySelector('.dz-it.on')?.focus();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelector('.dz-win')?.remove(); });
+  document.addEventListener('click', e => {
+    const s = e.target.closest('[data-dz-set]'), t = e.target.closest('[data-dz-theme]'), r = e.target.closest('[data-dz-reset]');
+    if (s) { set(s.dataset.dzSet); repaint(); toast(`Стиль «${NAMES[s.dataset.dzSet]}»`); }
+    else if (t) { setTheme(t.dataset.dzTheme); repaint(); toast(`Тема: ${THEMES[theme()].toLowerCase()}`); }
+    else if (r) { window.DESIGN.reset(); repaint(); toast(`Стиль «${NAMES[def]}»`); }
+  });
   // выбор администратора: раз в 30 минут уточняем у сервера; личного выбора нет — применяем сразу
   async function refreshDefault() {
     const t = +ls.get('design_def_at') || 0;
@@ -144,6 +233,8 @@
     note: 'M4 20h4l11-11-4-4L4 16zM13.5 6.5l4 4',
     // v5.23c: «Ответы собственников» — письмо с галочкой, «Отклики клиентов» — палец вверх
     mailok: 'M20.5 12V6.5a1 1 0 0 0-1-1h-15a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1H12M3.5 6.5l8.5 6 8.5-6M15 18l2 2 4-4.5',
+    // v5.31c: «Прокси» — глобус
+    globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9',
     thumb: 'M7.5 10.5v9h-3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM7.5 10.5l3.6-6.3a1.6 1.6 0 0 1 3 1.1L13.4 9.5h5.3a1.8 1.8 0 0 1 1.8 2.1l-1.2 6.2a2 2 0 0 1-2 1.7H7.5',
   };
   // название пункта → значок (сначала по словам — у «Кабинета» и «С клиентом» раньше был один эмодзи 👤), затем по эмодзи
@@ -152,11 +243,11 @@
     'Продвижение': 'megaphone', 'Реклама': 'megaphone', 'Рассылки': 'send', 'Видеомонтаж-СММ': 'film', 'Помощник': 'sparkles', 'Мой помощник': 'sparkles', 'Юрист': 'scale',
     'Ипотечный брокер': 'bank', 'База знаний': 'book', 'Чат подписчиков': 'chat', 'Налоги при продаже': 'receipt', 'Как пользоваться помощником': 'help', 'Кабинет': 'briefcase',
     'Баланс': 'wallet', 'Партнёрская программа': 'partners', 'Партнёрам': 'partners', 'Мессенджеры и соцсети': 'link', 'Оплата и тарифы': 'card', 'Помощь': 'buoy',
-    'С клиентом': 'present', 'Админ': 'sliders', 'Настройки': 'sliders', 'Стиль': 'palette', 'Журнал': 'notebook', 'Выйти': 'logout', 'Продлить доступ': 'crown' };
+    'С клиентом': 'present', 'Админ': 'sliders', 'Настройки': 'sliders', 'Стиль': 'palette', 'Журнал': 'notebook', 'Выйти': 'logout', 'Продлить доступ': 'crown', 'Мой профиль': 'user', 'Профиль': 'user', 'Прокси': 'globe' };
   const BY_EMO = { '💬': 'chat', '🎬': 'film', '🧾': 'receipt', '🧭': 'steps', '🧑‍⚖️': 'scale', '🧑‍⚖': 'scale', '⚖️': 'scale', '⚖': 'scale', '🏦': 'bank', '🤝': 'partners',
     '🛡': 'shield', '🛡️': 'shield', '🔗': 'link', '🔎': 'search', '🔍': 'search', '📷': 'camera', '📚': 'book', '📑': 'deal', '📌': 'pin', '📋': 'clipboard', '📈': 'trend', '📄': 'doc',
     '💰': 'wallet', '💎': 'gem', '👥': 'users', '🏗': 'crane', '🏗️': 'crane', '✅': 'check', '📊': 'chart', '💵': 'cash', '📝': 'note', '⭐': 'star', '★': 'star', '🗂': 'archive', '🗂️': 'archive',
-    '📘': 'help', '🏠': 'home', '✉️': 'send', '✉': 'send', '📒': 'notebook', '⚙': 'sliders', '⚙️': 'sliders', '🎨': 'palette', '💬': 'chat', '📣': 'megaphone', '🤖': 'sparkles', '📚': 'book', '💳': 'card', '💡': 'help', '👍': 'thumb' };
+    '📘': 'help', '🏠': 'home', '✉️': 'send', '✉': 'send', '📒': 'notebook', '⚙': 'sliders', '⚙️': 'sliders', '🎨': 'palette', '💬': 'chat', '📣': 'megaphone', '🤖': 'sparkles', '📚': 'book', '💳': 'card', '💡': 'help', '👍': 'thumb', '🌐': 'globe', '👤': 'user' };
   // эмодзи для набора «Эмодзи»: у «Кабинета» и «С клиентом» — разные
   const EMO = { 'Кабинет': '💼', 'С клиентом': '🖥️', 'Выйти': '🚪', 'Продлить доступ': '👑' };
   const LEAD = /^(\s*)((?:\p{Extended_Pictographic}|[★☰])\uFE0F?(?:\u200D\p{Extended_Pictographic}\uFE0F?)*)\s*/u;
@@ -187,16 +278,16 @@
     cancelAnimationFrame(headsT);
     headsT = requestAnimationFrame(() => document.querySelectorAll(HEADS).forEach(el => { if (!el.closest('.conn-card')) iconizeEl(el, true); }));
   }
-  window.DESIGN = { get: () => d, set, def: () => def, mine: () => mine, names: NAMES, ids: IDS, logos: LOGOS, icons: ICONS,
+  window.DESIGN = { get: () => d, set, def: () => def, pick, pickerHtml: () => { css(); return pickerHtml(); }, theme, setTheme, themes: THEMES, swatch, mine: () => mine, names: NAMES, ids: IDS, logos: LOGOS, icons: ICONS,
     logo, iconsSet: icons, setLogo, setIcons, markSvg, brandHtml, paint: paintLogos, iconizeEl, sprite, heads,
     mineLogo: () => okLogo(ls.get('logo')), mineIcons: () => okIcons(ls.get('icons')), logoDef: () => logoDef, iconsDef: () => iconsDef,
     reset() { mine = null; ls.set('design', null); ls.set('logo', null); ls.set('icons', null); apply(); paintLogos(); load(def); },
     // админка: новый выбор «для всех» — сразу в кэш (у себя тоже, если нет личного)
     setDefault(x, lg, ic) { if (ok(x)) { def = x; ls.set('design_def', x); } if (okLogo(lg)) { logoDef = lg; ls.set('logo_def', lg); } if (okIcons(ic)) { iconsDef = ic; ls.set('icons_def', ic); }
       ls.set('design_def_at', String(Date.now())); apply(); paintLogos(); if (!mine) load(def); } };
-  document.addEventListener('click', e => { if (e.target.closest('[data-style]')) { e.preventDefault(); next(); } });
+  document.addEventListener('click', e => { if (e.target.closest('[data-style]')) { e.preventDefault(); pick(); } });
   document.addEventListener('DOMContentLoaded', () => {
-    sprite(); label(); paintLogos(); setTimeout(ensureButton, 900); refreshDefault();
+    sprite(); label(); paintLogos(); setTimeout(ensureButton, 900); refreshDefault(); applyTheme();
     // вход и окна рисуются позже (app.js gate, sheet) — знак и бренд дорисовываются сами
     heads();
     new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) { paintLogos(); heads(); } }).observe(document.body, { childList: true, subtree: true });

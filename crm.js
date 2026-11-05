@@ -5,7 +5,7 @@
 window.CRM = (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const ST = { new: 'Новый', work: 'В работе', show: 'Показ', deposit: 'Задаток', deal: 'Сделка', lost: 'Отказ' };
+  const ST = { new: 'Новый', work: 'В работе', show: 'Показ', deposit: 'Задаток', deal: 'Сделка', later: 'Отложили', lost: 'Отказ' };   // v5.31c: «Отложили» — в «Все» не входит, только во вкладке
   const SRC = { call: 'Звонок', avito: 'Авито', site: 'Сайт', ref: 'Рекомендация', other: 'Другое' };
   const VIA = [['tg', 'Telegram-бот'], ['push', 'Push'], ['site', 'Окно на сайте']];
   let ui = null, meta = null, L = null, C = null, F = { status: '', q: '' }, view = 'home';
@@ -164,7 +164,7 @@ window.CRM = (() => {
     if (t.closest('[data-set-st]')) {
       const st = t.closest('[data-set-st]').dataset.setSt;
       if (st === c.status) return;
-      try { await ui.call('crm_client_save', { ...c, status: st }); C.client.status = st; drawClient(); ui.toast(`Статус: ${ST[st]}`); } catch (er) { ui.toast(er.message, 5000); }
+      try { await ui.call('crm_client_save', { ...c, status: st }); C.client.status = st; if (st === 'later') return laterAsk(C.client, () => client(c.id)); drawClient(); ui.toast(`Статус: ${ST[st]}`); } catch (er) { ui.toast(er.message, 5000); }
       return;
     }
     if (t.closest('[data-from-sel]')) return fromSel(c);
@@ -210,9 +210,34 @@ window.CRM = (() => {
       try {
         const r = await ui.call('crm_client_save', { id: c?.id, name: f.name.value, phone: f.phone.value, source: f.source.value, status: f.status.value, note: f.note.value });
         ui.toast(r.dup ? `Сохранено. Этот телефон уже есть у клиента «${r.dup.name || '—'}»` : 'Клиент сохранён', r.dup ? 6000 : 2600);
-        return after ? after(r.client) : client(r.client.id);
+        const go = () => after ? after(r.client) : client(r.client.id);
+        if (r.client?.status === 'later' && c?.status !== 'later') return laterAsk(r.client, go);   // v5.31c: отложили — когда вернуться
+        return go();
       } catch (er) { err(er.message); b.disabled = false; }
     };
+  }
+
+  // ---------- v5.31c: «Отложили» — когда вернуться к клиенту (задача с напоминанием) ----------
+  const LATER = [['7', 'Через неделю'], ['30', 'Через месяц'], ['91', 'Через 3 месяца'], ['', 'Без напоминания']];
+  function laterAsk(c, done) {
+    const nm = c.name || c.phone || 'клиент';
+    body().innerHTML = `<div class="crm crm-later-ask">
+      <h3>Когда вернуться к клиенту?</h3>
+      <p class="muted">${esc(nm)} — в «Отложили». Поставлю задачу «Вернуться к клиенту» и напомню в бот, push и на сайте.</p>
+      <div class="crm-lgrid">${LATER.map(([k, v]) => `<button type="button" class="btn ${k ? 'soft' : 'ghost'}" data-later="${k}">${v}</button>`).join('')}</div>
+      <p class="err crm-err" hidden></p></div>`;
+    bind(async e => {
+      const b = e.target.closest('[data-later]');
+      if (!b) return;
+      const n = +b.dataset.later;
+      if (!n) { ui.toast('Клиент в «Отложили», без напоминания'); return done(); }
+      body().querySelectorAll('[data-later]').forEach(x => { x.disabled = true; });
+      try {
+        const r = await ui.call('crm_task_save', { text: `Вернуться к клиенту: ${nm}`.slice(0, 500), due: iso(mskParts(Date.now() + n * 864e5).d, '10:00'), client_id: c.id, via: VIA.map(x => x[0]) });
+        ui.toast(`Клиент в «Отложили». Напомню ${when(r.task.due_at)}`, 3500);
+        return done();
+      } catch (er) { err(er.message); body().querySelectorAll('[data-later]').forEach(x => { x.disabled = false; }); }
+    });
   }
 
   // ---------- задача ----------
