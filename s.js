@@ -198,7 +198,7 @@
       document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">');
       await loadJs('vendor/leaflet/leaflet.min.js');
     }
-    if (!window.MAPBASE) await loadJs('mapbase.js?v=5.23e1');
+    if (!window.MAPBASE) await loadJs('mapbase.js?v=5.31e');
   }
   function mapClose() { const m = $('#s-map'); if (!m) return; mapObj?.remove(); mapObj = null; m.remove(); document.body.classList.remove('s-lock'); }
   async function mapOpen(num) {
@@ -223,6 +223,15 @@
     const byNum = new Map(data.items.map(x => [x.num, x])), pts = mapData.points.filter(p => !num || p.num === num);
     const ok = pts.filter(p => p.lat != null);
     mapObj = L.map(el, { zoomControl: true, attributionControl: false, maxZoom: 19 }).setView([43.585, 39.723], 11);   // центр сразу: круги и точки без него не рисуются
+    // v5.31e: источник карты — свёрнутый «ⓘ», как на главной (MAPBASE сам подставит «Яндекс Карты», если подложка Яндекса)
+    const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
+      const d = L.DomUtil.create('div', 'map-info');
+      d.innerHTML = '<button type="button" aria-label="Источник карты" title="Источник карты">ⓘ</button><span hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>';
+      L.DomEvent.disableClickPropagation(d);
+      d.querySelector('button').onclick = () => { const t = d.querySelector('span'); t.hidden = !t.hidden; };
+      return d;
+    } });
+    new Info().addTo(mapObj);
     // ревью 05.11: серый прямоугольник на телефоне — окно ещё меняло размер; пересчитать размер карты, когда окно встало, и повторить плитки при ошибке
     Promise.resolve(MAPBASE.add(mapObj)).then(layer => layer?.on?.('tileerror', e => { const t = e.tile, k = +(t.dataset.retry || 0);
       if (k < 2) setTimeout(() => { t.dataset.retry = k + 1; t.src = t.src.replace(/([?&])r=\d+/, '').replace(/$/, (t.src.includes('?') ? '&' : '?') + 'r=' + (k + 1)); }, 600 * (k + 1)); })).catch(() => {});

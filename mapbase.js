@@ -6,7 +6,10 @@ window.MAPBASE = (() => {
   const OSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const conf = () => cfg ??= fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public' }) })
     .then(r => r.json()).then(d => d.map ?? {}).catch(() => ({}));
-  const load = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  // v5.31e: у подборки (s.html) в шапке no-referrer (ради фото) — без Referer OpenStreetMap отдаёт вместо плиток «403 Access blocked»,
+  // а Яндекс не узнает сайт по ключу. Подложке и скриптам Яндекса — своя политика: только адрес сайта, без пути и кода подборки.
+  const REF = 'strict-origin-when-cross-origin';
+  const load = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.referrerPolicy = REF; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
   const yandex = key => ya ??= (async () => {
     if (!window.ymaps) await load(`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(key)}&lang=ru_RU`);
     await new Promise((ok, no) => { const t = setTimeout(() => no(new Error('Яндекс не ответил')), 12000); ymaps.ready(() => { clearTimeout(t); ok(); }, no); });
@@ -25,7 +28,7 @@ window.MAPBASE = (() => {
         return y;
       } catch (e) { console.warn('Карта Яндекса не загрузилась — OpenStreetMap', e); ya = null; }
     }
-    return L.tileLayer(OSM, { maxZoom: 19 }).addTo(map);
+    return L.tileLayer(OSM, { maxZoom: 19, referrerPolicy: REF }).addTo(map);
   }
   return { add };
 })();
