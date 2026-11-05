@@ -59,6 +59,7 @@
     const c = R[S.role], st = S.st;
     p.innerHTML = `<section class="hub-sec dl-sec law">
         <div class="hub-msgs law-msgs" id="l-msgs">${st.msgs.length ? st.msgs.map(m => msg(m.who, m.text)).join('') : `<p class="muted">Задайте вопрос текстом или голосом 🎤 — ИИ ответит как ${c.title === 'Юрист' ? 'юрист по сделкам с недвижимостью' : 'ипотечный брокер'}. Пишите подробно: цифры, сроки, кто собственники.</p>`}</div>
+        ${seenLine()}
         <div class="law-ex">${c.ex.map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div>
         <div class="law-in"><textarea id="l-q" rows="3" maxlength="6000" placeholder="${esc(c.ph)}"></textarea>
           ${H.voiceOk() ? '<button type="button" class="btn soft law-mic" id="l-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}</div>
@@ -76,7 +77,8 @@
       box.insertAdjacentHTML('beforeend', msg('user', text) + '<div class="hub-msg ai law-typing"><span></span><span></span><span></span></div>');
       box.scrollTop = box.scrollHeight;
       try {
-        const r = await H.call('law_ask', { role: S.role, text }, { signal: AbortSignal.timeout?.(150000) });
+        const r = await H.call('law_ask', { role: S.role, text, ...(S.about ? { report_id: S.about } : {}) }, { signal: AbortSignal.timeout?.(150000) });
+        if (r.seen) { S.st.seen = r.seen; const sl = p.querySelector('.lw-seen'); if (sl) sl.outerHTML = seenLine(); }
         box.querySelector('.law-typing')?.remove();
         box.insertAdjacentHTML('beforeend', msg('ai', r.answer));
         S.st.msgs.push({ who: 'user', text }, { who: 'ai', text: r.answer });
@@ -90,8 +92,28 @@
     go.onclick = ask;
     q.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask(); });
     p.querySelector('#l-mic')?.addEventListener('click', e => H.voice(q, e.currentTarget));
+    p.querySelector('[data-seen-docs]')?.addEventListener('click', () => tab('docs'));
+    p.querySelector('[data-about-off]')?.addEventListener('click', () => { S.about = null; askTab(p); setQ(); });
+    if (S.prefill) { q.value = S.prefill; S.prefill = null; q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
     p.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { q.value = b.dataset.ex; q.focus(); });
     p.querySelector('#l-clear')?.addEventListener('click', async () => { if (!confirm('Очистить историю вопросов?')) return; await H.call('law_clear', { role: S.role }); S.st.msgs = []; askTab(p); setQ(); });
+  }
+  // v5.34: что юрист видит из соседней вкладки — пакет документов и отчёты проверки (только свои)
+  const dd = x => x ? new Date(x).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '';
+  function seenLine() {
+    const v = S.st.seen ?? {}, b = v.batch, reps = v.reports ?? [], ab = S.about && reps.find(r => String(r.id) === String(S.about));
+    if (!b && !reps.length) return `<p class="lw-seen muted">📎 ${R[S.role].title} пока не видит ваших документов — загрузите их во вкладке <button type="button" class="linkish" data-seen-docs>«📎 Документы и проверка»</button>, и можно будет спрашивать по ним.</p>`;
+    const parts = [b ? `пакет от ${dd(b.at)} (${b.read} из ${b.n} файлов прочитаны)` : '', ...reps.map(r => `отчёт «${r.kind === 'owner' ? 'Собственник' : 'Объект'}» от ${dd(r.at)}`)].filter(Boolean);
+    return `<p class="lw-seen">📎 <b>${R[S.role].title} видит:</b> ${esc(parts.join(' · '))}. Спрашивайте по ним — «что запросить у продавца?», «почему риск средний?».
+      ${ab ? `<br>🎯 Вопрос — об отчёте «${ab.kind === 'owner' ? 'Собственник' : 'Объект'}» от ${esc(dd(ab.at))} <button type="button" class="linkish" data-about-off>убрать</button>` : ''}</p>`;
+  }
+  function askAbout(id, rep) {
+    S.about = id;
+    const v = S.st.seen ?? (S.st.seen = {});
+    v.reports = [{ id, at: rep.at, kind: rep.kind, risk: rep.risk }, ...(v.reports ?? []).filter(r => String(r.id) !== String(id))].slice(0, 3);
+    S.prefill = `По отчёту проверки ${rep.kind === 'owner' ? 'собственника' : 'объекта'} от ${dd(rep.at)}: `;
+    tab('ask');
+    S.el.querySelector('#l-q')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
   const msg = (who, text) => `<div class="hub-msg ${who === 'ai' ? 'ai' : 'user'}">${who === 'ai' ? H.md(text) : esc(text).replace(/\n/g, '<br>')}</div>`;
 
@@ -224,6 +246,8 @@
   function showRep(id, rep) {
     const box = S.el.querySelector('#lw-rep');
     L().report(box, rep, { id });
+    box.insertAdjacentHTML('afterbegin', `<p class="lw-askrep"><button type="button" class="btn primary" data-askrep>💬 Спросить ${S.role === 'broker' ? 'брокера' : 'юриста'} об этом отчёте</button></p>`);
+    box.querySelector('[data-askrep]').onclick = () => askAbout(id, rep);
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
