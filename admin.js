@@ -23,6 +23,7 @@ window.ADMIN = (() => {
   const LOG = { login_ok: 'Вход', login_fail: 'Неудачный вход', login_lock: 'Вход заблокирован', mfa_on: 'Включён второй шаг входа', mfa_backup: 'Новые запасные коды',
     user_set: 'Изменён участник', user_create: 'Создан участник', settings: 'Изменены настройки', pay_settings: 'Изменены настройки оплаты', pay_manual: 'Подписка выдана вручную',
     pay_activate: 'Платёж подтверждён вручную', pay_reject: 'Платёж отклонён', pay_hook_test: 'Проверка связи с CryptoBot', pay_sim_tx: 'Имитация перевода' };
+  Object.assign(LOG, { main_add: 'Добавлен в группу Main', main_del: 'Убран из группы Main' });   // v5.37
   Object.assign(LOG, { support_reply: 'Ответ на обращение', support_status: 'Статус обращения', support_settings: 'Изменены настройки поддержки', support_digest: 'Сводка поддержки' });   // шаг 3.3
   const LOGK = { device: 'Устройство', ip: 'IP', why: 'Подробности', password: 'Новый пароль', kick: 'Выкинут со всех устройств', pack: 'Пакет номеров', plan: 'Тариф', days: 'Дней', changed: 'Изменено', id: 'Счёт', tx: 'Перевод',
     what: 'Что', was: 'Было', now: 'Стало', ok: 'Успешно', usd: 'Сумма, $', amount: 'Сумма', note: 'Заметка', late: 'С опозданием', result: 'Результат' };
@@ -80,6 +81,7 @@ window.ADMIN = (() => {
       <div class="a-top"><input id="a-find" type="search" placeholder="Поиск: имя, логин, телефон" autocomplete="off">
         <div class="chips" id="a-show">${chips.map(([k, t]) => `<button type="button" class="chip${show === k ? ' on' : ''}" data-show="${k}">${t}</button>`).join('')}</div></div>
       <div id="a-users" class="ucards">${r.users.map(card).join('')}</div>
+      <details class="a-sec" id="a-main"><summary>👥 Группа Main — общие клиенты</summary><div id="a-main-box"><p class="muted">Загрузка…</p></div></details>
       <details class="a-sec"><summary>Тарифы и пакет номеров</summary>
         <div class="ascroll"><table class="atable ptable-admin"><thead><tr><th></th>${IDS.map(id => `<th>${esc(r.plans[id].name)}</th>`).join('')}</tr></thead><tbody>
           ${PF.map(([k, t, type]) => `<tr><td>${t}</td>${IDS.map(id => `<td>${sIn(`plans.${id}.${k}`, type, get(r.plans[id], k))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
@@ -208,6 +210,49 @@ window.ADMIN = (() => {
     more.disabled = false;
   }
 
+  // v5.37: группа Main — вы (главный админ) всегда, плюс доверенные аккаунты; у участников во «👥 Клиенты» — вкладка «Main · общие» (чужих клиентов только посмотреть)
+  async function mainLoad(x) {
+    const box = $('#a-main-box');
+    if (!box) return;
+    if (!document.getElementById('a-main-css')) document.head.insertAdjacentHTML('beforeend', `<style id="a-main-css">
+      .a-mlist { display: grid; gap: 6px; margin: 8px 0; } .a-mrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+      .a-mrow > span:first-child { flex: 1 1 180px; min-width: 0; } .a-mrow .btn { padding: 6px 12px; } .a-madd { display: flex; gap: 8px; flex-wrap: wrap; }
+      .a-madd input { flex: 1 1 220px; min-width: 0; font-size: 16px; }</style>`);   // свои стили блока — без правки style.css (его версии на всех страницах)
+    if (!x) try { x = await ui.call('admin_main'); } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    const inG = new Set([...x.admins, ...x.items].map(u => u.login));
+    const cand = r.users.filter(u => !inG.has(u.login) && u.role !== 'admin');
+    const row = (u, adm) => `<div class="a-mrow" data-mlogin="${esc(u.login)}"><span><b>${esc(u.name || u.login)}</b> <small class="muted">${esc(u.login)}${u.status === 'off' ? ' · отключён' : ''}</small></span>
+      <small class="muted">клиентов: ${u.clients}${adm ? '' : ` · добавил ${esc(u.added_by || '—')} ${esc(day(u.added_at))}`}</small>
+      ${adm ? '<span class="tag">админ · всегда</span>' : '<button type="button" class="btn ghost bad" data-mdel>Убрать</button>'}</div>`;
+    box.innerHTML = `<p class="hint">Закрытая группа. Участники видят в «👥 Клиенты» вкладку «Main · общие»: клиентов друг друга — имя, телефон, чей клиент, этап, ближайшую задачу.
+        Чужого клиента можно только открыть и посмотреть, менять и удалять — только своих. Остальные участники сайта вкладку не видят.</p>
+      <div class="a-mlist">${x.admins.map(u => row(u, true)).join('')}${x.items.map(u => row(u, false)).join('') || '<p class="muted">Доверенных аккаунтов пока нет — добавьте ниже.</p>'}</div>
+      <div class="a-madd"><input id="a-main-in" list="a-main-dl" placeholder="Логин или имя участника" autocomplete="off" aria-label="Добавить в группу Main">
+        <datalist id="a-main-dl">${cand.map(u => `<option value="${esc(u.login)}">${esc([u.name, u.phone].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+        <button type="button" class="btn primary" id="a-main-add">Добавить</button></div>`;
+    const go = async () => {
+      const v = $('#a-main-in').value.trim(), lv = v.toLowerCase();
+      if (!v) return ui.toast('Впишите логин или начните вводить имя и выберите из списка');
+      const by = r.users.filter(u => u.login === lv || (u.name ?? '').toLowerCase() === lv);
+      const u = by.length === 1 ? by[0] : null;
+      if (!u) return ui.toast(by.length > 1 ? 'Таких имён несколько — выберите логин из списка' : 'Участник не найден — проверьте логин', 5000);
+      if (!confirm(`Добавить ${u.name || u.login} (${u.login}) в группу Main? Он увидит клиентов всех участников группы.`)) return;
+      try { const y = await ui.call('admin_main_add', { login: u.login }); if (y.error) throw new Error(y.message); ui.toast(`${u.name || u.login} — в группе Main`); mainLoad(y); }
+      catch (e) { ui.toast(e.message, 5000); }
+    };
+    $('#a-main-add').onclick = go;
+    $('#a-main-in').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
+    box.onclick = async e => {
+      const b = e.target.closest('[data-mdel]');
+      if (!b) return;
+      const login = b.closest('[data-mlogin]').dataset.mlogin, u = x.items.find(i => i.login === login);
+      if (!confirm(`Убрать ${u?.name || login} (${login}) из группы Main? Он перестанет видеть общих клиентов, его клиенты пропадут из общего списка (у него они останутся).`)) return;
+      b.disabled = true;
+      try { const y = await ui.call('admin_main_del', { login }); if (y.error) throw new Error(y.message); ui.toast(`${u?.name || login} убран из группы Main`); mainLoad(y); }
+      catch (er) { ui.toast(er.message, 5000); b.disabled = false; }
+    };
+  }
+
   async function open() {
     ui.sheet('Админ-панель', '<p class="muted">Загрузка…</p>', true);
     try { r = await ui.call('admin_users'); } catch (e) { $('#sheet-body').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
@@ -218,6 +263,9 @@ window.ADMIN = (() => {
     window.MFA?.panel($('#a-mfa'), ui);
     const bs = $('#a-bot-sec');   // состояние бота (getWebhookInfo) — при первом открытии блока
     bs.ontoggle = () => { if (bs.open && !bs.dataset.on) { bs.dataset.on = 1; window.NOTIFY?.adminPanel($('#a-bot'), ui); } };
+    const ms = $('#a-main');   // v5.37: группа Main — при первом открытии блока
+    ms.ontoggle = () => { if (ms.open && !ms.dataset.on) { ms.dataset.on = 1; mainLoad(); } };
+    if (/#admin-main/.test(location.hash)) { ms.open = true; ms.scrollIntoView?.({ block: 'start' }); }
     const log = $('#a-log');   // его поле и кнопка без data-k / data-s: mark() их не видит, «Сохранить» не загорается
     log.ontoggle = () => { if (log.open && !log.dataset.on) { log.dataset.on = 1; logLoad(); } };
     $('#a-log-q').oninput = () => { clearTimeout(logT); logT = setTimeout(() => logLoad(), 350); };

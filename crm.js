@@ -9,6 +9,7 @@ window.CRM = (() => {
   const SRC = { call: 'Звонок', avito: 'Авито', site: 'Сайт', ref: 'Рекомендация', other: 'Другое' };
   const VIA = [['tg', 'Telegram-бот'], ['push', 'Push'], ['site', 'Окно на сайте']];
   let ui = null, meta = null, L = null, C = null, F = { status: '', q: '' }, view = 'home';
+  let tab = 'my', M = null, MC = null, FM = { status: '', q: '', owner: '' };   // v5.37: вкладка «Main · общие» — клиенты всех участников группы, чужие только посмотреть
   const body = () => $('#sheet-body');
   // время — МСК, как у сервера: «31.10, 15:00», для полей — ГГГГ-ММ-ДД и ЧЧ:ММ
   const mskParts = t => { const s = new Date(t).toLocaleString('sv-SE', { timeZone: 'Europe/Moscow' }); return { d: s.slice(0, 10), t: s.slice(11, 16) }; };
@@ -28,7 +29,7 @@ window.CRM = (() => {
 
   // ---------- главный экран ----------
   async function open(hash) {
-    view = 'home';
+    view = 'home'; tab = 'my';
     ui.sheet('👥 Клиенты и задачи', '<p class="muted">Загрузка…</p>', true);
     try { L = await ui.call('crm_list', {}); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     badge(L.today.filter(t => !t.done_at).length);
@@ -43,7 +44,7 @@ window.CRM = (() => {
   function home() {
     view = 'home';
     const shown = L.clients;
-    body().innerHTML = `<div class="crm">
+    body().innerHTML = `<div class="crm">${tabs()}
       <section class="crm-sec"><div class="crm-h"><b>Задачи на сегодня</b><span class="muted">${L.today.length ? `${L.today.length}` : ''}</span></div>
         ${L.today.length ? L.today.map(t => taskRow(t)).join('') : '<p class="muted crm-empty">На сегодня задач нет.</p>'}
         ${L.later.length ? `<details class="crm-later"><summary>Позже — ${L.later.length}</summary>${L.later.map(t => taskRow(t)).join('')}</details>` : ''}</section>
@@ -70,6 +71,7 @@ window.CRM = (() => {
   }
   async function onHome(e) {
     const t = e.target;
+    if (t.closest('[data-ctab]')) return t.closest('[data-ctab]').dataset.ctab === 'main' ? mainOpen() : open();
     if (t.closest('[data-st]')) { F.status = t.closest('[data-st]').dataset.st; return reload(); }
     if (t.closest('[data-client]')) return client(+t.closest('[data-client]').dataset.client);
     if (t.closest('[data-new-client]')) return clientForm();
@@ -99,7 +101,7 @@ window.CRM = (() => {
   function drawClient() {
     const c = C.client, d = digits(c.phone), n = C.items.length, open = C.tasks.filter(t => !t.done_at), done = C.tasks.filter(t => t.done_at);
     body().innerHTML = `<div class="crm">
-      <button type="button" class="btn ghost crm-back" data-back>‹ Клиенты</button>
+      <button type="button" class="btn ghost crm-back" data-back>‹ ${tab === 'main' ? 'Main · общие' : 'Клиенты'}</button>
       <section class="crm-sec crm-card">
         <div class="crm-ctop"><h3>${esc(c.name || c.phone || 'Без имени')}</h3><button type="button" class="btn ghost" data-edit>Изменить</button></div>
         <div class="crm-chips">${Object.entries(ST).map(([k, v]) => `<button type="button" class="chip${c.status === k ? ' on' : ''}" data-set-st="${k}">${v}</button>`).join('')}</div>
@@ -157,7 +159,7 @@ window.CRM = (() => {
     x.zk || x.complex || x.sub || x.district || ''].filter(Boolean).join(' · ');
   async function onClient(e) {
     const t = e.target, c = C.client;
-    if (t.closest('[data-back]')) return open();
+    if (t.closest('[data-back]')) return tab === 'main' ? mainOpen() : open();
     if (t.closest('[data-edit]')) return clientForm(c);
     if (t.closest('[data-new-task]')) return taskForm(null, { client_id: c.id });
     if (t.closest('[data-copy-phone]')) { try { await navigator.clipboard.writeText(c.phone); ui.toast('Телефон скопирован'); } catch { ui.toast(c.phone, 6000); } return; }
@@ -383,7 +385,89 @@ window.CRM = (() => {
       ${[...sels.values()].map(s => `<div class="crm-selrow"><b>${esc(s.title)}</b><small class="muted">${esc(when(s.at))} · его объектов: ${s.n}${s.yes ? ` · 👍 ${s.yes}` : ''}${s.no ? ` · 👎 ${s.no}` : ''}</small></div>`).join('')}</section>`);
   }
 
+  // ---------- v5.37: «Main · общие» — клиенты всех участников группы Main ----------
+  // Видят и получают только участники (сервер: crm_main_* → 403 not_main). Чужой клиент — только посмотреть (карточка, задачи, объекты); свой — обычная карточка с правкой.
+  const tabs = () => L?.main || M ? `<div class="crm-tabs" role="tablist"><button type="button" role="tab" class="${tab === 'my' ? 'on' : ''}" data-ctab="my">Мои клиенты</button>
+    <button type="button" role="tab" class="${tab === 'main' ? 'on' : ''}" data-ctab="main">👥 Main · общие</button></div>` : '';
+  const acc = o => `аккаунт: ${esc(o.name || o.login)} (${esc(o.login)})`;
+  async function mainOpen() {
+    tab = 'main'; view = 'main';
+    if (!M) body().innerHTML = `<div class="crm">${tabs()}<p class="muted">Загрузка…</p></div>`;
+    try { M = await ui.call('crm_main_list', FM); } catch (e) { tab = 'my'; body().innerHTML = `<div class="crm">${L ? tabs() : ''}<p class="err">${esc(e.message)}</p></div>`; bind(onMain); return; }
+    mainHome();
+  }
+  function mainHome() {
+    view = 'main';
+    const total = FM.owner ? M.members.find(m => m.login === FM.owner)?.n ?? M.total : M.total;
+    body().innerHTML = `<div class="crm crm-main">${tabs()}
+      <p class="hint crm-main-hint">Клиенты всех участников группы Main. Чужого клиента можно открыть и посмотреть, менять — только своих.</p>
+      <div class="crm-search"><input type="search" id="crm-mq" placeholder="Имя, телефон, заметка или участник" value="${esc(FM.q)}" autocomplete="off"></div>
+      <div class="crm-chips crm-owners"><button type="button" class="chip${!FM.owner ? ' on' : ''}" data-owner="">Все участники</button>${M.members.map(m =>
+        `<button type="button" class="chip${FM.owner === m.login ? ' on' : ''}" data-owner="${esc(m.login)}">${esc(m.name || m.login)}${m.me ? ' (вы)' : ''} · ${m.n}</button>`).join('')}</div>
+      <div class="crm-chips"><button type="button" class="chip${!FM.status ? ' on' : ''}" data-mst="">Все · ${total}</button>${Object.entries(ST).map(([k, v]) =>
+        `<button type="button" class="chip${FM.status === k ? ' on' : ''}" data-mst="${k}">${v} · ${M.counts[k] ?? 0}</button>`).join('')}</div>
+      <section class="crm-sec">${M.clients.length ? M.clients.map(c => `<button type="button" class="crm-client crm-mc${c.mine ? ' mine' : ''}" data-mclient="${c.id}" data-mine="${c.mine ? 1 : ''}">
+          <span class="crm-ctop"><b>${esc(c.name || c.phone || 'Без имени')}</b>${pill(c.status)}</span>
+          <small class="crm-owner">👤 ${acc(c.owner)}${c.mine ? ' · ваш' : ''}</small>
+          <small>${[c.phone && c.name ? esc(c.phone) : '', `объектов: ${c.objects}`, c.source ? esc(SRC[c.source]) : ''].filter(Boolean).join(' · ')}</small>
+          ${c.next ? `<small class="crm-next${c.next.overdue ? ' over' : ''}">⏰ ${esc(when(c.next.due_at))}${c.next.overdue ? ' · просрочено' : ''} — ${esc(c.next.text)}</small>` : '<small class="muted">Задач со сроком нет</small>'}
+          ${c.note ? `<small class="crm-mnote">📝 ${esc(c.note)}</small>` : ''}</button>`).join('')
+        : `<p class="muted crm-empty">${M.total ? 'Никого не нашлось — измените поиск, участника или этап.' : 'У участников группы пока нет клиентов.'}</p>`}</section></div>`;
+    bind(onMain);
+    const q = $('#crm-mq');
+    q.oninput = () => { clearTimeout(q.t); q.t = setTimeout(async () => { FM.q = q.value.trim(); await mainReload(); }, 350); };
+  }
+  async function mainReload() {
+    try { M = await ui.call('crm_main_list', FM); } catch (e) { return ui.toast(e.message, 5000); }
+    const pos = body().scrollTop, focus = document.activeElement?.id === 'crm-mq', v = $('#crm-mq')?.value;
+    mainHome(); body().scrollTop = pos;
+    if (focus) { const q = $('#crm-mq'); q.value = v; q.focus(); q.setSelectionRange(v.length, v.length); }
+  }
+  async function onMain(e) {
+    const t = e.target;
+    const ct = t.closest('[data-ctab]');
+    if (ct) { if (ct.dataset.ctab === 'my') return open(); return; }
+    if (t.closest('[data-owner]')) { FM.owner = t.closest('[data-owner]').dataset.owner; return mainReload(); }
+    if (t.closest('[data-mst]')) { FM.status = t.closest('[data-mst]').dataset.mst; return mainReload(); }
+    const c = t.closest('[data-mclient]');
+    if (c) return c.dataset.mine ? client(+c.dataset.mclient) : mainClient(+c.dataset.mclient);
+  }
+  async function mainClient(id) {
+    view = 'mclient';
+    body().innerHTML = '<p class="muted">Загрузка…</p>';
+    try { MC = await ui.call('crm_main_client', { id }); } catch (e) { body().innerHTML = `<div class="crm"><button type="button" class="btn ghost crm-back" data-back>‹ Main · общие</button><p class="err">${esc(e.message)}</p></div>`; bind(() => mainOpen()); return; }
+    if (MC.mine) return client(id);
+    const c = MC.client, d = digits(c.phone), open1 = MC.tasks.filter(x => !x.done_at), done = MC.tasks.filter(x => x.done_at);
+    const row = x => `<div class="crm-task ro${x.overdue ? ' over' : ''}${x.done_at ? ' done' : ''}"><span class="crm-check" aria-hidden="true">${x.done_at ? '✓' : ''}</span>
+      <div class="crm-tbody"><b>${esc(x.text)}</b><small>${x.done_at ? 'выполнено' : esc(when(x.due_at))}${x.overdue ? ' · просрочено' : ''}${x.num ? ` · № ${x.num}` : ''}</small></div></div>`;
+    body().innerHTML = `<div class="crm crm-ro">
+      <button type="button" class="btn ghost crm-back" data-back>‹ Main · общие</button>
+      <p class="crm-robar">👁 Клиент участника <b>${esc(MC.owner.name || MC.owner.login)}</b> (${esc(MC.owner.login)}) — только посмотреть. Менять и удалять может только он.</p>
+      <section class="crm-sec crm-card">
+        <div class="crm-ctop"><h3>${esc(c.name || c.phone || 'Без имени')}</h3>${pill(c.status)}</div>
+        ${c.phone ? `<div class="crm-phone"><b>${esc(c.phone)}</b><span><a class="btn soft" href="tel:+${esc(d)}">📞 Позвонить</a>
+          <a class="btn ghost" href="https://wa.me/${esc(d)}" target="_blank" rel="noopener">WhatsApp</a><button type="button" class="btn ghost" data-copy-phone>Копировать</button></span></div>` : ''}
+        <p class="muted crm-meta">${[`${acc(MC.owner)}`, c.source ? `Источник: ${esc(SRC[c.source])}` : '', `изменён ${esc(when(c.updated_at))}`].filter(Boolean).join(' · ')}</p>
+        ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
+      </section>
+      <section class="crm-sec"><div class="crm-h"><b>Задачи</b><span class="muted">${open1.length}</span></div>
+        ${open1.length ? open1.map(row).join('') : '<p class="muted crm-empty">Открытых задач нет.</p>'}
+        ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(row).join('')}</details>` : ''}</section>
+      <section class="crm-sec"><div class="crm-h"><b>Объекты · ${MC.items.length}</b></div>
+        ${MC.items.length ? '' : '<p class="muted crm-empty">Объектов нет.</p>'}
+        <div class="crm-objs">${MC.items.map(x => `<div class="crm-obj ro" data-num="${x.num}">
+          ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
+          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div></div>`).join('')}</div></section></div>`;
+    bind(async e => {
+      const t = e.target;
+      if (t.closest('[data-back]')) return mainOpen();
+      if (t.closest('[data-copy-phone]')) { try { await navigator.clipboard.writeText(c.phone); ui.toast('Телефон скопирован'); } catch { ui.toast(c.phone, 6000); } return; }
+      const obj = t.closest('[data-num]');
+      if (obj && t.closest('[data-open-obj], img')) return +obj.dataset.num >= 900001 ? location.assign(`excl.html#o=${obj.dataset.num}`) : ui.openItem?.(+obj.dataset.num);
+    });
+  }
+
   async function openClient(id) { await open(); return client(id); }   // v5.23c: «👥 Иван» на карточке объекта — сразу карточка клиента
 
-  return { use, open, pick, badge, show, openClient };
+  return { use, open, pick, badge, show, openClient, main: mainOpen };
 })();

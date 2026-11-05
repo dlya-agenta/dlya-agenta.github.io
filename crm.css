@@ -84,3 +84,18 @@
 .crm-lgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
 .crm-lgrid .btn { min-height: 48px; padding: 10px; font-size: 15px; }
 @media (min-width: 720px) { .crm-lgrid { grid-template-columns: repeat(4, 1fr); } }
+/* v5.37: вкладки «Мои клиенты» / «Main · общие», чей клиент, карточка только для просмотра */
+.crm-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--soft); }
+.crm-tabs button { border: 0; border-radius: 9px; padding: 9px 8px; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--muted); background: transparent; cursor: pointer; }
+.crm-tabs button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.crm-main-hint { margin: 0; }
+.crm-owners .chip { font-weight: 600; }
+.crm-mc .crm-owner { color: var(--link); font-weight: 600; font-size: 12.5px; }
+.crm-mc.mine { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.crm-mc .crm-next.over { color: var(--bad); }
+.crm-mnote { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-robar { margin: 0; padding: 9px 12px; border-radius: 12px; font-size: 13.5px; background: color-mix(in srgb, var(--warn) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line)); }
+.crm-task.ro .crm-tbody { cursor: default; }
+.crm-task.ro .crm-check { display: grid; place-items: center; cursor: default; border-color: var(--line); }
+.crm-task.ro.done .crm-check { border-color: var(--ok); }
+.crm-obj.ro { grid-template-columns: 64px minmax(0, 1fr); }
