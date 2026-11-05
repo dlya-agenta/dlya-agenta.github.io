@@ -240,7 +240,7 @@
         const c = L.circle([p.lat, p.lon], { radius: p.r || 300, color: acc, weight: 2, fillColor: acc, fillOpacity: .18 }).addTo(mapObj)
           .bindPopup(`<div class="s-pop"><p class="s-pop-st">${esc(p.label || 'Улица')}</p><small>точный адрес — у агента</small><br>${list}</div>`);
         c.bindTooltip(`${esc(p.label || 'улица')} (точный адрес — у агента)`, { direction: 'top', sticky: true });
-        // на мелком масштабе круг 300 м — точка; полупрозрачная метка в центре улицы видна всегда (это центр улицы, не дом)
+        // на мелком масштабе круг 300 м почти не виден — метка в центре круга (сервер уже сдвинул центр от дома на 120–220 м)
         L.circleMarker([p.lat, p.lon], { radius: 7, color: acc, weight: 2, fillColor: '#fff', fillOpacity: .9 }).addTo(mapObj).bindPopup(c.getPopup());
         layers.push(c);
       } else {
@@ -251,7 +251,7 @@
     }
     if (layers.length) {
       const b = L.featureGroup(layers).getBounds();
-      if (layers.length === 1) mapObj.setView(b.getCenter(), ok[0].kind === 'street' ? 15 : 16); else mapObj.fitBounds(b.pad(.15));
+      if (layers.length === 1) mapObj.setView(b.getCenter(), ok[0].kind === 'street' ? 15 : 16); else mapObj.fitBounds(b.pad(.15), { maxZoom: 15 });
       if (num && layers.length === 1) layers[0].openPopup();
     }
     const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
