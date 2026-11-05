@@ -3,7 +3,7 @@
 // Использование: MAPBASE.add(map) вместо L.tileLayer(...).addTo(map). Ключ Яндекса браузерный — его и так видно в коде страницы.
 window.MAPBASE = (() => {
   let cfg = null, ya = null;
-  const OSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // v5.31e: один адрес вместо a/b/c — OSM советует так (HTTP/2); с a/b/c первые плитки в новом браузере падали ERR_SOCKET_NOT_CONNECTED
   const conf = () => cfg ??= fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public' }) })
     .then(r => r.json()).then(d => d.map ?? {}).catch(() => ({}));
   // v5.31e: у подборки (s.html) в шапке no-referrer (ради фото) — без Referer OpenStreetMap отдаёт вместо плиток «403 Access blocked»,

@@ -198,7 +198,7 @@
       document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">');
       await loadJs('vendor/leaflet/leaflet.min.js');
     }
-    if (!window.MAPBASE) await loadJs('mapbase.js?v=5.31e');
+    if (!window.MAPBASE) await loadJs('mapbase.js?v=5.31e1');
   }
   function mapClose() { const m = $('#s-map'); if (!m) return; mapObj?.remove(); mapObj = null; m.remove(); document.body.classList.remove('s-lock'); }
   async function mapOpen(num) {
