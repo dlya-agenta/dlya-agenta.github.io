@@ -117,13 +117,25 @@
   const repRow = x => `<button class="lw-rep" data-rep="${esc(x.id)}"><span class="lr-dot ${esc(x.risk ?? 'mid')}" aria-hidden="true"></span>
     <span><b>${x.kind === 'owner' ? 'Собственник' : 'Объект'} · ${esc((L().RISK[x.risk] ?? L().RISK.mid)[0])} риск</b><small>${esc((x.summary ?? '').slice(0, 140))}</small></span>
     <small class="muted">${H.when(x.at)}${x.deal_id ? ' · в сделке' : ''}</small></button>`;
+  // файл загружен, но ИИ его не описал (не «формат»): прочитать снова — и сам перед проверкой
+  const unread = b => (b?.docs ?? []).filter(d => !(d.read && d.kind) && !/^Не прочитан: /.test(d.note ?? ''));
+  async function reread(btn) {
+    const prog = S.el.querySelector('#lw-prog');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ ИИ читает — до 2 минут…'; }
+    if (prog) { prog.hidden = false; prog.textContent = '🤖 ИИ читает документы — до 2 минут…'; }
+    try { S.batch = await H.call('law_doc_done', { batch: S.batch.id }, { signal: AbortSignal.timeout?.(170000) }); if (S.batch.quota) setQ(S.batch.quota); return true; }
+    catch (e) { fail(e); return false; }
+    finally { if (prog) prog.hidden = true; docsTab(S.el.querySelector('#lw-p')); }
+  }
   function batchHtml(b) {
     const qs = b.questions ?? [];
     return `<div class="lw-files">${(b.docs ?? []).map(d => `<div class="lw-file" data-doc="${d.id}">
         <span class="lw-fi" aria-hidden="true">${/^image\//.test(d.mime ?? '') ? '🖼' : '📄'}</span>
         <span class="lw-fn"><b>${esc(d.kind || d.name)}</b><small>${esc(d.kind ? d.name : '')}${d.size ? ` · ${kb2(d.size)}` : ''}</small></span>
-        <span class="lw-rd ${d.read ? 'ok' : 'no'}">${d.read ? '✓ прочитан ИИ' : '— не прочитан (формат)'}</span>
+        <span class="lw-rd ${d.read && d.kind ? 'ok' : 'no'}"${d.note && !d.read ? ` title="${esc(d.note)}"` : ''}>${d.read && d.kind ? '✓ прочитан ИИ' : /^Не прочитан: /.test(d.note ?? '') ? '— не прочитан (формат)' : '⚠️ не прочитан'}</span>
         <span class="lw-fb"><button class="btn ghost" data-open="${d.id}">Открыть</button><button class="btn ghost bad" data-del="${d.id}" aria-label="Удалить ${esc(d.name)}">✕</button></span></div>`).join('')}</div>
+      ${unread(b).length ? `<div class="lw-miss"><b>⚠️ ИИ не прочитал ${unread(b).length} из ${(b.docs ?? []).length} файлов</b> — без них проверка не увидит ФИО, кадастровый номер и не сверит их с открытыми источниками.
+        <button class="btn primary" data-reread>🔄 Прочитать снова</button></div>` : ''}
       ${b.summary ? `<p class="lw-sum">${esc(b.summary)}</p>` : ''}
       ${b.found?.length ? `<div class="lw-found"><b>✓ Есть:</b> ${b.found.map(x => `<span class="lw-ok">${esc(x)}</span>`).join('')}</div>` : ''}
       ${b.missing?.length ? `<div class="lw-miss"><b>⚠️ Не хватает:</b><ul>${b.missing.map(m => `<li><b>${esc(m.name ?? m)}</b>${m.why ? ` — ${esc(m.why)}` : ''}</li>`).join('')}</ul>
@@ -192,8 +204,11 @@
     if (t.closest('[data-newb]')) { if (!confirm('Начать новый пакет документов? Это новая загрузка из лимита месяца.')) return; S.batch = null; S.ans = {}; docsTab(S.el.querySelector('#lw-p')); return; }
     const rp = t.closest('[data-rep]');
     if (rp) { try { const r = await H.call('law_report', { id: rp.dataset.rep }); showRep(r.id ?? rp.dataset.rep, r.report); } catch (er) { fail(er); } return; }
+    const rr = t.closest('[data-reread]');
+    if (rr) { await reread(rr); return; }
     const ck = t.closest('[data-check]');
     if (ck) {
+      if (unread(S.batch).length && S.reTried !== S.batch.id) { S.reTried = S.batch.id; ck.disabled = true; ck.firstChild.textContent = '⏳ Сначала ИИ дочитывает документы… '; if (!(await reread())) return; return S.el.querySelector('[data-check]')?.click(); }
       const qs = S.batch?.questions ?? [], miss = qs.filter(q => !S.ans[q.id]);
       if (miss.length && !confirm(`Без ответа ${miss.length} из ${qs.length} вопросов — проверить так («Не знаю»)?`)) return;
       ck.disabled = true; ck.firstChild.textContent = '⏳ Проверяем — 1–2 минуты ';
