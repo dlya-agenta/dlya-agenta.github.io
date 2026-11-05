@@ -1192,10 +1192,10 @@ function selDelAsk(id) {
     const b = $('#sp-del-go'); b.disabled = true; b.textContent = 'Удаляю…';
     try {
       await call('sel_delete', { id });
+      selUndo(id, s);   // ревью 05.11: «Вернуть» — сразу, до перерисовки
       closeSheet();
-      if (selCache) selCache.items = selCache.items.filter(i => i.id !== id);
-      if (selTab) $('#selpage').innerHTML = SHARE.page(selCache, selTab);
-      selUndo(id, s);
+      if (selCache) { selCache.items = selCache.items.filter(i => i.id !== id); if (selTab) $('#selpage').innerHTML = SHARE.page(selCache, selTab); }
+      else if (selTab) showSelections(selTab);
     } catch (err) { b.disabled = false; b.textContent = '🗑 Удалить'; toast(err.message, 5000); }
   };
 }

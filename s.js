@@ -111,7 +111,7 @@
     return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}" data-num="${x.num}">${ph}
       <div class="s-body">
         <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
-        <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button></div>
+        <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}${data?.kind === 'excl' ? '' : `<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button>`}</div>
         ${tags.length ? `<div class="s-tags">${tags.map(g => `<span class="tag">${esc(g)}</span>`).join('')}</div>` : ''}
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
         ${x.descr ? `<p class="s-descr">${descrHtml(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
@@ -140,7 +140,7 @@
         ${d.agent || tel ? `<div class="s-agent"><span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
           ${tel ? `<a class="btn soft" href="tel:+${tel}">Позвонить</a><a class="btn ghost" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</span></div>` : ''}
         <p class="hint">Отметьте у каждого объекта ✓ «подходит» или ✗ «не подходит» и напишите, что нравится, а что нет, — агент увидит сразу.</p>
-        ${n ? '<button type="button" class="btn soft s-allmap" data-map="all">🗺 Все объекты на карте</button>' : ''}
+        ${n && d.kind !== 'excl' ? '<button type="button" class="btn soft s-allmap" data-map="all">🗺 Все объекты на карте</button>' : ''}
       </header>
       <div class="s-list">${d.items.map((x, i) => card(x, i, n)).join('') || '<p class="muted">В подборке нет объектов.</p>'}</div>`;
     // «Развернуть» — только у длинных описаний
@@ -223,7 +223,11 @@
     const byNum = new Map(data.items.map(x => [x.num, x])), pts = mapData.points.filter(p => !num || p.num === num);
     const ok = pts.filter(p => p.lat != null);
     mapObj = L.map(el, { zoomControl: true, attributionControl: false, maxZoom: 19 }).setView([43.585, 39.723], 11);   // центр сразу: круги и точки без него не рисуются
-    MAPBASE.add(mapObj);
+    // ревью 05.11: серый прямоугольник на телефоне — окно ещё меняло размер; пересчитать размер карты, когда окно встало, и повторить плитки при ошибке
+    Promise.resolve(MAPBASE.add(mapObj)).then(layer => layer?.on?.('tileerror', e => { const t = e.tile, k = +(t.dataset.retry || 0);
+      if (k < 2) setTimeout(() => { t.dataset.retry = k + 1; t.src = t.src.replace(/([?&])r=\d+/, '').replace(/$/, (t.src.includes('?') ? '&' : '?') + 'r=' + (k + 1)); }, 600 * (k + 1)); })).catch(() => {});
+    if (window.ResizeObserver) new ResizeObserver(() => mapObj?.invalidateSize()).observe(el);
+    [60, 300, 900].forEach(ms => setTimeout(() => mapObj?.invalidateSize(), ms));
     const css = getComputedStyle(document.body), acc = css.getPropertyValue('--accent').trim() || '#2f6fdf';
     const info = x => x ? `<b>${esc(x.what)}</b><br>${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.sea_m ? ` · ≈ ${seaTxt(x.sea_m)} до моря` : ''}` : '';
     // объекты на одной улице — один круг со списком номеров
@@ -254,7 +258,6 @@
     $('#s-map-note').textContent = [mapData.hide ? 'Агент скрыл точные адреса — на карте показаны улицы.' : '',
       later ? `Расположение ещё ${later} ${plural(later, 'объекта', 'объектов', 'объектов')} уточняется — откройте карту через минуту.` : '',
       none.length ? `${none.length === 1 ? `Где находится № ${none[0]}` : `Где находятся № ${none.join(', ')}`} — уточните у агента.` : ''].filter(Boolean).join(' ');
-    setTimeout(() => mapObj?.invalidateSize(), 60);
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#s-map')) mapClose(); });
   // комментарий: через секунду после ввода и при выходе из поля
@@ -308,6 +311,7 @@
     const QTPL = 'Здравствуйте! По вашему объекту {ЖК}, {адрес}, {цена}: у меня покупатель, ему понравилось. Уточните, пожалуйста: {вопрос}. Продажа актуальна?';
     const VIDEO_ASK = 'Если есть видео квартиры — пришлите, пожалуйста: так покупателю проще решиться на просмотр.';
     const cleanQ = c => { let q = String(c ?? '').replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '')
+      .replace(/(^|[\s(«"])(?:[a-zа-я0-9-]+\.)+(?:ru|рф|su|com|me|org|net|io|ly|link|app|info|biz|pro|online|site|club|chat|to|cc|tv|gg)(?:\/\S*)?/gi, '$1').replace(/(^|[^\w])@[\w.]{2,}/g, '$1')
       .replace(/(?:\+7|8)?[\s(.-]*\d{3}[\s).-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}(?!\d)/g, '').replace(/\s+/g, ' ').trim();
       if (q.length > 200) q = q.slice(0, 199).replace(/\s+\S*$/, '') + '…'; q = q.replace(/(^|\s)(звоните|пишите|тел\.?|телефон)[\s:.!]*$/i, '').replace(/[.!,;:\s]+$/, '');
       if (q && !/\?$/.test(q) && /^(как|где|когда|сколько|почему|зачем|что|чем|кто|чей|есть ли|можно ли|будет ли)(\s|$)|\sли\s/i.test(q)) q += '?'; return q ? q[0].toLowerCase() + q.slice(1) : ''; };   // как cleanQ в auto/own.ts
