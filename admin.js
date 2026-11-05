@@ -224,8 +224,9 @@ window.ADMIN = (() => {
     const row = (u, adm) => `<div class="a-mrow" data-mlogin="${esc(u.login)}"><span><b>${esc(u.name || u.login)}</b> <small class="muted">${esc(u.login)}${u.status === 'off' ? ' · отключён' : ''}</small></span>
       <small class="muted">клиентов: ${u.clients}${adm ? '' : ` · добавил ${esc(u.added_by || '—')} ${esc(day(u.added_at))}`}</small>
       ${adm ? '<span class="tag">админ · всегда</span>' : '<button type="button" class="btn ghost bad" data-mdel>Убрать</button>'}</div>`;
-    box.innerHTML = `<p class="hint">Закрытая группа. Участники видят в «👥 Клиенты» вкладку «Main · общие»: клиентов друг друга — имя, телефон, чей клиент, этап, ближайшую задачу.
-        Чужого клиента можно только открыть и посмотреть, менять и удалять — только своих. Остальные участники сайта вкладку не видят.</p>
+    box.innerHTML = `<p class="hint">Закрытая группа (v5.37a). Участникам: «👥 Клиенты → Main · общие» — общие клиенты, их можно менять (удалить — только тот, кто завёл);
+        «📄 Мои подборки → 👥 Main · общие» — подборки друг друга; «🛡 Модерация» — жалобы на объявления, скрыть и удалить объявление; помощники, ИИ, юрист, ролики, номера, Архив,
+        Реклама и Рассылки — без лимитов и без срока доступа. Админка — только у администратора. Остальные участники сайта этого не видят.</p>
       <div class="a-mlist">${x.admins.map(u => row(u, true)).join('')}${x.items.map(u => row(u, false)).join('') || '<p class="muted">Доверенных аккаунтов пока нет — добавьте ниже.</p>'}</div>
       <div class="a-madd"><input id="a-main-in" list="a-main-dl" placeholder="Логин или имя участника" autocomplete="off" aria-label="Добавить в группу Main">
         <datalist id="a-main-dl">${cand.map(u => `<option value="${esc(u.login)}">${esc([u.name, u.phone].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
@@ -236,7 +237,7 @@ window.ADMIN = (() => {
       const by = r.users.filter(u => u.login === lv || (u.name ?? '').toLowerCase() === lv);
       const u = by.length === 1 ? by[0] : null;
       if (!u) return ui.toast(by.length > 1 ? 'Таких имён несколько — выберите логин из списка' : 'Участник не найден — проверьте логин', 5000);
-      if (!confirm(`Добавить ${u.name || u.login} (${u.login}) в группу Main? Он увидит клиентов всех участников группы.`)) return;
+      if (!confirm(`Добавить ${u.name || u.login} (${u.login}) в группу Main? Он получит общих клиентов и подборки группы, модерацию объявлений и работу без лимитов.`)) return;
       try { const y = await ui.call('admin_main_add', { login: u.login }); if (y.error) throw new Error(y.message); ui.toast(`${u.name || u.login} — в группе Main`); mainLoad(y); }
       catch (e) { ui.toast(e.message, 5000); }
     };

@@ -151,18 +151,33 @@ window.SHARE = (() => {
   };
   const HOW = 'Как собрать: отметьте объекты галочкой «Выбрать» в выдаче или в «Избранном» → внизу «В подборку» → отправьте клиенту ссылку, а себе откройте «Ссылку агенту».';
   // d — { items, marks } ; tab — all | own | fb
+  // v5.37a: «👥 Main · общие» — подборки других участников группы Main: ссылка клиенту, ссылка агенту, PDF, «В подборку» (удалить и продлить — только автор)
+  const MAIN = ['main', '👥 Main · общие', 'Main'];
+  function cardMain(s) {
+    const L = [s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
+      !isEx(s) && `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`].filter(Boolean).join('');
+    return `<article class="sp-card" data-sid="${s.id}">${head(s)}<div class="sp-rel sp-owner">👤 аккаунт: ${esc(s.owner?.name || s.owner?.login)} (${esc(s.owner?.login)})</div>
+      ${fbLine(s) ? `<div class="sp-st"><span>${fbLine(s)}</span></div>` : ''}
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${L}</div>${fold(`main:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${fbRows(s)}</ul>`)}</article>`;
+  }
   function page(d, tab) {
     style();
+    if (tab === 'main') {
+      const T = [...TABS, MAIN], m = d.mainItems;
+      return `<div class="sp-head"><h1>Мои подборки</h1><p class="muted">Подборки участников группы Main: откройте ссылку клиенту или агенту, PDF, возьмите объекты «В подборку». Удалить и продлить может только автор.</p></div>
+        <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${T.map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${k === 'main' && m?.length ? ` <b>${m.length}</b>` : ''}</a>`).join('')}</nav>
+        ${d.mainErr ? `<p class="err">${esc(d.mainErr)}</p>` : !m ? '<p class="muted">Загрузка…</p>' : m.length ? `<div class="sp-list">${m.map(cardMain).join('')}</div>` : '<p class="muted sp-empty">У других участников группы Main подборок пока нет.</p>'}`;
+    }
     const marks = d.marks ?? null, items = d.items ?? [];
     const base = items.filter(s => !isEx(s)), ex = items.filter(isEx);
     const own = marks ? base.filter(s => ownSum(s, marks)) : [], fb = items.filter(s => s.link && (s.views || s.fb?.length));
     const list = tab === 'own' ? own : tab === 'fb' ? fb : tab === 'ex' ? ex : base, n = { all: base.length, own: own.length, fb: fb.length, ex: ex.length };
     return `<div class="sp-head"><h1>Мои подборки</h1><p class="muted">${HOW}</p></div>
-      <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${TABS.map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
+      <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${(d.main ? [...TABS, MAIN] : TABS).map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
       ${tab === 'ex' ? '<p class="hint sp-exh">💎 Подборки из «Эксклюзивов» коллег: ссылка клиенту и PDF — как у собственников, на «Ссылке агенту» — агенты, разместившие объекты, и «Написать всем».</p>' : ''}
       ${list.length ? `<div class="sp-list">${list.map(s => tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${tab === 'own' && d.pending ? 'Загружаю ответы собственников…' : EMPTY[tab]}</p>`}`;
   }
 
   style();   // стили раздела, окна подборки и «Проверить в рекламе» — сразу (share.js подключён только на главной)
-  return { MAX, formatHtml, format, mount, resultHtml, bind, copy, page, toggle, TABS: TABS.map(t => t[0]) };
+  return { MAX, formatHtml, format, mount, resultHtml, bind, copy, page, toggle, TABS: [...TABS.map(t => t[0]), 'main'] };
 })();

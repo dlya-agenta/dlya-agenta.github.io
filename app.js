@@ -259,6 +259,8 @@ async function start() {
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#who').textContent = me.name || me.login;
   if (me.role === 'admin') { $('#until').textContent = me.login === 'admin' ? 'главный администратор' : 'администратор'; $('#go-admin').hidden = false; $('#go-hidden').hidden = false; }
+  else if (me.main) $('#until').textContent = 'группа Main · без лимитов';   // v5.37a
+  if (me.main) { $('#go-hidden').hidden = false; $('#go-mod').hidden = false; }   // v5.37a: группа Main — модерация объявлений и жалоб (админка — только у админа)
   else if (me.expires_at) {
     const d = new Date(me.expires_at), left = Math.ceil((d - Date.now()) / 864e5);
     $('#until').textContent = `${me.plan_name} · до ${d.toLocaleDateString('ru-RU')}${left <= 5 ? ` · осталось ${left} дн.` : ''}`;
@@ -612,7 +614,7 @@ function gallery(x) {
     ${meta.features.selections ? pickHtml(x) : ''}
     ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
-    ${me?.role === 'admin' && x.hidden_kind ? `<span class="hidmark">${x.hidden_kind === 'del' ? '🗑 Удалено' : '🙈 Скрыто'}</span>` : ''}
+    ${(me?.role === 'admin' || me?.main) && x.hidden_kind ? `<span class="hidmark">${x.hidden_kind === 'del' ? '🗑 Удалено' : '🙈 Скрыто'}</span>` : ''}
   </div>`;
 }
 // v5.24a: «Выбрать» — заметный квадрат с галочкой и подписью (как у Авито), выбранная карточка — рамкой (.card.picked).
@@ -897,7 +899,7 @@ function itemView(x, k) {
 // v5.24a: внутри объявления — то, что раньше было значками на фото: «Контакт», «В рассылку», отметки (снять), «⚠ Пожаловаться», модерация админа
 const dealTxt = on => on ? '✓ В «Контакте» · <u>убрать</u>' : '🤝 В контакт';
 function ivTools(x) {
-  const adm = me?.role === 'admin', agent = me && !me.guest;
+  const adm = me?.role === 'admin' || !!me?.main, agent = me && !me.guest;   // v5.37a: «Модерация» в объявлении — и группе Main
   const row = [meta.features.deals && agent ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
     meta.features.mail && agent ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
     agent && !adm ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : ''].filter(Boolean).join('');
@@ -1134,11 +1136,12 @@ async function showSelections(tab) {
   selTab = tab; box.hidden = false; document.body.classList.add('selmode'); tabs();
   if (location.hash !== `#sels=${tab}`) history[was ? 'replaceState' : 'pushState'](null, '', `${location.pathname}${location.search}#sels=${tab}`);
   if (!was) scrollTo(0, 0);
+  if (tab === 'main') return selMain(box);   // v5.37a: подборки группы Main
   if (selCache && Date.now() - selCache.at < 60e3) { box.innerHTML = SHARE.page(selCache, tab); return; }
   box.innerHTML = '<div class="sp-head"><h1>Мои подборки</h1></div><p class="muted">Загрузка…</p>';
   try {
     const r = await call('sel_list');
-    selCache = { at: Date.now(), items: r.items, marks: null, pending: true };
+    selCache = { at: Date.now(), items: r.items, marks: null, pending: true, main: !!r.main };
     if (selTab) box.innerHTML = SHARE.page(selCache, selTab);
     // ответы собственников (вкладка A, auto own_marks) — следом, список уже на экране; действия нет или ошибка — молча без них
     const nums = [...new Set(r.items.flatMap(s => s.nums))].slice(0, 500), c = selCache;   // own_marks берёт до 500 номеров — свежие подборки первыми
@@ -1147,6 +1150,13 @@ async function showSelections(tab) {
     c.pending = false;
     if (selTab && selCache === c) box.innerHTML = SHARE.page(c, selTab);
   } catch (e) { if (e.gate) return showLogin(e.gate); box.innerHTML = `<div class="sp-head"><h1>Мои подборки</h1></div><p class="err">${esc(e.message)}</p>`; }
+}
+async function selMain(box) {
+  const d = { ...(selCache ?? { items: [], marks: null }), main: true, mainItems: null };
+  box.innerHTML = SHARE.page(d, 'main');
+  try { const r = await call('sel_list', { scope: 'main' }); d.mainItems = r.items; d.mainMembers = r.members; }
+  catch (e) { if (e.gate) return showLogin(e.gate); d.mainErr = e.message; }
+  if (selTab === 'main') box.innerHTML = SHARE.page(d, 'main');
 }
 function leaveSelections() {
   if (!selTab) return;
@@ -1445,6 +1455,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
+  if (g === 'mod') modSheet();   // v5.37a: группа Main — жалобы на объявления
   if (g === 'pay') location.href = 'pay.html';   // оплата — своя страница (ТЗ v2, шаг 2.2, окно Б)
 });
 $('#logout').onclick = () => { menuOpen(false); logout(); };
@@ -1524,7 +1535,15 @@ function clientSheet() {
 }
 
 // ---------- админ-панель — site/admin.js: участники и настройки на одной странице, одна кнопка «Сохранить» ----------
-function admin() { location.href = 'admin.html'; }   // v5.15: админка — своя страница, первым экраном «Сводка»
+function admin() { location.href = 'admin.html'; }
+// v5.37a: «🛡 Модерация» для группы Main — очередь жалоб (complaints.admin.js, тот же, что в админке) в окне сайта; скрытые и удалённые — «🙈 Скрытые»
+function modSheet() {
+  sheetGo = 'mod';
+  sheet('🛡 Модерация · жалобы на объявления', `<p class="hint">Решение действует сразу у всех: «Скрыть» — объявление уйдёт в <button type="button" class="link" data-go2="hidden">🙈 Скрытые</button>, «Удалить» — не вернётся ночной загрузкой.
+    Скрыть или удалить любое объявление можно и внутри него — строка «Модерация».</p><div id="cmp-box"><p class="muted">Загрузка…</p></div>`, true);
+  $('#sheet-body').onclick = e => { if (e.target.closest('[data-go2]')) { closeSheet(); $('#go-hidden').click(); } };
+  if (window.CMPADM) CMPADM.render($('#cmp-box')); else $('#cmp-box').innerHTML = '<p class="err">Не загрузилось — обновите страницу</p>';
+}   // v5.15: админка — своя страница, первым экраном «Сводка»
 
 // ---------- оплата — страница pay.html (шаг 2.2) ----------
 // вход прошёл, но доступ истёк или заявка не одобрена — оплата сразу

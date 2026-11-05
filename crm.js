@@ -39,7 +39,7 @@ window.CRM = (() => {
   }
   const taskRow = (t, withClient = true) => `<div class="crm-task${t.overdue ? ' over' : ''}${t.done_at ? ' done' : ''}" data-task="${t.id}">
     <button type="button" class="crm-check" data-tact="${t.done_at ? 'undo' : 'done'}" aria-label="${t.done_at ? 'Вернуть' : 'Выполнено'}">${t.done_at ? '✓' : ''}</button>
-    <div class="crm-tbody" data-tedit><b>${esc(t.text)}</b><small>${t.done_at ? 'выполнено' : esc(when(t.due_at))}${t.overdue ? ' · просрочено' : ''}${withClient && t.client ? ` · ${esc(t.client)}` : ''}${t.num ? ` · № ${t.num}` : ''}${t.remind && !t.done_at ? ' · 🔔' : ''}</small></div>
+    <div class="crm-tbody" data-tedit><b>${esc(t.text)}</b><small>${t.done_at ? 'выполнено' : esc(when(t.due_at))}${t.overdue ? ' · просрочено' : ''}${withClient && t.client ? ` · ${esc(t.client)}` : ''}${t.num ? ` · № ${t.num}` : ''}${t.by ? ` · поставил ${esc(t.by.name || t.by.login)}` : ''}${t.remind && !t.done_at ? ' · 🔔' : ''}</small></div>
     ${t.done_at ? '' : '<div class="crm-tact"><button type="button" class="chip" data-tact="h">+1 час</button><button type="button" class="chip" data-tact="d">Завтра</button></div>'}</div>`;
   function home() {
     view = 'home';
@@ -103,6 +103,7 @@ window.CRM = (() => {
     body().innerHTML = `<div class="crm">
       <button type="button" class="btn ghost crm-back" data-back>‹ ${tab === 'main' ? 'Main · общие' : 'Клиенты'}</button>
       <section class="crm-sec crm-card">
+        ${C.mine === false ? `<p class="crm-robar">👥 Общий клиент группы Main · аккаунт: <b>${esc(C.owner?.name || C.owner?.login)}</b> (${esc(C.owner?.login)})</p>` : ''}
         <div class="crm-ctop"><h3>${esc(c.name || c.phone || 'Без имени')}</h3><button type="button" class="btn ghost" data-edit>Изменить</button></div>
         <div class="crm-chips">${Object.entries(ST).map(([k, v]) => `<button type="button" class="chip${c.status === k ? ' on' : ''}" data-set-st="${k}">${v}</button>`).join('')}</div>
         ${c.phone ? `<div class="crm-phone"><b>${esc(c.phone)}</b><span><a class="btn soft" href="tel:+${esc(d)}">📞 Позвонить</a>
@@ -121,7 +122,7 @@ window.CRM = (() => {
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
           <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
           <button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
-      <p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p></div>`;
+      ${C.can_del === false ? '' : '<p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p>'}</div>`;
     bind(onClient);
     links(c);
   }
@@ -386,7 +387,7 @@ window.CRM = (() => {
   }
 
   // ---------- v5.37: «Main · общие» — клиенты всех участников группы Main ----------
-  // Видят и получают только участники (сервер: crm_main_* → 403 not_main). Чужой клиент — только посмотреть (карточка, задачи, объекты); свой — обычная карточка с правкой.
+  // Видят и получают только участники (сервер: crm_main_* → 403 not_main). v5.37a: клиент любого участника — обычная карточка с правкой (crm_client); удалить — только автор или админ.
   const tabs = () => L?.main || M ? `<div class="crm-tabs" role="tablist"><button type="button" role="tab" class="${tab === 'my' ? 'on' : ''}" data-ctab="my">Мои клиенты</button>
     <button type="button" role="tab" class="${tab === 'main' ? 'on' : ''}" data-ctab="main">👥 Main · общие</button></div>` : '';
   const acc = o => `аккаунт: ${esc(o.name || o.login)} (${esc(o.login)})`;
@@ -400,7 +401,7 @@ window.CRM = (() => {
     view = 'main';
     const total = FM.owner ? M.members.find(m => m.login === FM.owner)?.n ?? M.total : M.total;
     body().innerHTML = `<div class="crm crm-main">${tabs()}
-      <p class="hint crm-main-hint">Клиенты всех участников группы Main. Чужого клиента можно открыть и посмотреть, менять — только своих.</p>
+      <p class="hint crm-main-hint">Клиенты всех участников группы Main — общие: открывайте, меняйте этап, заметки, объекты и задачи. Удалить клиента может только тот, кто его завёл.</p>
       <div class="crm-search"><input type="search" id="crm-mq" placeholder="Имя, телефон, заметка или участник" value="${esc(FM.q)}" autocomplete="off"></div>
       <div class="crm-chips crm-owners"><button type="button" class="chip${!FM.owner ? ' on' : ''}" data-owner="">Все участники</button>${M.members.map(m =>
         `<button type="button" class="chip${FM.owner === m.login ? ' on' : ''}" data-owner="${esc(m.login)}">${esc(m.name || m.login)}${m.me ? ' (вы)' : ''} · ${m.n}</button>`).join('')}</div>
@@ -430,41 +431,7 @@ window.CRM = (() => {
     if (t.closest('[data-owner]')) { FM.owner = t.closest('[data-owner]').dataset.owner; return mainReload(); }
     if (t.closest('[data-mst]')) { FM.status = t.closest('[data-mst]').dataset.mst; return mainReload(); }
     const c = t.closest('[data-mclient]');
-    if (c) return c.dataset.mine ? client(+c.dataset.mclient) : mainClient(+c.dataset.mclient);
-  }
-  async function mainClient(id) {
-    view = 'mclient';
-    body().innerHTML = '<p class="muted">Загрузка…</p>';
-    try { MC = await ui.call('crm_main_client', { id }); } catch (e) { body().innerHTML = `<div class="crm"><button type="button" class="btn ghost crm-back" data-back>‹ Main · общие</button><p class="err">${esc(e.message)}</p></div>`; bind(() => mainOpen()); return; }
-    if (MC.mine) return client(id);
-    const c = MC.client, d = digits(c.phone), open1 = MC.tasks.filter(x => !x.done_at), done = MC.tasks.filter(x => x.done_at);
-    const row = x => `<div class="crm-task ro${x.overdue ? ' over' : ''}${x.done_at ? ' done' : ''}"><span class="crm-check" aria-hidden="true">${x.done_at ? '✓' : ''}</span>
-      <div class="crm-tbody"><b>${esc(x.text)}</b><small>${x.done_at ? 'выполнено' : esc(when(x.due_at))}${x.overdue ? ' · просрочено' : ''}${x.num ? ` · № ${x.num}` : ''}</small></div></div>`;
-    body().innerHTML = `<div class="crm crm-ro">
-      <button type="button" class="btn ghost crm-back" data-back>‹ Main · общие</button>
-      <p class="crm-robar">👁 Клиент участника <b>${esc(MC.owner.name || MC.owner.login)}</b> (${esc(MC.owner.login)}) — только посмотреть. Менять и удалять может только он.</p>
-      <section class="crm-sec crm-card">
-        <div class="crm-ctop"><h3>${esc(c.name || c.phone || 'Без имени')}</h3>${pill(c.status)}</div>
-        ${c.phone ? `<div class="crm-phone"><b>${esc(c.phone)}</b><span><a class="btn soft" href="tel:+${esc(d)}">📞 Позвонить</a>
-          <a class="btn ghost" href="https://wa.me/${esc(d)}" target="_blank" rel="noopener">WhatsApp</a><button type="button" class="btn ghost" data-copy-phone>Копировать</button></span></div>` : ''}
-        <p class="muted crm-meta">${[`${acc(MC.owner)}`, c.source ? `Источник: ${esc(SRC[c.source])}` : '', `изменён ${esc(when(c.updated_at))}`].filter(Boolean).join(' · ')}</p>
-        ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
-      </section>
-      <section class="crm-sec"><div class="crm-h"><b>Задачи</b><span class="muted">${open1.length}</span></div>
-        ${open1.length ? open1.map(row).join('') : '<p class="muted crm-empty">Открытых задач нет.</p>'}
-        ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(row).join('')}</details>` : ''}</section>
-      <section class="crm-sec"><div class="crm-h"><b>Объекты · ${MC.items.length}</b></div>
-        ${MC.items.length ? '' : '<p class="muted crm-empty">Объектов нет.</p>'}
-        <div class="crm-objs">${MC.items.map(x => `<div class="crm-obj ro" data-num="${x.num}">
-          ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
-          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div></div>`).join('')}</div></section></div>`;
-    bind(async e => {
-      const t = e.target;
-      if (t.closest('[data-back]')) return mainOpen();
-      if (t.closest('[data-copy-phone]')) { try { await navigator.clipboard.writeText(c.phone); ui.toast('Телефон скопирован'); } catch { ui.toast(c.phone, 6000); } return; }
-      const obj = t.closest('[data-num]');
-      if (obj && t.closest('[data-open-obj], img')) return +obj.dataset.num >= 900001 ? location.assign(`excl.html#o=${obj.dataset.num}`) : ui.openItem?.(+obj.dataset.num);
-    });
+    if (c) return client(+c.dataset.mclient);
   }
 
   async function openClient(id) { await open(); return client(id); }   // v5.23c: «👥 Иван» на карточке объекта — сразу карточка клиента
