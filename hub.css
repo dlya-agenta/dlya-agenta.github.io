@@ -230,6 +230,9 @@ html[data-theme="dark"] .lw-qc.end { color: #fca5a5; }
 .lw-seen.muted { background: transparent; border: 1px dashed var(--line, #8884); }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
 .lw-askrep { margin: 0 0 10px; }
+.adm-lp-addr { grid-column: 1 / -1; font-size: 13px; color: var(--muted, #888); }
+.adm-lp-stat { margin: 6px 0; padding-left: 18px; font-size: 14px; }
+.adm-lp-how { margin-top: 8px; } .adm-lp-how summary { cursor: pointer; font-weight: 600; } .adm-lp-how ol { margin: 8px 0 0; padding-left: 20px; line-height: 1.5; font-size: 14px; } .adm-lp-how li { margin-bottom: 6px; }
 .lr-pdf { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
 .lr-pdf .hub-actions { margin: 6px 0 4px; }
 .lw-tip { margin: 0; font-size: 13.5px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--card)); }

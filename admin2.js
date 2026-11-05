@@ -201,8 +201,9 @@
         <label class="hub-chk"><input type="checkbox" id="vid-ai"${r.video?.ai ? ' checked' : ''}> Готовить ролики через ИИ (для PRO и MAX; у PRO должен быть включён «Ролики из фото» в тарифах)</label>
         <label class="field">Шаблон по умолчанию<select id="vid-tpl"><option value="motion"${r.video?.tpl !== 'classic' ? ' selected' : ''}>«Мотион» — динамичный (v5.26)</option><option value="classic"${r.video?.tpl === 'classic' ? ' selected' : ''}>«Классика» — плавный (как раньше)</option></select></label>
         <p><button class="btn primary" data-save-video>Сохранить</button></p></section>
+      <section class="hub-sec adm-lawpaid" id="law-paid"><h3>⚖️ Сервис проверки для юриста — api-assist</h3><p class="muted">Загрузка…</p></section>
       <section class="hub-sec"><h3>Ключи сервисов и API</h3><p class="hint">Меняются здесь, без программиста. Значения не показываются — только «задан» или нет. Остальные секреты (вход в источник, токен бота, CryptoBot) — в своих разделах: бот — «Участники и настройки», CryptoBot — «Продажи и оплаты».</p>
-        ${r.secrets.filter(x => !x.name.startsWith('ai_key')).map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
+        ${r.secrets.filter(x => !x.name.startsWith('ai_key') && x.name !== 'law_paid_key').map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
           <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button></div>`).join('')}</section>`
       + `<section class="hub-sec"><h3>Карта Яндекса</h3><p class="hint">Ключ «JavaScript API и HTTP Геокодер» из кабинета разработчика Яндекса (developer.tech.yandex.ru). С ключом все карты сайта — Яндекс, без ключа — OpenStreetMap.
         Ключ браузерный: его видно в коде страницы, это нормально. В кабинете Яндекса ограничьте его адресом dlya-agenta.github.io.</p>
@@ -212,12 +213,16 @@
         const d = await r.json(); if (!r.ok || d.error) throw new Error(d.message || d.error); H.toast(v ? 'Ключ сохранён — карты станут Яндекса (обновите страницу)' : 'Карты — снова OpenStreetMap');
       } catch (er) { H.toast(er.message, 6000); } };
     fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public' }) }).then(r => r.json()).then(d => { if (d.map?.yandex) $('#ymap-key').value = d.map.yandex; }).catch(() => {});
+    lawPaid();
     $('#ymap-save').onclick = () => ymap($('#ymap-key').value.trim());
     $('#ymap-off').onclick = () => { $('#ymap-key').value = ''; ymap(''); };
     $('#adm-body').onclick = async e => {
       const sk = e.target.closest('[data-save-key]');
       if (sk) { const k = sk.dataset.saveKey, v = $(`[data-key="${k}"]`).value.trim(); if (!v && !confirm('Пустое значение удалит ключ. Удалить?')) return;
         try { await H.call('adm_secret_set', { name: k, value: v }); H.toast(v ? 'Ключ сохранён' : 'Ключ удалён'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
+      if (e.target.closest('[data-lp-test]')) { lawPaid(true); return; }
+      const lpOn = e.target.closest('[data-lp-on]');
+      if (lpOn) { try { await H.call('adm_law_paid_set', { on: lpOn.dataset.lpOn === '1' }); H.toast(lpOn.dataset.lpOn === '1' ? 'Сервис включён — проверки юриста идут через него' : 'Сервис выключен — проверки без него'); lawPaid(); } catch (er) { H.toast(er.message, 5000); } return; }
       const t = e.target.closest('[data-test]');
       if (t) { t.disabled = true; try { const x = await H.call('adm_key_test', { key: t.dataset.test }); H.toast(x.ok ? `Ключ работает (${x.base}): «${x.text}»` : `Ключ не ответил (${x.base}): ${x.error}`, 8000); } catch (er) { H.toast(er.message, 5000); } t.disabled = false; return; }
       if (e.target.closest('[data-save-base]')) { const base_urls = {}; document.querySelectorAll('[data-base]').forEach(i => { base_urls[i.dataset.base] = i.value.trim(); });
@@ -230,6 +235,37 @@
         try { await H.call('adm_ai_set', { routes, night: { descr: +$('#n-descr').value, repair: +$('#n-repair').value } }); H.toast('Сохранено'); } catch (er) { H.toast(er.message, 5000); }
       }
     };
+  }
+  // v5.36: блок «Сервис проверки для юриста» — ключ, вкл/выкл, расход лимита, адреса и инструкция (раскрывающийся список)
+  async function lawPaid(toast) {
+    const box = document.getElementById('law-paid');
+    if (!box) return;
+    let x;
+    try { x = await H.call('adm_law_paid'); } catch (er) { box.innerHTML = `<h3>⚖️ Сервис проверки для юриста — api-assist</h3><p class="hint">${esc(er.message)}</p>`; return; }
+    const link = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t ?? u)}</a>`;
+    const st = (x.stat ?? []).map(s => `<li><b>${esc(s.name)}</b>: за месяц ${esc(s.month)} из ${esc(s.month_limit)}, сегодня ${esc(s.day)} из ${esc(s.day_limit)} · оплачено до ${esc(H.day ? H.day(s.till) : s.till)}</li>`).join('');
+    const ok = { operational: '🟢 работает', degraded_performance: '🟡 с перебоями', partial_outage: '🟠 частично', major_outage: '🔴 не работает' };
+    box.innerHTML = `<h3>⚖️ Сервис проверки для юриста — api-assist</h3>
+      <p class="hint">Юрист и ипотечный брокер проверяют через него паспорт продавца и супруга по базе МВД (действителен / недействителен / не найден). Итог — в «Отчёте сервиса» (PDF) и в заключении юриста. Одна проверка = 1–2 запроса.</p>
+      <div class="adm-key"><b>Ключ API</b><span class="${x.set ? 'tag ok' : 'tag warn'}">${x.set ? 'задан ••••' : 'не задан'}</span>
+        <input type="password" data-key="law_paid_key" placeholder="Вставьте новый ключ из кабинета api-assist" autocomplete="off"><button class="btn soft" data-save-key="law_paid_key">Сохранить</button><button class="btn ghost" data-lp-test>Проверить</button>
+        <span class="adm-lp-addr">Адрес сервиса: ${link(x.base)} · кабинет: ${link('https://lk.api-assist.com')}</span></div>
+      <p class="hub-actions"><span class="${x.on ? 'tag ok' : 'tag'}">${x.on ? 'включён' : 'выключен'}</span>
+        ${x.on ? '<button class="btn ghost" data-lp-on="0">Выключить</button>' : `<button class="btn primary" data-lp-on="1"${x.set ? '' : ' disabled title="Сначала сохраните ключ"'}>Включить</button>`}
+        <small class="muted">Подключено: паспорт МВД (passport_api).</small></p>
+      ${x.error ? `<p class="hint">⚠️ Сервис ответил: ${esc(x.error)} — проверьте ключ в кабинете.</p>` : ''}
+      ${st ? `<ul class="adm-lp-stat">${st}</ul>` : ''}
+      ${x.status?.length ? `<p class="hint">Источники сейчас: ${x.status.map(s => `${esc(s.name)} — ${ok[s.status] ?? esc(s.status)}${s.rate != null ? ` (${esc(s.rate)} %)` : ''}`).join(' · ')}</p>` : ''}
+      <details class="adm-lp-how"><summary>📖 Инструкция: как пользоваться и менять ключ</summary><ol>
+        <li><b>Кабинет:</b> ${link('https://lk.api-assist.com')} — вход по ключу API, без пароля. Там расход по дням, подписки, последние запросы, счета (оплата по СБП, доступ — сразу после оплаты).</li>
+        <li><b>Сменить ключ:</b> скопируйте новый ключ из кабинета или письма api-assist → вставьте в поле «Ключ API» выше → «Сохранить» → «Проверить» (появится расход лимита). Старый ключ перестаёт использоваться сразу.</li>
+        <li><b>Включить / выключить:</b> кнопка рядом со статусом. Выключено — проверки юриста идут без сервиса (только документы и бесплатные источники).</li>
+        <li><b>Лимит:</b> тест — 200 запросов в месяц. Когда лимит кончится, в отчёте будет «сервис не ответил» — проверка всё равно пройдёт. Увеличить лимит или продлить — в кабинете, «Счета». Уведомления об окончании — в кабинете или в боте ${link('https://t.me/api_assist_bot', '@api_assist_bot')}.</li>
+        <li><b>Белый список IP</b> в кабинете не включайте: запросы идут с серверов Supabase, их адреса меняются — проверки перестанут работать.</li>
+        <li><b>Новые источники</b> (ФССП, суды, банкротство, ЕГРН): в кабинете «Подключить сервис» → «Тестовый доступ». Скажите программисту — их добавят в проверку юриста тем же ключом.</li>
+        <li><b>Статус источников:</b> ${link('https://service.api-assist.com/status/')} · документация паспорта: ${link('https://api-assist.com/documentation/passport-api.txt')}.</li>
+        <li>Ключ не показывается ни на сайте, ни в журналах — хранится в защищённом хранилище (Vault).</li></ol></details>`;
+    if (toast) H.toast(x.error ? `Ключ не работает: ${x.error}` : x.stat ? `Ключ работает: ${x.stat.map(s => `${s.name} — ${s.month} из ${s.month_limit}`).join(', ')}` : 'Ключ не задан', 7000);
   }
   document.addEventListener('DOMContentLoaded', start);
 })();
