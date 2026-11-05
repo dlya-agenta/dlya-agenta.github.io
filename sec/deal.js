@@ -107,11 +107,12 @@
     counts();
   }
   // документы сделки: список с отметкой проверки, загрузка (несколько файлов сразу), проверка ИИ-юристом
-  const docRow = x => `<div class="dl-doc" data-doc="${x.id}"><div class="dl-doc-h"><b>📄 ${esc(x.name)}</b>
-      <span class="dl-badge ${x.check_ok == null ? 'none' : x.check_ok ? 'ok' : 'warn'}">${x.check_ok == null ? 'не проверен' : x.check_ok ? '✓ без существенных замечаний' : '⚠️ есть замечания'}</span>
+  const isRep = x => /^(Отчёт сервиса|Заключение )/.test(x.kind ?? '');   // v5.35: PDF проверки юриста — не документ на проверку
+  const docRow = x => `<div class="dl-doc${isRep(x) ? ' rep' : ''}" data-doc="${x.id}"><div class="dl-doc-h"><b>${isRep(x) ? '⚖️' : '📄'} ${esc(x.name)}</b>
+      ${isRep(x) ? '<span class="dl-badge none">отчёт проверки юриста</span>' : `<span class="dl-badge ${x.check_ok == null ? 'none' : x.check_ok ? 'ok' : 'warn'}">${x.check_ok == null ? 'не проверен' : x.check_ok ? '✓ без существенных замечаний' : '⚠️ есть замечания'}</span>`}
       <small>${x.size ? kb2(x.size) + ' · ' : ''}${H.when(x.at)}</small></div>
-      <div class="dl-doc-b"><button class="btn soft" data-doc-open="${x.id}">Открыть</button><button class="btn soft" data-doc-check="${x.id}">${x.check_ok == null ? '🔎 Проверить' : '🔎 Проверить снова'}</button><button class="btn ghost bad" data-doc-del="${x.id}">Удалить</button></div>
-      ${x.check_note ? `<details${x.check_ok === false ? ' open' : ''}><summary>Заключение ИИ-юриста</summary><div class="dl-note">${H.md(x.check_note)}</div></details>` : ''}</div>`;
+      <div class="dl-doc-b"><button class="btn soft" data-doc-open="${x.id}">Открыть</button>${isRep(x) ? '' : `<button class="btn soft" data-doc-check="${x.id}">${x.check_ok == null ? '🔎 Проверить' : '🔎 Проверить снова'}</button>`}<button class="btn ghost bad" data-doc-del="${x.id}">Удалить</button></div>
+      ${x.check_note && !isRep(x) ? `<details${x.check_ok === false ? ' open' : ''}><summary>Заключение ИИ-юриста</summary><div class="dl-note">${H.md(x.check_note)}</div></details>` : ''}</div>`;
   const docsSec = r => `<section class="hub-sec dl-sec" id="d-docs"><h3>📎 Документы сделки — проверка ИИ-юристом</h3>
       <p class="hint">Загрузите выписку ЕГРН, договор-основание, свидетельство о наследстве, справки, согласия, одобрение банка — ИИ-юрист прочитает документ и напишет риски и что сделать.
         Проверок сегодня: <b>${r.doc_ai.used} из ${r.doc_ai.lim}</b>. PDF или фото до 10 МБ. Файлы видите вы и приглашённые юрист или брокер; удаляются вместе со сделкой и через 30 дней после её закрытия.</p>
