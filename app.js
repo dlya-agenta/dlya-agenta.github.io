@@ -1066,6 +1066,7 @@ $('#sel-make').onclick = () => {
       $('#sheet-body').innerHTML = `<p>Подборка готова — ${what}.</p>${r.url ? `<div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a></div>
         <p class="hint">Ссылка на PDF действует час; сам PDF хранится 7 дней в «Моих подборках».</p>` : ''}${SHARE.resultHtml(r)}
         ${r.phones != null && r.phones < r.total ? `<p class="hint">Телефоны собственников открыты: ${r.phones} из ${r.total}${limit ? ` (${esc(limit)})` : ''} — остальные можно открыть на странице «Ссылка агенту».</p>` : ''}
+        ${r.photos_wait ? `<p class="hint"><b>Фото ${r.photos_wait} ${r.photos_wait % 10 === 1 && r.photos_wait % 100 !== 11 ? 'объекта' : 'объектов'} ещё загружаются (2–5 минут)${r.link ? ' — по ссылке клиент увидит их сам, как только загрузятся' : ''}${r.url ? ' — PDF лучше пересобрать чуть позже' : ''}.</b></p>` : ''}
         <p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
       SHARE.bind($('#sheet-body'), toast);
       // первая подборка ссылкой — предложить «На экран Домой» (один раз), но после того, как агент закроет окно: раньше оно сразу закрывало ссылку клиенту и агенту
