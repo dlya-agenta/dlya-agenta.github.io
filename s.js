@@ -264,7 +264,7 @@
       if (num && layers.length === 1) layers[0].openPopup();
     }
     const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
-    $('#s-map-note').textContent = [mapData.hide ? 'Агент скрыл точные адреса — на карте показаны улицы.' : '',
+    $('#s-map-note').textContent = [   // v5.31e3: надпись «Агент скрыл точные адреса» убрана (Алексей 05.11)
       later ? `Расположение ещё ${later} ${plural(later, 'объекта', 'объектов', 'объектов')} уточняется — откройте карту через минуту.` : '',
       none.length ? `${none.length === 1 ? `Где находится № ${none[0]}` : `Где находятся № ${none.join(', ')}`} — уточните у агента.` : ''].filter(Boolean).join(' ');
   }
