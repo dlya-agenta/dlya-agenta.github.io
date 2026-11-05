@@ -104,7 +104,7 @@
     const v = S.st.seen ?? {}, b = v.batch, reps = v.reports ?? [], ab = S.about && reps.find(r => String(r.id) === String(S.about));
     if (!b && !reps.length) return `<p class="lw-seen muted">📎 ${R[S.role].title} пока не видит ваших документов — загрузите их во вкладке <button type="button" class="linkish" data-seen-docs>«📎 Документы и проверка»</button>, и можно будет спрашивать по ним.</p>`;
     const parts = [b ? `пакет от ${dd(b.at)} (${b.read} из ${b.n} файлов прочитаны)` : '', ...reps.map(r => `отчёт «${r.kind === 'owner' ? 'Собственник' : 'Объект'}» от ${dd(r.at)}`)].filter(Boolean);
-    return `<p class="lw-seen">📎 <b>${R[S.role].title} видит:</b> ${esc(parts.join(' · '))}. Спрашивайте по ним — «что запросить у продавца?», «почему риск средний?».
+    return `<p class="lw-seen">📎 <b>${R[S.role].title} видит:</b> ${esc(parts.join(' · '))} — спрашивайте по ним — «что запросить у продавца?», «почему риск средний?».
       ${ab ? `<br>🎯 Вопрос — об отчёте «${ab.kind === 'owner' ? 'Собственник' : 'Объект'}» от ${esc(dd(ab.at))} <button type="button" class="linkish" data-about-off>убрать</button>` : ''}</p>`;
   }
   function askAbout(id, rep) {
@@ -246,7 +246,9 @@
   function showRep(id, rep) {
     const box = S.el.querySelector('#lw-rep');
     L().report(box, rep, { id });
-    box.insertAdjacentHTML('afterbegin', `<p class="lw-askrep"><button type="button" class="btn primary" data-askrep>💬 Спросить ${S.role === 'broker' ? 'брокера' : 'юриста'} об этом отчёте</button></p>`);
+    const askBtn = `<button type="button" class="btn primary" data-askrep>💬 Спросить ${S.role === 'broker' ? 'брокера' : 'юриста'} об этом отчёте</button>`;
+    const acts = box.querySelector('[data-lr-attach], [data-lr-copy]')?.parentElement;
+    if (acts) acts.insertAdjacentHTML('afterbegin', askBtn); else box.insertAdjacentHTML('beforeend', `<p class="lw-askrep">${askBtn}</p>`);
     box.querySelector('[data-askrep]').onclick = () => askAbout(id, rep);
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
