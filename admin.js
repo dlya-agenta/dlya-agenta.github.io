@@ -265,7 +265,7 @@ window.ADMIN = (() => {
     bs.ontoggle = () => { if (bs.open && !bs.dataset.on) { bs.dataset.on = 1; window.NOTIFY?.adminPanel($('#a-bot'), ui); } };
     const ms = $('#a-main');   // v5.37: группа Main — при первом открытии блока
     ms.ontoggle = () => { if (ms.open && !ms.dataset.on) { ms.dataset.on = 1; mainLoad(); } };
-    if (/#admin-main/.test(location.hash)) { ms.open = true; ms.scrollIntoView?.({ block: 'start' }); }
+    if (/^#(admin-main|users=main)$/.test(location.hash)) { ms.open = true; ms.scrollIntoView?.({ block: 'start' }); }
     const log = $('#a-log');   // его поле и кнопка без data-k / data-s: mark() их не видит, «Сохранить» не загорается
     log.ontoggle = () => { if (log.open && !log.dataset.on) { log.dataset.on = 1; logLoad(); } };
     $('#a-log-q').oninput = () => { clearTimeout(logT); logT = setTimeout(() => logLoad(), 350); };
