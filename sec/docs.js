@@ -51,6 +51,9 @@
       ${arr(r.questions).length ? list('❓ Уточните', r.questions) : ''}
       ${arr(r.sources).length ? `<div class="lr-blk"><b>🌐 Открытые источники</b><ul class="lr-srcs">${r.sources.map(srcRow).join('')}</ul>
         <small class="muted">Проверяем только то, что открыто без капчи и платы. Где капча или плата — ссылка, проверьте сами.</small></div>` : ''}
+      ${(r.pdf || r.pdf_ready === false) && o.id ? `<div class="lr-pdf"><b>📄 Отчёт в PDF</b><p class="hub-actions">
+        <button class="btn primary" data-lr-pdf="service">📄 Отчёт сервиса</button><button class="btn primary" data-lr-pdf="lawyer">📄 Заключение ${r.role === 'broker' ? 'брокера' : 'юриста'}</button></p>
+        <small class="muted">Сервис — что проверено автоматически (паспорт МВД, банкротство, ФНС). ${r.role === 'broker' ? 'Брокер' : 'Юрист'} — по документам и тому, чего сервис не проверяет.</small></div>` : ''}
       ${H.star()}
       ${o.share !== false || o.attach !== false ? `<p class="hub-actions lr-act">
         ${o.share !== false && o.id ? '<button class="btn soft" data-lr-share>📤 Поделиться</button>' : ''}
@@ -98,6 +101,12 @@
     const redraw = () => render(el, r, o);
     el.onclick = e => {
       if (e.target.closest('[data-lr-copy]')) { H.copy(text(r), 'Текст отчёта скопирован'); return; }
+      const pb = e.target.closest('[data-lr-pdf]');
+      if (pb) {   // v5.35: окно открываем сразу (иначе Safari блокирует), адрес — после ответа
+        const w = window.open('about:blank', '_blank');
+        H.call('law_pdf', { id: o.id, which: pb.dataset.lrPdf }).then(x => { if (w) w.location = x.url; else location.href = x.url; }).catch(er => { w?.close(); fail(er); });
+        return;
+      }
       if (e.target.closest('[data-lr-share]')) { share(o.id, r); return; }
       if (e.target.closest('[data-lr-attach]')) { render.last = redraw; attach(o.id, r); }
     };

@@ -230,6 +230,8 @@ html[data-theme="dark"] .lw-qc.end { color: #fca5a5; }
 .lw-seen.muted { background: transparent; border: 1px dashed var(--line, #8884); }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
 .lw-askrep { margin: 0 0 10px; }
+.lr-pdf { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.lr-pdf .hub-actions { margin: 6px 0 4px; }
 .lw-tip { margin: 0; font-size: 13.5px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
 .lw-drop { position: relative; display: grid; gap: 4px; justify-items: center; text-align: center; padding: 18px 12px; border: 2px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 14px; cursor: pointer; transition: background .15s; }
 .lw-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }

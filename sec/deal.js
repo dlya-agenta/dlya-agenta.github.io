@@ -118,8 +118,8 @@
       <div class="dl-docs">${r.docs.map(docRow).join('') || '<p class="muted">Документов пока нет.</p>'}</div>
       <p class="hub-actions"><label class="btn primary dl-up" id="d-up">📎 Загрузить документ<input type="file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" multiple data-doc-file></label>
         <label class="hub-chk"><input type="checkbox" id="d-autocheck" checked> <span>Сразу проверить ИИ-юристом</span></label></p>
-      ${r.docs.length ? `<div class="dl-lawchk"><p class="hub-actions"><button class="btn primary" data-law-check="object">🔎 Проверить объект</button><button class="btn soft" data-law-check="owner">🔎 Проверить собственника</button></p>
-        <p class="hint">По всем документам сделки и открытым источникам (без капчи и платы; где капча или плата — ссылка «проверьте сами»): вывод, степень риска, какие документы запросить, шаги. Считается из «Проверок» тарифа в месяц.</p>
+      ${r.docs.length ? `<div class="dl-lawchk"><p class="hub-actions"><button class="btn primary" data-law-check="object">⚖️ Проверка юриста: объект</button><button class="btn soft" data-law-check="owner">⚖️ Проверка юриста: собственник</button></p>
+        <p class="hint">Юрист читает все документы сделки, сервис проверяет паспорт по базе МВД, банкротство и ФНС. Итог — отчёт на экране и два PDF в документах сделки: «Отчёт сервиса» и «Заключение юриста». Считается из «Проверок» тарифа в месяц.</p>
         <div id="d-lawrep"></div></div>` : ''}</section>`;
   // фото больше 3 МБ — уменьшаем до 2200 px по длинной стороне (JPEG), PDF — как есть
   async function fileData(f) {
@@ -200,8 +200,15 @@
     const lc = t.closest('[data-law-check]');
     if (lc) {   // v5.24b: проверка объекта/собственника по документам сделки (hub law_check, отчёт — sec/docs.js)
       const label = lc.textContent; lc.disabled = true; lc.textContent = '⏳ Проверяем — 1–2 минуты';
-      try { const r = await H.call('law_check', { deal_id: d.id, kind: lc.dataset.lawCheck }, { signal: AbortSignal.timeout?.(170000) });
-        const box = el.querySelector('#d-lawrep'); window.LAWR?.report(box, r.report, { id: r.id, attach: false }); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      // v5.35: сначала юрист читает документы сделки (пакет юриста: ФИО, паспорт, кадастр), потом проверка + сервис + 2 PDF в документы сделки
+      try { lc.textContent = '⏳ Юрист читает документы — до 2 минут';
+        const bt = await H.call('law_deal_read', { deal_id: d.id, role: 'lawyer' }, { signal: AbortSignal.timeout?.(170000) });
+        lc.textContent = '⏳ Проверяем по сервису и документам — до минуты';
+        const r = await H.call('law_check', { batch: bt.id, kind: lc.dataset.lawCheck, role: 'lawyer' }, { signal: AbortSignal.timeout?.(170000) });
+        lc.textContent = '⏳ Собираем PDF в документы сделки';
+        await H.call('law_pdf_make', { id: r.id }, { signal: AbortSignal.timeout?.(120000) }).then(x => { r.report.pdf = x.pdf; }).catch(() => H.toast('PDF не собрались — откройте их кнопкой в отчёте', 5000));
+        await card(d.id);
+        const box = el.querySelector('#d-lawrep'); window.LAWR?.report(box, r.report, { id: r.id, attach: false }); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       catch (er) { (window.LAWR?.fail ?? (x => H.toast(x.message, 6000)))(er); }
       lc.disabled = false; lc.textContent = label; return;
     }
