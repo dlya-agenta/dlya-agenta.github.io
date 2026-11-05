@@ -252,7 +252,7 @@
         <span class="adm-lp-addr">Адрес сервиса: ${link(x.base)} · кабинет: ${link('https://lk.api-assist.com')}</span></div>
       <p class="hub-actions"><span class="${x.on ? 'tag ok' : 'tag'}">${x.on ? 'включён' : 'выключен'}</span>
         ${x.on ? '<button class="btn ghost" data-lp-on="0">Выключить</button>' : `<button class="btn primary" data-lp-on="1"${x.set ? '' : ' disabled title="Сначала сохраните ключ"'}>Включить</button>`}
-        <small class="muted">Подключено по ключу: ${esc((x.stat ?? []).map(s => s.name).join(', ') || '—')}. В проверку юриста идут: паспорт МВД, ФССП, банкротство, суды, арбитраж, ЕГРН — что подключено, то и работает.</small></p>
+        <small class="muted">Подключено по ключу: ${esc((x.stat ?? []).map(s => s.name).join(', ') || '—')}. В проверку юриста идут: ИНН по паспорту, паспорт МВД, ФССП, банкротство, суды, арбитраж, ЕГРН — что подключено, то и работает.</small></p>
       ${x.error ? `<p class="hint">⚠️ Сервис ответил: ${esc(x.error)} — проверьте ключ в кабинете.</p>` : ''}
       ${st ? `<ul class="adm-lp-stat">${st}</ul>` : ''}
       ${x.status?.length ? `<p class="hint">Источники сейчас: ${x.status.map(s => `${esc(s.name)} — ${ok[s.status] ?? esc(s.status)}${s.rate != null ? ` (${esc(s.rate)} %)` : ''}`).join(' · ')}</p>` : ''}
