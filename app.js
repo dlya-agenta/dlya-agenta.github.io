@@ -294,7 +294,7 @@ async function start() {
     const cm = store.get('sel_cm', null); store.set('sel_cm', null);
     if (cm != null && $('#s-mk')) { $('#s-mk').value = cm; $('#s-mk').dispatchEvent(new Event('input', { bubbles: true })); }
   }   // «Реклама»: …/#rk, #rk=daily
-  if (/^#sels=(all|own|fb|ex)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
+  if (/^#sels=(all|own|fb|ex|main)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
   if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
   HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
