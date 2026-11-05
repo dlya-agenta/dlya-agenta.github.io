@@ -207,7 +207,10 @@ window.NAV = (() => {
 
   document.addEventListener('click', e => { if (!e.target.closest('.mg')) close(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-  const start = () => { build(); wire(); dress(); };
+  // v5.31c: ссылка из бота ./#proxy (вкладка B: «прокси перестал работать») — сразу окно прокси; на главной — после входа (app.js рисует страницу), поэтому с задержкой
+  const proxyHash = () => { if (location.hash === '#proxy') setTimeout(openProxy, document.querySelector('.top .who') ? 600 : 1500); };
+  addEventListener('hashchange', proxyHash);
+  const start = () => { build(); wire(); dress(); proxyHash(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   return { close, open, sync, wire, iconize, tools, groups: G, openProxy };
 })();

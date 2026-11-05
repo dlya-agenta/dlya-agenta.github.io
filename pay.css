@@ -92,3 +92,6 @@ code.addr { word-break: break-all; font-size: 15px; background: var(--soft); pad
 .chk.opt { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
 .chk.opt input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
 .btn.wrap { white-space: normal; text-align: center; }   /* длинная подпись кнопки на телефоне — в две строки (шаг 2.3) */
+/* v5.31c (замечание главного): на телефоне круглая «💬 Помощь» (support.js, fixed справа внизу) закрывала «/ мес» у цены последнего тарифа —
+   запас снизу, чтобы любой блок можно было докрутить выше кнопки; у строки цены — место справа под кнопку не нужно, кнопка остаётся на месте */
+@media (max-width: 760px) { .pmain { padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
