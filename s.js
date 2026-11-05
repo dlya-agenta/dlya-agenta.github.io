@@ -29,7 +29,7 @@
     }
   }
   function toast(m, ms = 2600) { const el = $('#toast'); el.textContent = m; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, ms); }
-  const fail = m => { $('#s-app').innerHTML = `<div class="s-empty"><h1>Подборка недоступна</h1><p class="muted">${esc(m)}</p></div>`; };
+  const fail = (m, h = 'Подборка недоступна') => { $('#s-app').innerHTML = `<div class="s-empty"><h1>${esc(h)}</h1><p class="muted">${esc(m)}</p></div>`; };
 
   const digits = p => String(p ?? '').replace(/\D/g, '');
   const intl = p => { let d = digits(p); if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1); if (d.length === 10) d = '7' + d; return d.length >= 11 ? d : ''; };   // 8 918… → 7918…
@@ -111,7 +111,7 @@
     return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}" data-num="${x.num}">${ph}
       <div class="s-body">
         <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
-        ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
+        <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button></div>
         ${tags.length ? `<div class="s-tags">${tags.map(g => `<span class="tag">${esc(g)}</span>`).join('')}</div>` : ''}
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
         ${x.descr ? `<p class="s-descr">${descrHtml(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
@@ -140,10 +140,20 @@
         ${d.agent || tel ? `<div class="s-agent"><span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
           ${tel ? `<a class="btn soft" href="tel:+${tel}">Позвонить</a><a class="btn ghost" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</span></div>` : ''}
         <p class="hint">Отметьте у каждого объекта ✓ «подходит» или ✗ «не подходит» и напишите, что нравится, а что нет, — агент увидит сразу.</p>
+        ${n ? '<button type="button" class="btn soft s-allmap" data-map="all">🗺 Все объекты на карте</button>' : ''}
       </header>
       <div class="s-list">${d.items.map((x, i) => card(x, i, n)).join('') || '<p class="muted">В подборке нет объектов.</p>'}</div>`;
     // «Развернуть» — только у длинных описаний
     requestAnimationFrame(() => document.querySelectorAll('.s-descr').forEach(p => { if (p.scrollHeight - p.clientHeight > 10) p.nextElementSibling.hidden = false; }));
+    marked();
+  }
+  // v5.31a: у клиента есть хотя бы одна отметка (✓, ✗ или комментарий) — promo.js показывает кнопку регистрации (если автор на бесплатных 7 днях);
+  // после 3 отметок — мягкая подсказка «напишите агенту, что важно»
+  function marked() {
+    const n = data.items.filter(x => x.mark || x.comment).length;
+    window.SEL_MARKED = n > 0;
+    if (n) document.dispatchEvent(new CustomEvent('sel:mark', { detail: { n } }));
+    if (n >= 3 && !$('#s-tip') && !data.owner) $('.s-list')?.insertAdjacentHTML('afterend', `<p class="hint s-tip" id="s-tip">Спасибо за отметки! Напишите агенту${data.agent ? ` (${esc(data.agent)})` : ''}, что для вас важнее всего — район, этаж, ремонт, бюджет, — и он подберёт точнее.</p>`);
   }
 
   // сохранить отметку и комментарий объекта (сервер хранит одну строку на объект)
@@ -155,6 +165,7 @@
       const r = await call('sel_feedback', { num, mark: x.mark, comment });
       x.comment = r.comment;
       st.textContent = x.mark || comment ? 'Сохранено — агент увидит' : 'Отметка снята';
+      marked();
     } catch (e) { st.textContent = ''; toast(e.message, 5000); }
   }
 
@@ -173,7 +184,79 @@
     if (more) { const p = more.previousElementSibling; p.classList.toggle('open'); more.textContent = p.classList.contains('open') ? 'Свернуть' : 'Развернуть'; }
     const img = e.target.closest('.s-ph img');
     if (img) open(+img.closest('.s-ph').dataset.i, +img.dataset.k);
+    const mp = e.target.closest('[data-map]');
+    if (mp && !agentMode) mapOpen(mp.dataset.map === 'all' ? null : +mp.dataset.map);
+    if (e.target.closest('[data-mapx]') || e.target.classList.contains('s-map')) mapClose();
   });
+
+  // ---------- v5.31a (п. 1 Алексея): карта подборки. Координаты — отдельным запросом sel_map и только при открытии карты.
+  // Адрес скрыт агентом — сервер отдаёт только центр улицы: круг ~300 м и подпись «… (точный адрес — у агента)»; адрес открыт — точка объекта.
+  let mapData = null, mapObj = null;
+  const loadJs = src => new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = no; document.head.appendChild(el); });
+  async function leaflet() {
+    if (!window.L) {
+      document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">');
+      await loadJs('vendor/leaflet/leaflet.min.js');
+    }
+    if (!window.MAPBASE) await loadJs('mapbase.js?v=5.23e1');
+  }
+  function mapClose() { const m = $('#s-map'); if (!m) return; mapObj?.remove(); mapObj = null; m.remove(); document.body.classList.remove('s-lock'); }
+  async function mapOpen(num) {
+    mapClose();
+    document.body.insertAdjacentHTML('beforeend', `<div class="s-map" id="s-map" role="dialog" aria-modal="true" aria-label="Карта"><div class="s-map-box">
+      <div class="s-map-head"><b>${num ? `📍 № ${num} на карте` : '🗺 Объекты подборки на карте'}</b><button type="button" class="s-x2" data-mapx aria-label="Закрыть карту">✕</button></div>
+      <div class="s-map-el" id="s-map-el"><p class="muted s-map-wait">Загружаю карту…</p></div><p class="s-map-note muted" id="s-map-note" aria-live="polite"></p></div></div>`);
+    document.body.classList.add('s-lock');
+    // телефон: закрыть свайпом вниз по шапке окна
+    const hd = $('#s-map .s-map-head'); let y0 = null;
+    hd.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+    hd.addEventListener('touchend', e => { if (y0 != null && e.changedTouches[0].clientY - y0 > 70) mapClose(); y0 = null; });
+    try {
+      const [, md] = await Promise.all([leaflet(), mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call('sel_map')]);
+      mapData = md;
+      if (!$('#s-map')) return;
+      drawMap(num);
+    } catch (e) { const el = $('#s-map-el'); if (el) el.innerHTML = `<p class="muted s-map-wait">${esc(e.message || 'Карта не загрузилась')}</p>`; }
+  }
+  function drawMap(num) {
+    const el = $('#s-map-el'); el.innerHTML = '';
+    const byNum = new Map(data.items.map(x => [x.num, x])), pts = mapData.points.filter(p => !num || p.num === num);
+    const ok = pts.filter(p => p.lat != null);
+    mapObj = L.map(el, { zoomControl: true, attributionControl: false, maxZoom: 19 }).setView([43.585, 39.723], 11);   // центр сразу: круги и точки без него не рисуются
+    MAPBASE.add(mapObj);
+    const css = getComputedStyle(document.body), acc = css.getPropertyValue('--accent').trim() || '#2f6fdf';
+    const info = x => x ? `<b>${esc(x.what)}</b><br>${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.sea_m ? ` · ≈ ${seaTxt(x.sea_m)} до моря` : ''}` : '';
+    // объекты на одной улице — один круг со списком номеров
+    const groups = new Map();
+    for (const p of ok) { const k = p.kind === 'street' ? `${p.lat},${p.lon}` : `n${p.num}`; groups.set(k, [...(groups.get(k) ?? []), p]); }
+    const layers = [];
+    for (const g of groups.values()) {
+      const p = g[0], list = g.map(q => `№ ${q.num} — ${info(byNum.get(q.num))}`).join('<br>');
+      if (p.kind === 'street') {
+        const c = L.circle([p.lat, p.lon], { radius: p.r || 300, color: acc, weight: 2, fillColor: acc, fillOpacity: .18 }).addTo(mapObj)
+          .bindPopup(`<div class="s-pop"><p class="s-pop-st">${esc(p.label || 'Улица')}</p><small>точный адрес — у агента</small><br>${list}</div>`);
+        c.bindTooltip(`${esc(p.label || 'улица')} (точный адрес — у агента)`, { direction: 'top', sticky: true });
+        // на мелком масштабе круг 300 м — точка; полупрозрачная метка в центре улицы видна всегда (это центр улицы, не дом)
+        L.circleMarker([p.lat, p.lon], { radius: 7, color: acc, weight: 2, fillColor: '#fff', fillOpacity: .9 }).addTo(mapObj).bindPopup(c.getPopup());
+        layers.push(c);
+      } else {
+        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
+          .bindPopup(`<div class="s-pop">${list}<br><small>${esc(p.label || '')}</small></div>`);
+        layers.push(m);
+      }
+    }
+    if (layers.length) {
+      const b = L.featureGroup(layers).getBounds();
+      if (layers.length === 1) mapObj.setView(b.getCenter(), ok[0].kind === 'street' ? 15 : 16); else mapObj.fitBounds(b.pad(.15));
+      if (num && layers.length === 1) layers[0].openPopup();
+    }
+    const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
+    $('#s-map-note').textContent = [mapData.hide ? 'Агент скрыл точные адреса — на карте показаны улицы.' : '',
+      later ? `Расположение ещё ${later} ${plural(later, 'объекта', 'объектов', 'объектов')} уточняется — откройте карту через минуту.` : '',
+      none.length ? `${none.length === 1 ? `Где находится № ${none[0]}` : `Где находятся № ${none.join(', ')}`} — уточните у агента.` : ''].filter(Boolean).join(' ');
+    setTimeout(() => mapObj?.invalidateSize(), 60);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#s-map')) mapClose(); });
   // комментарий: через секунду после ввода и при выходе из поля
   document.addEventListener('input', e => {
     const c = e.target.closest('.s-cm');
@@ -206,7 +289,7 @@
   addEventListener('hashchange', () => location.reload());   // вставили другую ссылку в ту же вкладку
   if (agentMode) AGENT();
   else if (!/^[A-Za-z0-9_-]{22,40}$/.test(t)) fail('В ссылке нет кода подборки — попросите агента прислать её ещё раз.');
-  else call('sel_public').then(render, e => fail(e.message));
+  else call('sel_public').then(render, e => fail(e.message, e.data?.error === 'deleted' ? 'Подборка удалена агентом' : undefined));
 
   // ---------- v5.20 → v5.23a: страница агента — собственники подборки, ответы, переписка, проверенная подборка ----------
   // Отметки «написал» и ответы — на сервере (auto own_marks / own_mark / own_chat / own_reply), проверка ответов — сервер мессенджеров:
@@ -220,6 +303,15 @@
     // v5.24: без {имя} (имена собственников приходят редко), с {ЖК}; № объекта дописывается сам (auto/own.ts ownText) — тот же текст и здесь
     const TPL = 'Здравствуйте! Я агент, у меня есть покупатель на ваш объект {ЖК}, {адрес}, {цена}. Продажа актуальна?';
     const OLD_TPL = 'Здравствуйте, {имя}! Я агент, у меня есть покупатель на ваш объект {адрес}, {цена}. Продажа актуальна?';
+    // v5.31a (п. 2 Алексея): «Написать собственникам по отмеченным клиентом» — шаблон с вопросом клиента; {вопрос} — комментарий клиента к этому объекту
+    // (без ссылок и телефонов, до 200 знаков), без комментария — «когда можно посмотреть и торг возможен?». Та же подстановка на сервере (auto/own.ts ownText)
+    const QTPL = 'Здравствуйте! По вашему объекту {ЖК}, {адрес}, {цена}: у меня покупатель, ему понравилось. Уточните, пожалуйста: {вопрос}. Продажа актуальна?';
+    const VIDEO_ASK = 'Если есть видео квартиры — пришлите, пожалуйста: так покупателю проще решиться на просмотр.';
+    const cleanQ = c => { let q = String(c ?? '').replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '')
+      .replace(/(?:\+7|8)?[\s(.-]*\d{3}[\s).-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}(?!\d)/g, '').replace(/\s+/g, ' ').trim();
+      if (q.length > 200) q = q.slice(0, 199).replace(/\s+\S*$/, '') + '…'; q = q.replace(/(^|\s)(звоните|пишите|тел\.?|телефон)[\s:.!]*$/i, '').replace(/[.!,;:\s]+$/, '');
+      if (q && !/\?$/.test(q) && /^(как|где|когда|сколько|почему|зачем|что|чем|кто|чей|есть ли|можно ли|будет ли)(\s|$)|\sли\s/i.test(q)) q += '?'; return q ? q[0].toLowerCase() + q.slice(1) : ''; };   // как cleanQ в auto/own.ts
+    const liked = x => x.cmark === 'yes', asked = x => !!x.ccomment && x.cmark !== 'no', clPick = x => liked(x) || asked(x);
     const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
     const put = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } };
     const SV = { tg: 'Telegram', wa: 'WhatsApp', max: 'MAX' };
@@ -228,12 +320,16 @@
       eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
       note: 'M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 20zM14.5 3.5v4.5H19M9 12h6M9 15.5h6', check: 'M4.5 12.5 9.5 17.5 19.5 6.5' };
     let svcs = null, job = null, marks = {}, filter = get(FKEY, 'all');
+    // v5.31a: #…&a=1&f=liked | q | cl — из «Моих подборок» / помощника ИИ: сразу фильтр и выбор «отмеченные клиентом»
+    const fHash = /(?:^|[?&])f=(liked|q|cl)(?:&|$)/.exec(hs)?.[1] ?? null;
+    let cpick = !!fHash; if (fHash) filter = fHash; else if (['liked', 'q', 'cl'].includes(filter)) filter = 'all';
+    const cpList = () => data.items.filter(clPick);
     const opened = new Set(get(`${KEY}:o`, [])), allOpen = () => !!get(OKEY, false);
     const short = a => String(a ?? '').replace(/^(г\.?\s*о\.?\s*)?Сочи,?\s*/i, '').replace(/мкр-н\s+[^,]+,\s*/i, '').trim();
-    const fill = (tx, x) => tx.replace(/,?\s*\{имя\}/gi, '').replace(/\{ЖК\}/gi, x.zk ? `ЖК «${x.zk}»` : '')
+    const fill = (tx, x) => tx.replace(/\{вопрос\}/gi, () => cleanQ(x.ccomment) || 'когда можно посмотреть и торг возможен?').replace(/,?\s*\{имя\}/gi, '').replace(/\{ЖК\}/gi, x.zk ? `ЖК «${x.zk}»` : '')
       .replace(/\{адрес\}/g, short(x.address) || x.what).replace(/\{цена\}/g, x.price ? `${money(x.price)} ₽` : '').replace(/\{объект\}/g, x.what)
-      .replace(/(Здравствуйте|Добрый день),\s*!/g, '$1!').replace(/\s+([,.!?])/g, '$1').replace(/,\s*,/g, ',').replace(/(объект|квартиру)\s*,/g, '$1').replace(/ {2,}/g, ' ').trim()
-      + `\n\n№ ${x.num}`;
+      .replace(/(Здравствуйте|Добрый день),\s*!/g, '$1!').replace(/\s+([,.!?])/g, '$1').replace(/,\s*,/g, ',').replace(/(объекту?|квартиру)\s*,/g, '$1').replace(/\?\./g, '?').replace(/ {2,}/g, ' ').trim()
+      + (data?.kind !== 'excl' && !marks[x.num]?.wrote && !/видео/i.test(tx) ? `\n\n${VIDEO_ASK}` : '') + `\n\n№ ${x.num}`;   // v5.31a: в первое сообщение — просьба о видео
     // сохранённый текст со старым шаблоном — на новый; свой текст — без {имя}
     { const v = get(TKEY, null); if (v === OLD_TPL) put(TKEY, TPL); else if (typeof v === 'string' && /\{имя\}/i.test(v)) put(TKEY, v.replace(/,?\s*\{имя\}/gi, '').replace(/(Здравствуйте|Добрый день),\s*!/g, '$1!')); }
     const text = () => $('#sa-text')?.value.trim() || TPL;
@@ -279,6 +375,7 @@
           ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с продажи</p>' : ''}
           ${adHtml(x)}
+          ${x.cmark || x.ccomment ? `<div class="sa-cfb">${x.cmark === 'yes' ? '<b class="t-ok">👍 Клиенту подходит</b>' : x.cmark === 'no' ? '<b class="t-bad">👎 Клиенту не подходит</b>' : '<b>💬 Вопрос клиента</b>'}${x.ccomment ? ` <span>«${esc(clip(x.ccomment, 160))}»</span>` : ''}</div>` : ''}
           ${stHtml(m)}
           ${st && !st.ok ? `<div class="sa-res no">✗ Не отправлено: ${esc(st.error || 'ошибка')}</div>` : ''}
           <div class="sa-more">
@@ -298,17 +395,18 @@
           <small class="muted s-no-num">${i + 1} из ${data.items.length} · № ${x.num}</small>
         </div></article>`;
     }
+    const sendList = () => data.items.filter(x => x.phone && (data.kind === 'excl' || !cpick || clPick(x)));
     function svcHtml() {
-      const n = data.items.filter(x => x.phone).length;
+      const n = sendList().length;
       if (!svcs) return '<p class="muted">Проверяю подключённые мессенджеры…</p>';
       if (svcs.error) return `<p class="muted">Отправка всем сразу пока недоступна: ${esc(svcs.error)}</p>
         <a class="btn soft sa-conn" href="hub.html#msg">🔗 Подключить мессенджеры</a>`;
       return `<div class="sa-svcs">${['tg', 'wa', 'max'].map(k => { const s = svcs.svcs.find(v => v.svc === k);
         if (s?.soon) return `<span class="btn ghost" aria-disabled="true" title="MAX не всегда находит человека по номеру — пишите вручную кнопкой «MAX» у собственника">${SV[k]} — вручную</span>`;
-        return s?.ok ? `<button type="button" class="btn soft" data-all="${k}"${n && !job?.live ? '' : ' disabled'}>${SV[k]} — всем (${n})</button>`
+        return s?.ok ? `<button type="button" class="btn soft" data-all="${k}"${n && !job?.live ? '' : ' disabled'}>${SV[k]} — ${cpick && data.kind !== 'excl' ? 'отмеченным' : 'всем'} (${n})</button>`
           : `<a class="btn ghost" href="hub.html#msg" title="Войдите в ${SV[k]} на сервере — один раз">Подключить ${SV[k]}</a>`; }).join('')}</div>
         ${svcs.day_left != null ? `<small class="muted">Сегодня можно отправить ещё ${svcs.day_left}. Сообщения уходят по одному с паузами, чтобы мессенджер не счёл их рассылкой. Ответы проверю сам: через 30, 60, 90 и 120 минут, затем через 12 часов.</small>` : ''}
-        ${n < data.items.length ? `<small class="muted">Написать можно только тем, чей телефон открыт (${n} из ${data.items.length}).</small>` : ''}`;
+        ${!cpick && n < data.items.length ? `<small class="muted">Написать можно только тем, чей телефон открыт (${n} из ${data.items.length}).</small>` : ''}`;
     }
     function jobHtml() {
       if (!job) return '';
@@ -321,14 +419,19 @@
       const all = data.items.length, c = { yes: 0, no: 0, none: 0, wait: 0 };
       data.items.forEach(x => { const k = kind(marks[x.num]?.st); if (k) c[k]++; });
       const wrote = c.yes + c.no + c.none + c.wait, ans = data.items.filter(x => answered(marks[x.num])).length;
-      const F = [['all', `Все ${all}`], ['yes', `✓ ${c.yes}`], ['no', `✗ ${c.no + c.none}`], ['wait', `Ждём ${c.wait}`]];
+      const nl = data.items.filter(liked).length, nq = data.items.filter(asked).length, ncl = cpList().length;
+      const F = [['all', `Все ${all}`], ['yes', `✓ ${c.yes}`], ['no', `✗ ${c.no + c.none}`], ['wait', `Ждём ${c.wait}`],
+        ...(nl ? [['liked', `👍 Подходит клиенту (${nl})`]] : []), ...(nq ? [['q', `💬 Есть вопрос (${nq})`]] : [])];
       return `<div class="sa-sum"><p>${wrote ? `Написали ${wrote} из ${all} · ответили ${ans} · <b class="t-ok">актуально ${c.yes}</b> · <b class="t-bad">не актуально ${c.no}</b>${c.none ? ` · не ответили ${c.none}` : ''} · ждём ${c.wait}`
           : 'Собственникам ещё не писали — напишите всем сразу или каждому кнопкой WhatsApp / Telegram / MAX.'}</p>
+        ${ncl ? `<div class="sa-cl"><button type="button" class="btn primary" data-cpick aria-pressed="${cpick}">✉️ Написать собственникам по отмеченным клиентом (${ncl})</button>
+          <button type="button" class="btn soft" data-selai>🤖 Позвать помощника ИИ</button></div>` : (data.items.some(x => x.cmark || x.ccomment) ? '<div class="sa-cl"><button type="button" class="btn soft" data-selai>🤖 Позвать помощника ИИ</button></div>' : '')}
         <div class="sa-flt" role="group" aria-label="Показать">${F.map(([k, l]) => `<button type="button" data-flt="${k}" aria-pressed="${filter === k}">${l}</button>`).join('')}</div>
         <div class="sa-tools"><button type="button" class="btn ghost" data-tgl-all>${ic(I.eye)}${allOpen() ? 'Скрыть у всех описание и контакты' : 'Показать у всех описание и контакты'}</button>
           <button type="button" class="btn primary" data-checked${c.yes ? '' : ' title="Пока никто не ответил «актуально» — объекты можно выбрать вручную"'}>${ic(I.check)}Сформировать проверенную подборку${c.yes ? ` (${c.yes})` : ''}</button></div></div>`;
     }
-    const shown = x => filter === 'all' || kind(marks[x.num]?.st) === filter || (filter === 'no' && kind(marks[x.num]?.st) === 'none');
+    const shown = x => filter === 'all' || (filter === 'liked' ? liked(x) : filter === 'q' ? asked(x) : filter === 'cl' ? clPick(x)
+      : kind(marks[x.num]?.st) === filter || (filter === 'no' && kind(marks[x.num]?.st) === 'none'));
     function listHtml() {
       const L = data.items.map((x, i) => shown(x) ? row(x, i) : '').join('');
       return L || `<p class="muted sa-nolist">${data.items.length ? 'В этом фильтре пока пусто.' : 'В подборке нет объектов.'}</p>`;
@@ -394,8 +497,9 @@
         </header>
         <section class="sa-box">
           <label class="sa-lbl" for="sa-text">Сообщение собственникам ${ic(I.mail)}</label>
-          <textarea id="sa-text" rows="3" maxlength="600">${esc(get(TKEY, TPL))}</textarea>
-          <small class="muted">{ЖК}, {адрес} и {цена} подставятся у каждого собственника; в конце — № объекта в нашей базе, к сообщению — 1 фото квартиры. <button type="button" class="link" data-tpl>Вернуть шаблон</button></small>
+          <textarea id="sa-text" rows="3" maxlength="600">${esc(cpick ? get(`${TKEY}Q`, QTPL) : get(TKEY, TPL))}</textarea>
+          <small class="muted">{ЖК}, {адрес}${cpick ? ', {цена} и {вопрос} (комментарий клиента)' : ' и {цена}'} подставятся у каждого собственника; в конце — № объекта в нашей базе. К сообщению — 1 фото квартиры; в первое сообщение собственнику — просьба прислать видео, если есть. <button type="button" class="link" data-tpl>Вернуть шаблон</button></small>
+          ${cpick ? (() => { const L = cpList(), np = L.filter(x => x.phone).length; return `<div class="sa-cpb">✉️ Пишем только по объектам, которые клиент отметил «подходит» или о которых спросил: <b>${L.length}</b>${np < L.length ? ` · телефон открыт у ${np} — <button type="button" class="link" data-open-cl>📞 открыть остальные (${L.length - np})</button>` : ''}. <button type="button" class="link" data-cpick-off>Писать всем</button></div>`; })() : ''}
           ${window.MSGAPP?.warn('собственникам') ?? ''}
           <div class="sa-all"><div class="sa-h">Написать всем сразу — с ваших аккаунтов</div><div id="sa-svc">${svcHtml()}</div><div id="sa-job">${jobHtml()}</div></div>
           ${closed ? `<button type="button" class="btn soft sa-openall" data-open-all>📞 Открыть телефоны (${closed})</button>` : ''}
@@ -519,7 +623,7 @@
     document.addEventListener('input', e => {
       if (e.target.id === 'sa-text' && data?.kind === 'excl') { put(XKEY, e.target.value); clearTimeout(AGENT.t); AGENT.t = setTimeout(() => {   // v5.25b: агентам — свой шаблон
         document.querySelectorAll('.sa-card').forEach(c => { const x = data.items.find(i => i.num === +c.dataset.num), a = c.querySelector('.sa-wa'); if (x && a) a.href = `https://wa.me/${intl(x.agent?.wa || x.agent?.phone)}?text=${encodeURIComponent(fill(text(), x))}`; }); }, 400); return; }
-      if (e.target.id === 'sa-text') { put(TKEY, e.target.value); clearTimeout(AGENT.t); AGENT.t = setTimeout(() => {
+      if (e.target.id === 'sa-text') { put(cpick ? `${TKEY}Q` : TKEY, e.target.value); clearTimeout(AGENT.t); AGENT.t = setTimeout(() => {
         document.querySelectorAll('.sa-card').forEach(c => { const x = data.items.find(i => i.num === +c.dataset.num), a = c.querySelector('.sa-wa'); if (x && a) a.href = `https://wa.me/${intl(x.phone)}?text=${encodeURIComponent(fill(text(), x))}`; }); }, 400); }
       if (e.target.id === 'sa-nt') { const x = data.items.find(i => i.num === +$('#sa-note').dataset.num); clearTimeout(AGENT.n); if ($('#sa-nt-st')) $('#sa-nt-st').textContent = '';
         AGENT.n = setTimeout(() => x && noteSave(x, e.target.value), 1200); }
@@ -538,6 +642,8 @@
         close(); return redraw();
       }
       if (md) {
+        const go = e.target.closest('[data-go-send]');
+        if (go) { const { svc, nums } = md._send; close(); return sendNow(svc, nums); }
         const nx = data.items.find(i => i.num === +md.dataset.num);
         const st = e.target.closest('[data-st]');
         if (st && nx) { await markSrv([nx.num], { st: st.dataset.st }); toast('Итог сохранён'); close(); return redraw(); }
@@ -566,7 +672,16 @@
         if (e.target.closest('[data-xcp]') && x) { const ok = await copyTxt(fill(text(), x)); if (ok) toast('Текст скопирован — вставьте его в чат', 3500); return; }
         if (!e.target.closest('[data-all]')) return;
       }
-      if (e.target.closest('[data-tpl]')) { $('#sa-text').value = TPL; put(TKEY, TPL); return; }
+      if (e.target.closest('[data-tpl]')) { $('#sa-text').value = cpick ? QTPL : TPL; put(cpick ? `${TKEY}Q` : TKEY, cpick ? QTPL : TPL); return; }
+      // v5.31a: «Написать собственникам по отмеченным клиентом» — выбор отмеченных + шаблон с вопросом; «Писать всем» — обратно
+      if (e.target.closest('[data-cpick]') || e.target.closest('[data-cpick-off]')) {   // draw(), а не redraw(): шаблон в поле должен смениться
+        cpick = !e.target.closest('[data-cpick-off]') && !cpick; filter = cpick ? 'cl' : 'all'; put(FKEY, filter);
+        const y = scrollY; draw(); scrollTo(0, y); if (cpick) $('.sa-box')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (e.target.closest('[data-selai]')) return selai();
+      const ocl = e.target.closest('[data-open-cl]');
+      if (ocl) { ocl.disabled = true; const list = cpList().filter(i => !i.phone);
+        for (let k = 0; k < list.length; k++) { ocl.textContent = `Открываю ${k + 1} из ${list.length}…`; if (!(await openPhone(list[k]))) break; }
+        return redraw(); }
       const f = e.target.closest('[data-flt]'); if (f) { filter = f.dataset.flt; put(FKEY, filter); return redraw(); }
       if (e.target.closest('[data-tgl-all]')) { put(OKEY, !allOpen()); opened.clear(); put(`${KEY}:o`, []); return redraw(); }
       if (e.target.closest('[data-checked]')) return checkedOpen();
@@ -593,16 +708,44 @@
       }
       const all = e.target.closest('[data-all]');
       if (all) {
-        const svc = all.dataset.all, nums = data.items.filter(i => i.phone).map(i => i.num), xw = data.kind === 'excl';
+        const svc = all.dataset.all, nums = sendList().map(i => i.num), xw = data.kind === 'excl';
         if (xw && !nums.length) return toast('Отметьте хотя бы одного агента галочкой «в «Написать всем»»');
-        if (!confirm(`Отправить сообщение ${xw ? `агентам выбранных объектов (${nums.length})` : `${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')}`} через ${SV[svc]} с вашего аккаунта? У каждого подставятся ЖК, адрес, цена и № объекта, к сообщению — 1 фото.\n\nНезнакомым — не больше 30 в день: мессенджер может посчитать это спамом.`)) return;
-        all.disabled = true;
-        try {
-          const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...selArg() });
-          job = { id: r.id, svc, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
-        } catch (err) { all.disabled = false; toast(err.message, 6000); job = { svc, status: 'error', message: err.message, total: nums.length }; $('#sa-job').innerHTML = jobHtml(); }
+        if (!nums.length) return toast('Нет открытых телефонов — откройте их кнопкой «📞 Открыть телефоны»');
+        return previewOpen(svc, nums);
       }
     });
+    // v5.31a: перед отправкой — превью 1–2 сообщений ровно так, как их соберёт сервер (own_send dry: {вопрос}, просьба о видео, № объекта, фото)
+    async function previewOpen(svc, nums) {
+      const xw = data.kind === 'excl', who = xw ? `агентам выбранных объектов (${nums.length})` : `${nums.length} ${plural(nums.length, 'собственнику', 'собственникам', 'собственникам')}`;
+      const el = modal(`<div class="sa-sh-head"><b>${ic(I.mail)}Проверьте сообщение</b><button type="button" class="s-x2" data-close aria-label="Закрыть">✕</button></div>
+        <p class="muted sa-sh-sub">Отправить ${who} через ${SV[svc]} с вашего аккаунта. Так увидят собственники первые сообщения:</p>
+        <div class="sa-prev" id="sa-prev"><p class="muted">Собираю текст…</p></div>
+        <p class="muted sa-sh-sub">Незнакомым — не больше 30 в день: мессенджер может посчитать это спамом. Сообщения уходят по одному с паузами.</p>
+        <div class="sa-cfoot"><button type="button" class="btn primary" data-go-send disabled>Отправить ${nums.length}</button><button type="button" class="btn ghost" data-close>Изменить текст</button></div>`);
+      el._send = { svc, nums };
+      try {
+        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, dry: true, ...selArg() });
+        if ($('#sa-note') !== el) return;
+        $('#sa-prev').innerHTML = (r.preview ?? []).map(p => `<div class="sa-pv">${p.photo ? `<img src="${esc(p.photo)}" alt="Фото к сообщению" loading="lazy" referrerpolicy="no-referrer">` : '<div class="sa-pv-no">без фото</div>'}<p>${esc(p.text)}</p></div>`).join('')
+          + (r.planned > 2 ? `<p class="muted">…и ещё ${r.planned - 2} — у каждого свои ЖК, адрес, цена и № объекта.</p>` : '');
+        const b = el.querySelector('[data-go-send]'); b.disabled = false; b.textContent = `Отправить ${r.planned ?? nums.length}`;
+      } catch (err) { if ($('#sa-prev')) $('#sa-prev').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+    }
+    async function sendNow(svc, nums) {
+      const b = document.querySelector(`[data-all="${svc}"]`); if (b) b.disabled = true;
+      try {
+        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...selArg() });
+        job = { id: r.id, svc, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
+      } catch (err) { if (b) b.disabled = false; toast(err.message, 6000); job = { svc, status: 'error', message: err.message, total: nums.length }; $('#sa-job').innerHTML = jobHtml(); }
+    }
+    // v5.31a → вкладка B: «🤖 Позвать помощника ИИ» — window.SELAI.open({ sel_id, t }) из selai.js (если ещё не загрузился — подгрузить и повторить)
+    async function selai() {
+      const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
+      if (window.SELAI?.open) return window.SELAI.open(arg);
+      toast('Помощник загружается…');
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.31b1'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
+    }
 
     call('sel_agent').then(async d => {
       data = d; document.title = `${d.kind === 'excl' ? 'Агенты эксклюзивов' : 'Собственники'} — ${d.title || 'подборка'}`;

@@ -65,3 +65,29 @@ body.client .share-agent { display: none; }
   /* полоса в две строки: v5.23e — по фактической высоте (--selbar-top из app.js: от низа окна до верха полосы) + 10 px; без него — с запасом */
   body:has(#selbar:not([hidden])) .sup-fab { bottom: calc(var(--selbar-top, calc(152px + env(safe-area-inset-bottom))) + 10px); }
 }
+/* v5.31a (п. 2 Алексея): свёрнутые карточки, меню «⋯», удаление и «Вернуть», кнопки по откликам клиента */
+.sp-tg { align-self: flex-start; font-size: 14px; font-weight: 600; padding: 4px 0; border: 0; background: none; color: var(--link); cursor: pointer; }
+.sp-det { display: flex; flex-direction: column; gap: 8px; }
+.sp-det[hidden] { display: none; }
+.sp-sub { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.sp-dots { position: relative; }
+.sp-dots > summary { list-style: none; cursor: pointer; min-width: 44px; justify-content: center; font-weight: 700; }
+.sp-dots > summary::-webkit-details-marker { display: none; }
+.sp-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.sp-menu .btn { width: 100%; justify-content: flex-start; text-align: left; border-radius: 8px; }
+.sp-menu .sp-del { color: var(--bad); }
+.sp-acts .sp-cl { white-space: normal; text-align: left; }
+.sp-clrow { margin-top: 0; }
+.sp-undo { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5000; display: flex; align-items: center; gap: 14px;
+  padding: 10px 10px 10px 16px; border-radius: 12px; background: #1d222c; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.3); font-size: 14.5px; max-width: calc(100% - 24px); }
+.sp-undo .btn { padding: 7px 14px; }
+.btn.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
+@media (max-width: 480px) {
+  .sp-acts .sp-dots { flex: 1 1 calc(50% - 8px); }
+  .sp-acts .sp-dots > summary { width: 100%; justify-content: center; }
+  .sp-tabs { overflow-x: auto; scrollbar-width: none; }
+  .sp-tab { padding: 8px 5px; font-size: 13px; }
+  .sp-menu { min-width: 200px; }
+  .sp-acts .sp-cl, .sp-clrow .btn { flex: 1 1 100%; }
+}

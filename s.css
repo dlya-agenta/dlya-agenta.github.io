@@ -215,3 +215,38 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .sa-xpick input { width: 17px; height: 17px; margin: 0; }
 .sa-xd summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
 .sa-xpick { grid-column: 1 / -1; width: fit-content; }
+/* v5.31a (п. 1–2 Алексея): карта подборки, кнопка «по отмеченным клиентом», превью сообщений */
+.s-place-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.s-onmap { font-size: 13.5px; padding: 0; border: 0; background: none; color: var(--link); cursor: pointer; white-space: nowrap; }
+.s-onmap:hover { text-decoration: underline; }
+.s-allmap { margin-top: 10px; }
+.s-tip { margin: 14px 0 0; }
+.s-lock { overflow: hidden; }
+.s-map { position: fixed; inset: 0; z-index: 4100; background: rgba(10, 14, 22, .55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.s-map-box { background: var(--card); color: var(--text); width: 100%; max-width: 960px; height: min(78vh, 720px); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+.s-map-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 16px; }
+.s-map-el { flex: 1; min-height: 0; background: var(--soft); position: relative; }
+.s-map-wait { padding: 20px; margin: 0; }
+.s-map-note { margin: 0; padding: 8px 16px 12px; font-size: 13px; line-height: 1.4; }
+.s-map-note:empty { display: none; }
+.s-pop { font: 13px/1.4 system-ui, sans-serif; max-width: 240px; }
+.s-pop-st { margin: 0 0 2px; font-weight: 700; }
+.s-map .leaflet-container { font: inherit; }
+@media (max-width: 560px) {
+  .s-map { padding: 0; }
+  .s-map-box { max-width: none; height: 100%; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .s-map-head { position: relative; padding-top: calc(10px + env(safe-area-inset-top)); touch-action: none; }
+  .s-map-head::before { content: ''; position: absolute; left: 50%; top: calc(4px + env(safe-area-inset-top)); width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: var(--line); }
+}
+.sa-cl { display: flex; flex-wrap: wrap; gap: 8px; }
+.sa-cl .btn { white-space: normal; text-align: left; min-width: 0; max-width: 100%; }
+.sa-cl [data-cpick][aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent-text) inset; }
+.sa-cfb { font-size: 13.5px; line-height: 1.4; padding: 6px 10px; border-radius: 8px; background: var(--soft); overflow-wrap: anywhere; }
+.sa-cpb { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--soft); font-size: 13.5px; line-height: 1.45; }
+.sa-cpb .link { font-size: inherit; }
+.sa-prev { display: grid; gap: 10px; margin: 6px 0 10px; }
+.sa-pv { display: flex; gap: 10px; align-items: flex-start; background: var(--soft); border-radius: 12px; padding: 10px; min-width: 0; }
+.sa-pv img, .sa-pv-no { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; flex: none; }
+.sa-pv-no { display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); border: 1px dashed var(--line); }
+.sa-pv p { margin: 0; white-space: pre-wrap; font-size: 13.5px; line-height: 1.4; overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 560px) { .sa-pv img, .sa-pv-no { width: 64px; height: 64px; } .sa-cl .btn { flex: 1 1 100%; } }

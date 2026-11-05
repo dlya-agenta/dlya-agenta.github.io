@@ -77,7 +77,7 @@ window.SHARE = (() => {
   const isEx = s => s.kind === 'excl';   // v5.25b: подборки эксклюзивов — своя вкладка «Подборки эксклюзивов» (в «Все» не входят)
   const agentLink = s => rel(s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`));
   let css = false;
-  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.23e1">'); };
+  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.31a1">'); };
   // сводка ответов собственников по подборке: marks — { [num]: { st, at, text } } из auto own_marks (вкладка A)
   function ownSum(s, marks) {
     const m = (s.nums ?? []).map(n => marks?.[n]).filter(Boolean);
@@ -91,44 +91,57 @@ window.SHARE = (() => {
   const linkBadge = s => s.link ? (s.live ? `<span class="sp-b">🔗 ссылка до ${day(s.link_until)}</span>` : '<span class="sp-b off">ссылка закончилась</span>')
     : s.url ? `<span class="sp-b">PDF до ${day(s.pdf_until)}</span>` : '<span class="sp-b off">PDF удалён</span>';
   const meta = s => [when(s.created_at), obj(s.nums.length), s.markup ? `+${s.markup}% клиенту` : isEx(s) ? 'цены агентов' : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ');
-  const acts = s => isEx(s) ? [   // v5.25b: подборка эксклюзивов — те же ссылки и PDF; «В подборку» — на странице эксклюзивов, реклама и ролик — у объявлений собственников
-    s.link && s.live && `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a>`,
-    s.link && s.live && `<button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>`,
-    s.link && s.live && navigator.share && `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>`,
-    `<a class="btn soft" href="${esc(agentLink(s))}"${ablank()} title="Агенты эксклюзивов, их контакты, «Написать всем» — только для вас">🔗 Ссылка агенту</a>`,
-    s.link && `<button class="btn ghost" data-extend="${s.id}" title="Ссылка клиенту будет действовать ещё 30 дней">Продлить</button>`,
-    s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
-    `<a class="btn ghost" href="excl.html#sel=${s.nums.join(',')}">💎 В подборку</a>`].filter(Boolean).join('') : [
-    s.link && s.live && `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a>`,
-    s.link && s.live && `<button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>`,
-    s.link && s.live && navigator.share && `<button class="btn soft" data-share="${esc(s.link)}">Поделиться</button>`,
-    `<a class="btn soft" href="${esc(agentLink(s))}"${ablank()} title="Собственники, «Написать всем», переписка, кто ответил — только для вас">🔗 Ссылка агенту</a>`,
-    s.kid && `<a class="btn soft ok" href="${esc(s.kid.link || rel(`s.html#id=${s.kid.id}&a=1`))}" target="_blank" rel="noopener" title="${esc(s.kid.title || '')}">✓ Проверенная подборка</a>`,
-    s.link && `<button class="btn ghost" data-extend="${s.id}" title="Ссылка клиенту будет действовать ещё 30 дней">Продлить</button>`,
-    s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
-    s.url_agent && `<a class="btn ghost" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}" title="Старый PDF агенту — хранится 7 дней, новые не делаются">PDF агенту</a>`,
-    `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`,
-    `<button class="btn ghost" data-rk="${s.nums.join(',')}">📣 В рекламу</button>`,
-    `<button class="btn ghost" data-video="${s.nums.slice(0, 10).join(',')}">🎬 Ролик</button>`].filter(Boolean).join('');
+  // v5.31a (п. 2 Алексея): карточка свёрнута — заголовок, дата, «клиент открыл N раз», ✓ ✗ 💬, главные кнопки и «⋯» (остальное и «🗑 Удалить подборку»);
+  // отклики и ответы — по «Показать отклики (N) ▾», раскрытие помнится (localStorage spOpen). У подборки с 👍/💬 — «✉️ Написать собственникам по отмеченным»
+  // (страница агента с фильтром и выбором, #…&a=1&f=cl) и «🤖 Позвать помощника ИИ» (selai.js вкладки B).
+  const btnLink = (s, cls = 'primary') => s.link && s.live ? `<a class="btn ${cls}" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}" title="Страница, которую видит клиент">Ссылка клиенту</a><button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>` : '';
+  const btnAgent = s => `<a class="btn soft" href="${esc(agentLink(s))}"${ablank()} title="${isEx(s) ? 'Агенты эксклюзивов, их контакты, «Написать всем» — только для вас' : 'Собственники, «Написать всем», переписка, кто ответил — только для вас'}">🔗 Ссылка агенту</a>`;
+  const btnExt = s => s.link ? `<button class="btn ghost" data-extend="${s.id}" title="Ссылка клиенту будет действовать ещё 30 дней">Продлить</button>` : '';
+  const kidBtn = s => s.kid ? `<a class="btn soft ok" href="${esc(s.kid.link || rel(`s.html#id=${s.kid.id}&a=1`))}" target="_blank" rel="noopener" title="${esc(s.kid.title || '')}">✓ Проверенная подборка</a>` : '';
+  const more = s => {
+    const L = [s.link && s.live && navigator.share && `<button class="btn ghost" data-share="${esc(s.link)}">Поделиться</button>`,
+      s.url && `<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener" data-url="${esc(s.url)}">PDF клиенту</a>`,
+      ...(isEx(s) ? [`<a class="btn ghost" href="excl.html#sel=${s.nums.join(',')}">💎 В подборку</a>`] : [
+        s.url_agent && `<a class="btn ghost" href="${esc(s.url_agent)}" target="_blank" rel="noopener" data-url="${esc(s.url_agent)}" title="Старый PDF агенту — хранится 7 дней, новые не делаются">PDF агенту</a>`,
+        `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`,
+        `<button class="btn ghost" data-rk="${s.nums.join(',')}">📣 В рекламу</button>`,
+        `<button class="btn ghost" data-video="${s.nums.slice(0, 10).join(',')}">🎬 Ролик</button>`]),
+      `<button class="btn ghost sp-del" data-del="${s.id}">🗑 Удалить подборку</button>`].filter(Boolean).join('');
+    return `<details class="sp-dots"><summary class="btn ghost" title="Ещё действия: поделиться, PDF, в подборку, реклама, ролик, удалить">⋯ Ещё</summary><div class="sp-menu">${L}</div></details>`;
+  };
+  const clFb = s => (s.fb ?? []).filter(f => f.mark === 'yes' || (f.comment && f.mark !== 'no'));
+  const clBtns = (s, all = true) => { const n = new Set(clFb(s).map(f => f.num)).size, any = (s.fb ?? []).length;
+    return isEx(s) || !any ? '' : `${n ? `<a class="btn primary sp-cl" href="${esc(agentLink(s))}&f=cl"${ablank()} title="Страница агента: выбраны объекты, которые клиент отметил «подходит» или о которых спросил; шаблон — с вопросом клиента">✉️ Написать собственникам по отмеченным клиентом (${n})</a>` : ''}${all ? `<button class="btn soft" data-selai="${s.id}" data-t="${esc(s.token ?? (s.link ? String(s.link).split('#')[1] : ''))}">🤖 Позвать помощника ИИ</button>` : ''}`; };
+  const opened = () => new Set(get('spOpen', []));
+  const fbRows = s => (s.fb ?? []).map(f => `<li><span class="sp-n">№ ${f.num}</span>${f.mark === 'yes' ? '<b class="ok">✓ подходит</b>' : f.mark === 'no' ? '<b class="bad">✗ не подходит</b>' : '<b>💬</b>'}<span>${esc(f.what)}</span>${f.comment ? `<span class="muted">«${esc(f.comment)}»</span>` : ''}<small class="muted">${when(f.at)}</small></li>`).join('');
+  const ST = { yes: ['ok', '✓ актуально'], no: ['bad', '✗ не актуально'], sold: ['bad', '✗ продано'], none: ['', '✗ не ответил'], wait: ['', '⏳ ждём'] };
+  const ownRows = (s, marks) => s.nums.map(n => marks?.[n] && { n, m: marks[n] }).filter(Boolean).map(({ n, m }) => `<li><span class="sp-n">№ ${n}</span><b class="${ST[m.st]?.[0] ?? ''}">${ST[m.st]?.[1] ?? esc(m.st)}</b>${m.text ? `<span class="muted">«${esc(String(m.text).slice(0, 120))}»</span>` : ''}${m.unseen ? '<span class="sp-b">новый ответ</span>' : ''}${m.at ? `<small class="muted">${m.st === 'wait' || m.st === 'none' ? 'написали ' : ''}${when(m.at)}</small>` : ''}${m.err ? `<small class="muted">${esc(m.err)}</small>` : m.st === 'wait' && m.next ? `<small class="muted">проверю ${when(m.next)}</small>` : ''}</li>`).join('');
+  // раскрывающаяся часть: key — своя для вкладки (all:12 / own:12 / fb:12), чтобы «Все» и «Отклики» раскрывались независимо
+  const fold = (key, label, n, body) => { if (!n || !body) return ''; const on = opened().has(key);
+    return `<button type="button" class="link sp-tg" data-sptg="${key}" aria-expanded="${on}">${label} (${n}) <span aria-hidden="true">${on ? '▴' : '▾'}</span></button><div class="sp-det"${on ? '' : ' hidden'}>${body}</div>`; };
   const head = s => `<div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${isEx(s) ? '<span class="sp-b ex">💎 эксклюзивы</span>' : ''}${s.checked ? '<span class="sp-b ok" title="Собрана со страницы агента из объектов, где собственник ответил «актуально»">✓ проверенная</span>' : ''}${linkBadge(s)}</div>
     <div class="sp-meta muted">${meta(s)}</div>
     ${s.from ? `<div class="sp-rel muted">Собрана из подборки ${s.from.title ? `«${esc(s.from.title)}»` : `№ ${s.from.id}`}</div>` : ''}`;
   function cardAll(s, marks) {
-    const o = ownSum(s, marks), f = fbLine(s);
-    return `<article class="sp-card">${head(s)}${f || o ? `<div class="sp-st">${f ? `<span>${f}</span>` : ''}${o ? `<span>${ownLine(o)}</span>` : ''}</div>` : ''}<div class="sp-acts">${acts(s)}</div></article>`;
+    const o = ownSum(s, marks), f = fbLine(s), rows = fbRows(s), orows = o ? ownRows(s, marks) : '';
+    const det = `${rows ? `<div class="sp-sub">Отклики клиента</div><ul class="sp-rows">${rows}</ul>` : ''}${orows ? `<div class="sp-sub">Ответы собственников</div><ul class="sp-rows">${orows}</ul>` : ''}${clBtns(s) ? `<div class="sp-acts">${clBtns(s)}</div>` : ''}`;
+    return `<article class="sp-card" data-sid="${s.id}">${head(s)}${f || o ? `<div class="sp-st">${f ? `<span>${f}</span>` : ''}${o ? `<span>${ownLine(o)}</span>` : ''}</div>` : ''}
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${kidBtn(s)}${btnExt(s)}${more(s)}</div>${fold(`all:${s.id}`, 'Показать отклики', (s.fb ?? []).length + (o?.sent ?? 0), det)}</article>`;
   }
-  const ST = { yes: ['ok', '✓ актуально'], no: ['bad', '✗ не актуально'], sold: ['bad', '✗ продано'], none: ['', '✗ не ответил'], wait: ['', '⏳ ждём'] };
   function cardOwn(s, marks) {
     const o = ownSum(s, marks);
-    const rows = s.nums.map(n => marks?.[n] && { n, m: marks[n] }).filter(Boolean).map(({ n, m }) => `<li><span class="sp-n">№ ${n}</span><b class="${ST[m.st]?.[0] ?? ''}">${ST[m.st]?.[1] ?? esc(m.st)}</b>${m.text ? `<span class="muted">«${esc(String(m.text).slice(0, 120))}»</span>` : ''}${m.unseen ? '<span class="sp-b">новый ответ</span>' : ''}${m.at ? `<small class="muted">${m.st === 'wait' || m.st === 'none' ? 'написали ' : ''}${when(m.at)}</small>` : ''}${m.err ? `<small class="muted">${esc(m.err)}</small>` : m.st === 'wait' && m.next ? `<small class="muted">проверю ${when(m.next)}</small>` : ''}</li>`).join('');
-    return `<article class="sp-card">${head(s)}<div class="sp-st"><span>${ownLine(o)}</span></div><ul class="sp-rows">${rows}</ul>
-      <div class="sp-acts"><a class="btn primary" href="${esc(agentLink(s))}"${ablank()}>Открыть ссылку агента</a>${s.kid ? `<a class="btn soft ok" href="${esc(s.kid.link || rel(`s.html#id=${s.kid.id}&a=1`))}" target="_blank" rel="noopener">✓ Проверенная подборка</a>` : ''}</div></article>`;
+    return `<article class="sp-card" data-sid="${s.id}">${head(s)}<div class="sp-st"><span>${ownLine(o)}</span></div>
+      <div class="sp-acts"><a class="btn primary" href="${esc(agentLink(s))}"${ablank()}>Открыть ссылку агента</a>${kidBtn(s)}${more(s)}</div>${fold(`own:${s.id}`, 'Показать ответы', o.sent, `<ul class="sp-rows">${ownRows(s, marks)}</ul>`)}</article>`;
   }
   function cardFb(s) {
-    const rows = (s.fb ?? []).map(f => `<li><span class="sp-n">№ ${f.num}</span>${f.mark === 'yes' ? '<b class="ok">✓ подходит</b>' : f.mark === 'no' ? '<b class="bad">✗ не подходит</b>' : '<b>💬</b>'}<span>${esc(f.what)}</span>${f.comment ? `<span class="muted">«${esc(f.comment)}»</span>` : ''}<small class="muted">${when(f.at)}</small></li>`).join('');
-    return `<article class="sp-card">${head(s)}<div class="sp-st"><span>${fbLine(s)}</span></div>${rows ? `<ul class="sp-rows">${rows}</ul>` : ''}
-      <div class="sp-acts">${s.live ? `<a class="btn primary" href="${esc(s.link)}" target="_blank" rel="noopener" data-url="${esc(s.link)}">Ссылка клиенту</a><button class="btn soft" data-copy="${esc(s.link)}">Копировать</button>` : ''}
-        <a class="btn soft" href="${esc(agentLink(s))}"${ablank()}>🔗 Ссылка агенту</a>${s.link ? `<button class="btn ghost" data-extend="${s.id}">Продлить</button>` : ''}</div></article>`;
+    const rows = fbRows(s);
+    return `<article class="sp-card" data-sid="${s.id}">${head(s)}<div class="sp-st"><span>${fbLine(s)}</span></div>
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${btnExt(s)}${more(s)}</div>${clBtns(s) ? `<div class="sp-acts sp-clrow">${clBtns(s)}</div>` : ''}${fold(`fb:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${rows}</ul>`)}</article>`;
+  }
+  function toggle(key) {
+    const o = opened(); o.has(key) ? o.delete(key) : o.add(key); put('spOpen', [...o].slice(-200));
+    const b = document.querySelector(`[data-sptg="${CSS.escape(key)}"]`); if (!b) return;
+    const on = o.has(key); b.setAttribute('aria-expanded', on); b.lastElementChild.textContent = on ? '▴' : '▾'; b.nextElementSibling.hidden = !on;
   }
   const EMPTY = {
     all: 'Подборок пока нет. Отметьте объекты галочкой «Выбрать» и нажмите внизу «В подборку»: ссылкой — до 20 объектов, PDF — до 10. Ссылки живут 30 дней (можно продлить), PDF — 7.',
@@ -151,5 +164,5 @@ window.SHARE = (() => {
   }
 
   style();   // стили раздела, окна подборки и «Проверить в рекламе» — сразу (share.js подключён только на главной)
-  return { MAX, formatHtml, format, mount, resultHtml, bind, copy, page, TABS: TABS.map(t => t[0]) };
+  return { MAX, formatHtml, format, mount, resultHtml, bind, copy, page, toggle, TABS: TABS.map(t => t[0]) };
 })();

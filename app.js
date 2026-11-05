@@ -1171,7 +1171,43 @@ async function onSelPage(e) {
     x.disabled = true;
     try { const r = await call('sel_extend', { id: +x.dataset.extend }); toast(`Ссылка продлена до ${new Date(r.until).toLocaleDateString('ru-RU')}`); selCache = null; showSelections(selTab); }
     catch (err) { x.disabled = false; toast(err.message); }
+    return;
   }
+  // v5.31a: свёрнутые карточки — «Показать отклики ▾»; «⋯» — одно меню открыто; «🗑 Удалить подборку» (мягко) и «Вернуть» 8 с; «🤖 Позвать помощника ИИ» (вкладка B)
+  const tg2 = e.target.closest('[data-sptg]'); if (tg2) { SHARE.toggle(tg2.dataset.sptg); return; }
+  const dots = e.target.closest('.sp-dots'); $('#selpage').querySelectorAll('.sp-dots[open]').forEach(d => { if (d !== dots) d.open = false; });
+  const del = e.target.closest('[data-del]'); if (del) { if (dots) dots.open = false; return selDelAsk(+del.dataset.del); }
+  const ai = e.target.closest('[data-selai]');
+  if (ai) {
+    const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null };
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.31b1'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
+  }
+}
+function selDelAsk(id) {
+  const s = selCache?.items?.find(i => i.id === id);
+  sheet('Удалить подборку?', `<p>${s ? `«${esc(s.title)}» — ` : ''}ссылка у клиента перестанет открываться. Отклики сохранятся 30 дней, потом удалятся.</p>
+    <div class="sheet-foot"><button class="btn danger" id="sp-del-go">🗑 Удалить</button><button class="btn ghost" data-close>Отмена</button></div>`);
+  $('#sp-del-go').onclick = async () => {
+    const b = $('#sp-del-go'); b.disabled = true; b.textContent = 'Удаляю…';
+    try {
+      await call('sel_delete', { id });
+      closeSheet();
+      if (selCache) selCache.items = selCache.items.filter(i => i.id !== id);
+      if (selTab) $('#selpage').innerHTML = SHARE.page(selCache, selTab);
+      selUndo(id, s);
+    } catch (err) { b.disabled = false; b.textContent = '🗑 Удалить'; toast(err.message, 5000); }
+  };
+}
+function selUndo(id, s) {
+  $('#sp-undo')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div class="sp-undo" id="sp-undo" role="status"><span>Подборка удалена</span><button type="button" class="btn soft">Вернуть</button></div>`);
+  const el = $('#sp-undo'), t = setTimeout(() => el.remove(), 8000);
+  el.querySelector('button').onclick = async () => {
+    clearTimeout(t); el.remove();
+    try { await call('sel_delete', { id, undo: true }); toast('Подборка возвращена'); selCache = null; if (selTab) showSelections(selTab); }
+    catch (err) { toast(err.message, 5000); }
+  };
 }
 // пункт меню «Мои подборки» открывает раздел (обработчик [data-go] выше); другой пункт меню — уйти из раздела
 document.addEventListener('click', e => { const g = e.target.closest('.top [data-go]'); if (g && selTab && g.dataset.go !== 'sels' && g.dataset.go !== 'client') leaveSelections(); }, true);
