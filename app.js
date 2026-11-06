@@ -356,6 +356,8 @@ function renderFilters() {
   $('#open-areas').classList.toggle('on', !!nd);
   $('#open-zk').textContent = nz ? `ЖК: ${nz}` : 'ЖК';
   $('#open-zk').classList.toggle('on', !!nz);
+  { let h = $('#pick-hint'); if (!h) { h = document.createElement('p'); h.id = 'pick-hint'; h.className = 'zk-hint small'; $('#open-zk').parentElement.after(h); }
+    const t = zkHint(); h.hidden = !t; h.textContent = t; }   // v5.41: «ЖК сужает свой район» — видно без инструкции
   const n = Object.keys(f).filter(k => k !== 'al' && f[k] !== undefined && !(Array.isArray(f[k]) && !f[k].length)).length;
   // улица или дом из подсказки строки поиска — значок под строкой, ✕ снимает
   $('#q-place').innerHTML = f.a ? `<button type="button" class="chip on" data-x="a">📍 ${esc(f.al || 'улица')} ✕</button>` : '';
@@ -507,9 +509,11 @@ $('#open-areas').onclick = () => {
       const subs = q && !has(r.name) ? r.subs.filter(s => has(s[1])) : r.subs;
       if (q && !subs.length && !has(r.name)) return '';
       const all = on(r.k);
+      const zs = arr('zk').map(zkById).filter(Boolean), mark = l => l.length ? ` <b class="zk-mark" title="${esc(l.map(z => z.name).join(', '))}">ЖК: ${l.length}</b>` : '';
+      const withMark = (html, k) => html.replace('</span>', mark(zs.filter(z => zkIn(z, [k]))) + '</span>');
       return `<div class="tr${q || open.has(r.k) ? ' open' : ''}" data-r="${esc(r.k)}"><div class="tr-h">
-        ${r.subs.length ? '<button type="button" class="tr-t" data-t aria-label="Микрорайоны"></button>' : '<span class="tr-t none"></span>'}${opt('d', r.k, r.name, all, r.n || '')}</div>
-        ${subs.length ? `<div class="tr-subs">${subs.map(([k, name, n]) => opt('d', k, name, all || on(k), n ?? '', all)).join('')}</div>` : ''}</div>`;
+        ${r.subs.length ? '<button type="button" class="tr-t" data-t aria-label="Микрорайоны"></button>' : '<span class="tr-t none"></span>'}${withMark(opt('d', r.k, r.name, all, r.n || ''), r.k)}</div>
+        ${subs.length ? `<div class="tr-subs">${subs.map(([k, name, n]) => withMark(opt('d', k, name, all || on(k), n ?? '', all), k)).join('')}</div>` : ''}</div>`;
     }).join('') || '<p class="muted">Не нашёл такой район</p>';
   };
   $('#ar-find').oninput = draw; draw();
@@ -527,15 +531,57 @@ $('#open-areas').onclick = () => {
   $('#s-clear').onclick = () => { delete f.d; fchg(); draw(); };
 };
 $('#open-zk').onclick = () => {
-  sheet('ЖК', `<input id="zk-find" type="search" placeholder="Найти ЖК"><div id="zk-list"></div>
+  sheet('ЖК', `<p id="zk-hint" class="zk-hint" hidden></p><input id="zk-find" type="search" placeholder="Найти ЖК"><div id="zk-list"></div>
     <div class="sheet-foot"><button class="btn ghost" id="s-clear">Сбросить</button><button class="btn primary" data-close>Готово</button></div>`);
+  // v5.41: выбраны районы — сверху ЖК этих районов, ниже свёрнуто «Другие ЖК»; поиск ищет везде; у каждого ЖК серым — где он
+  let more = false;
+  const row = z => opt('zk', z.id, z.name, arr('zk').includes(z.id), z.n).replace('</span>', zkWhere(z) ? `<small class="zk-where">${esc(zkWhere(z))}</small></span>` : '</span>');
   const draw = () => {
-    const q = $('#zk-find').value.trim().toLowerCase();
-    $('#zk-list').innerHTML = meta.zk.filter(z => !q || z.name.toLowerCase().includes(q)).map(z => opt('zk', z.id, z.name, arr('zk').includes(z.id), z.n)).join('') || '<p class="muted">Не нашёл такой ЖК</p>';
+    const q = $('#zk-find').value.trim().toLowerCase().replace(/ё/g, 'е');
+    const list = meta.zk.filter(z => !q || z.name.toLowerCase().replace(/ё/g, 'е').includes(q));
+    const sel = arr('d'), split = sel.length && zkHasA();
+    const hint = zkHint(); $('#zk-hint').hidden = !hint; $('#zk-hint').textContent = hint;
+    if (!list.length) { $('#zk-list').innerHTML = '<p class="muted">Не нашёл такой ЖК</p>'; return; }
+    if (!split) { $('#zk-list').innerHTML = list.map(row).join(''); return; }
+    const inA = list.filter(z => zkIn(z, sel)), other = list.filter(z => !zkIn(z, sel));
+    const open = more || !!q || !inA.length || other.some(z => arr('zk').includes(z.id));
+    $('#zk-list').innerHTML = `<div class="zk-gh">ЖК в выбранных районах: ${esc(sel.map(areaName).join(', '))}</div>`
+      + (inA.map(row).join('') || '<p class="muted">В выбранных районах ЖК не нашёл</p>')
+      + (other.length ? `<details class="zk-other"${open ? ' open' : ''}><summary>Другие ЖК (${other.length})</summary>${other.map(row).join('')}</details>` : '');
+    $('#zk-list').querySelector('.zk-other')?.addEventListener('toggle', e => { more = e.target.open; });
   };
   $('#zk-find').oninput = draw; draw();
   bindChecks('zk', true);
+  const ch = $('#sheet-body').onchange;   // подсказка сверху меняется сразу после галочки
+  $('#sheet-body').onchange = e => { ch(e); const h = zkHint(); $('#zk-hint').hidden = !h; $('#zk-hint').textContent = h; };
 };
+// v5.41: где стоит ЖК (meta.zk[].a — ключи мест: d:район, s:микрорайон, z:зона). Пока сервер не прислал a — всё как раньше
+const zkHasA = () => (meta?.zk ?? []).some(z => z.a?.length);
+const zkById = id => (meta?.zk ?? []).find(z => z.id === id);
+function parentOf(k) {
+  for (const r of meta.regions ?? []) if (r.k === k || r.subs.some(s => s[0] === k)) return r.k;
+  return null;
+}
+// ЖК подходит к выбранному месту: тот же ключ; к району — и ЖК в любом его микрорайоне
+const zkIn = (z, keys) => keys.some(k => (z.a ?? []).includes(k) || (k.startsWith('d:') && (z.a ?? []).some(a => parentOf(a) === k)));
+// подпись «Завокзальный · Центральный»: главный микрорайон и его район; ЖК на границе — «+1» (ещё район)
+function zkWhere(z) {
+  const a = z.a ?? [], s = a.find(k => k.startsWith('s:')), d = (s && parentOf(s)) || a.find(k => k.startsWith('d:'));
+  const ds = new Set(a.filter(k => k.startsWith('d:'))); if (d) ds.delete(d);
+  const l = [s, d].filter(Boolean).map(areaName);
+  if (!l.length && a.length) l.push(areaName(a[0]));
+  return l.join(' · ') + (ds.size ? ` +${ds.size}` : '');
+}
+// одна строка-подсказка, когда выбраны и районы, и ЖК: «Центральный → только Альпийский квартал · Хостинский — целиком»
+function zkHint() {
+  const sel = arr('d'), zs = arr('zk').map(zkById).filter(Boolean);
+  if (!sel.length || !zs.length || !zkHasA()) return '';
+  const names = l => l.slice(0, 2).map(z => z.name).join(', ') + (l.length > 2 ? ` и ещё ${l.length - 2}` : '');
+  const parts = sel.map(k => { const l = zs.filter(z => zkIn(z, [k])); return l.length ? `${areaName(k)} → только ${names(l)}` : `${areaName(k)} — целиком`; });
+  const out = zs.filter(z => !zkIn(z, sel));
+  if (out.length) parts.push(`+ ${names(out)}`);
+  return parts.join(' · ');
+}
 function bindChecks(key, num) {
   $('#sheet-body').onchange = e => { const i = e.target; if (i.name !== key) return; toggleIn(key, num ? +i.value : i.value); fchg(); };
   $('#s-clear').onclick = () => { delete f[key]; fchg(); $('#sheet-body').querySelectorAll('input[type=checkbox]').forEach(i => i.checked = false); };
