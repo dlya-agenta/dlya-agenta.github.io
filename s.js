@@ -190,7 +190,7 @@
   });
 
   // ---------- v5.31a (п. 1 Алексея): карта подборки. Координаты — отдельным запросом sel_map и только при открытии карты.
-  // Адрес скрыт агентом — сервер отдаёт только центр улицы: круг ~300 м и подпись «… (точный адрес — у агента)»; адрес открыт — точка объекта.
+  // v5.31f: адрес скрыт — одна отметка на улице ~200 м от дома (раньше: центр улицы и круг ~300 м и подпись «… (точный адрес — у агента)»; адрес открыт — точка объекта.
   let mapData = null, mapObj = null;
   const loadJs = src => new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = no; document.head.appendChild(el); });
   async function leaflet() {
@@ -246,12 +246,11 @@
     for (const g of groups.values()) {
       const p = g[0], list = g.map(q => `№ ${q.num} — ${info(byNum.get(q.num))}`).join('<br>');
       if (p.kind === 'street') {
-        const c = L.circle([p.lat, p.lon], { radius: p.r || 300, color: acc, weight: 2, fillColor: acc, fillOpacity: .18 }).addTo(mapObj)
-          .bindPopup(`<div class="s-pop"><p class="s-pop-st">${esc(p.label || 'Улица')}</p><small>точный адрес — у агента</small><br>${list}</div>`);
-        c.bindTooltip(`${esc(p.label || 'улица')} (точный адрес — у агента)`, { direction: 'top', sticky: true });
-        // на мелком масштабе круг 300 м почти не виден — метка в центре круга (сервер уже сдвинул центр от дома на 120–220 м)
-        L.circleMarker([p.lat, p.lon], { radius: 7, color: acc, weight: 2, fillColor: '#fff', fillOpacity: .9 }).addTo(mapObj).bindPopup(c.getPopup());
-        layers.push(c);
+        // v5.31f (Алексей 06.11): адрес скрыт — без круга и без «точный адрес — у агента»: одна отметка на улице (~200 м от дома, сервер), подпись — улица и микрорайон
+        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
+          .bindPopup(`<div class="s-pop">${p.label ? `<p class="s-pop-st">${esc(p.label)}</p>` : ''}${list}</div>`);
+        if (p.label) m.bindTooltip(esc(p.label), { direction: 'top' });
+        layers.push(m);
       } else {
         const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
           .bindPopup(`<div class="s-pop">${list}<br><small>${esc(p.label || '')}</small></div>`);
@@ -260,7 +259,7 @@
     }
     if (layers.length) {
       const b = L.featureGroup(layers).getBounds();
-      if (layers.length === 1) mapObj.setView(b.getCenter(), ok[0].kind === 'street' ? 15 : 16); else mapObj.fitBounds(b.pad(.15), { maxZoom: 15 });
+      if (layers.length === 1) mapObj.setView(b.getCenter(), 16); else mapObj.fitBounds(b.pad(.15), { maxZoom: 15 });
       if (num && layers.length === 1) layers[0].openPopup();
     }
     const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
