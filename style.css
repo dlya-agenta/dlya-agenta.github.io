@@ -944,3 +944,19 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 /* v5.26: подсказка «где посмотреть @ник» в регистрации */
 .gate details.tip{margin:-4px 0 4px;font-size:14px}.gate details.tip summary{cursor:pointer;color:var(--accent,#1453d8);list-style:none}
 .gate details.tip summary::before{content:'ⓘ ';}.gate details.tip p{margin:6px 0 0;text-align:left}
+
+/* v5.39 (Алексей 06.11: «границы всех полей более выраженные — не только в чатах, но и в объявлениях»): заметные рамки полей и карточек во всех стилях сайта.
+   Своими переменными (--field-line, --line2 — их не задаёт ни один design-*.css) и повышенной специфичностью (html …) — стиль сайта не возвращает бледные рамки.
+   Карточки и секции — обводкой outline (её не трогает ни одна тема: у «Классики» полоса сверху, у «Дюны»/«Премиума» своя рамка — остаются). */
+:root { --field-line: color-mix(in srgb, var(--text) 34%, transparent); --line2: color-mix(in srgb, var(--text) 20%, transparent); }
+html input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]):not([type=hidden]), html select, html textarea {
+  border: 1.5px solid var(--field-line); }
+html input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):hover, html select:hover, html textarea:hover { border-color: color-mix(in srgb, var(--text) 50%, transparent); }
+html input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):focus, html select:focus, html textarea:focus {
+  border-color: var(--accent); outline: 3px solid color-mix(in srgb, var(--accent) 26%, transparent); outline-offset: 0; }
+html input::placeholder, html textarea::placeholder { color: color-mix(in srgb, var(--text) 48%, transparent); opacity: 1; }
+html input[type=checkbox], html input[type=radio] { accent-color: var(--accent); }
+html .card:not(.itemv), html .hub-sec, html .hub-card, html .filters, html .views, html .ucard { outline: 1px solid var(--line2); outline-offset: -1px; }
+html .chip { border-color: var(--line2); }
+html .chip.on { border-color: transparent; }
+html .iv-tools, html .iv-descr { border-color: var(--line2); }

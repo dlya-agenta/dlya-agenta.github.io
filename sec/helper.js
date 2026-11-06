@@ -44,7 +44,7 @@
         <form class="hub-ask" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
           ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
           <button class="btn primary" id="h-go">Отправить</button></form>
-        <div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+        <div class="ex-box"><p class="ex-h">💡 Примеры просьб — нажмите, чтобы вставить</p><div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
         <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
         <div id="h-turns"></div></section></div>`;
     el.onclick = onClick; el.onchange = onChange;

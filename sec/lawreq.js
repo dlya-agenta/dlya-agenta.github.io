@@ -60,14 +60,18 @@ window.LAWREQ = (() => {
     document.body.appendChild(el);
     el.addEventListener('click', e => { if (e.target === el || e.target.closest('[data-x]')) close(); });
     document.addEventListener('keydown', onKey);
-    M = { el, ctx, off: new Set(), on: new Set() };
+    const m = M = { el, ctx, off: new Set(), on: new Set() };
     el.querySelector('.lq').addEventListener('click', onClick);
     el.querySelector('.lq').addEventListener('change', onChange);
     el.querySelector('.lq').addEventListener('input', e => { if (e.target.matches('[data-msg]')) M.edited = true; });
-    try { M.d = await load(); } catch (e) {
+    let d;
+    try { d = await load(); } catch (e) {
+      if (M !== m) return;   // окно уже закрыли или открыли другое
       if (e?.code === 'limit' && window.LAWR?.fail) { close(); return window.LAWR.fail(e); }
       el.querySelector('.lq-b').innerHTML = `<p class="err">${esc(e.message)}</p>`; return;
     }
+    if (M !== m) return;
+    M.d = d;
     M.stage = Object.keys(M.d.stages)[0];
     M.flags = { ...(M.d.flags ?? {}) };
     if (M.ctx.phone) M.d.phone ??= M.ctx.phone;

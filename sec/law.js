@@ -64,7 +64,7 @@
     p.innerHTML = `<section class="hub-sec dl-sec law">
         <div class="hub-msgs law-msgs" id="l-msgs">${st.msgs.length ? st.msgs.map(m => msg(m.who, m.text)).join('') : `<p class="muted">Задайте вопрос текстом или голосом 🎤 — ИИ ответит как ${c.title === 'Юрист' ? 'юрист по сделкам с недвижимостью' : 'ипотечный брокер'}. Пишите подробно: цифры, сроки, кто собственники.</p>`}</div>
         ${seenLine()}
-        <div class="law-ex">${c.ex.map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+        <div class="ex-box"><p class="ex-h">💡 Примеры вопросов — нажмите, чтобы вставить</p><div class="law-ex">${c.ex.map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>
         <div class="law-in"><textarea id="l-q" rows="3" maxlength="6000" placeholder="${esc(c.ph)}"></textarea>
           ${H.voiceOk() ? '<button type="button" class="btn soft law-mic" id="l-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}</div>
         <p class="hub-actions"><button class="btn primary" id="l-go">Спросить <small data-left="q"></small></button>${st.msgs.length ? '<button class="btn ghost" id="l-clear">Очистить историю</button>' : ''}
@@ -119,7 +119,8 @@
     tab('ask');
     S.el.querySelector('#l-q')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
-  const msg = (who, text) => `<div class="hub-msg ${who === 'ai' ? 'ai' : 'user'}">${who === 'ai' ? H.md(text) : esc(text).replace(/\n/g, '<br>')}</div>`;
+  // v5.39: подпись роли у ответа ИИ (стиль — hub.css .hub-msg[data-who]), «Вы» у вопроса агента
+  const msg = (who, text) => `<div class="hub-msg ${who === 'ai' ? 'ai' : 'user'}"${who === 'ai' ? ` data-who="${esc(`${R[S?.role]?.icon ?? '⚖️'} ${R[S?.role]?.title ?? 'Юрист'}`)}"` : ''}>${who === 'ai' ? H.md(text) : esc(text).replace(/\n/g, '<br>')}</div>`;
 
   // ---------- 📎 документы и проверка ----------
   function docsTab(p) {
@@ -186,7 +187,7 @@
         <div class="lw-kind" role="radiogroup" aria-label="Что проверить">${[['object', '🏠 Объект'], ['owner', '🧑 Собственника']].map(([k, t]) =>
           `<button type="button" class="lw-tab${S.kind === k ? ' on' : ''}" data-kind="${k}" role="radio" aria-checked="${S.kind === k}">${t}</button>`).join('')}</div>
         <button class="btn primary lw-check" data-check>🔎 Проверить ${S.kind === 'owner' ? 'собственника' : 'объект'} <small data-left="check">${esc(leftTxt('check'))}</small></button>
-        <button class="btn ghost" data-newb>Новый пакет</button></div>
+        <button class="btn ghost" data-newb>Новый пакет</button>${(b.docs ?? []).length ? '<button class="btn ghost bad" data-clear>🗑 Очистить все файлы</button>' : ''}</div>
       <p class="hint">Проверка по документам и открытым источникам — 1–2 минуты. Где нужна капча или плата (ФССП, суды, выписка ЕГРН) — дадим ссылку, проверьте сами.</p>`;
   }
   const drawBatch = () => { const box = S.el.querySelector('#lw-batch'); if (box) box.innerHTML = S.batch ? batchHtml(S.batch) : ''; setQ(); };
@@ -241,6 +242,12 @@
     if (op) { try { const r = await H.call('law_doc_url', { id: +op.dataset.open }); window.open(r.url, '_blank', 'noopener'); } catch (er) { fail(er); } return; }
     const dl = t.closest('[data-del]');
     if (dl) { if (!confirm('Удалить документ? Файл удалится из хранилища.')) return; try { S.batch = await H.call('law_doc_del', { id: +dl.dataset.del }); if (!S.batch?.docs?.length) S.batch = null; docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); } return; }
+    if (t.closest('[data-clear]')) {   // v5.39: все файлы пакета — одной кнопкой (law_batch_clear), отчёты остаются
+      const n = (S.batch?.docs ?? []).length;
+      if (!confirm(`Удалить все файлы пакета (${n})? Файлы удалятся из хранилища, разбор юриста — тоже. Отчёты проверок останутся.${S.batch?.deal_id ? ' Документы самой сделки не удаляются.' : ''}`)) return;
+      try { const r = await H.call('law_batch_clear', { batch: S.batch.id }); S.batch = null; S.ans = {}; H.toast(`Удалено файлов: ${r.removed}`); docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); }
+      return;
+    }
     if (t.closest('[data-newb]')) { if (!confirm('Начать новый пакет документов? Это новая загрузка из лимита месяца.')) return; S.batch = null; S.ans = {}; docsTab(S.el.querySelector('#lw-p')); return; }
     const rp = t.closest('[data-rep]');
     if (rp) { try { const r = await H.call('law_report', { id: rp.dataset.rep }); showRep(r.id ?? rp.dataset.rep, r.report); } catch (er) { fail(er); } return; }

@@ -50,6 +50,32 @@
     .dl-sc, #d-drf, #d-sc, .dl-now, .dl-lawchk { scroll-margin-top: 110px; }
     .dl-drf-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
     @media (max-width: 760px) { .dl-now-g { grid-template-columns: minmax(0, 1fr); } .dl-now { padding: 10px; } }
+    .dl-top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-start; justify-content: space-between; } .dl-top > div { min-width: 0; flex: 1 1 260px; } .dl-top h2 { overflow-wrap: anywhere; }
+    .dl-sub { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 0 0; font-size: 14px; }
+    .dl-sub .dl-st { font-weight: 700; border-radius: 999px; padding: 2px 10px; background: var(--soft, rgba(37,99,235,.1)); }
+    .dl-late { color: #c62828; font-weight: 700; } html[data-theme="dark"] .dl-late { color: #f87171; } @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .dl-late { color: #f87171; } }
+    .dl-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; margin: 12px 0 14px; padding: 4px 2px 6px; border-bottom: 2px solid var(--line, rgba(127,127,127,.25)); -webkit-overflow-scrolling: touch; }
+    .dl-tab { flex: 0 0 auto; white-space: nowrap; border: 1.5px solid var(--line, rgba(127,127,127,.35)); background: var(--card, transparent); color: inherit; border-radius: 12px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+    .dl-tab:hover { border-color: var(--accent, #1453d8); }
+    .dl-tab.on { background: var(--accent, #1453d8); border-color: var(--accent, #1453d8); color: var(--accent-text, #fff); }
+    .dl-tc { display: inline-block; min-width: 20px; text-align: center; font-size: 12px; border-radius: 999px; padding: 1px 6px; margin-left: 4px; background: rgba(127,127,127,.2); }
+    .dl-tab.on .dl-tc { background: rgba(255,255,255,.25); }
+    [data-pane][hidden] { display: none !important; }
+    .dl-when { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; }
+    .dl-at, .dl-tadd { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; } .dl-at .field { flex: 0 1 260px; } .dl-tadd input { flex: 1 1 220px; min-width: 0; } .dl-tadd input[type="datetime-local"] { flex: 0 1 220px; }
+    .dl-tasks { display: grid; gap: 6px; margin: 6px 0 10px; }
+    .dl-task { display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--line, rgba(127,127,127,.3)); border-radius: 12px; padding: 8px 10px; background: var(--card, transparent); }
+    .dl-task.late { border-color: rgba(198,40,40,.55); } .dl-task.done { opacity: .65; } .dl-task.done b { text-decoration: line-through; }
+    .dl-tk { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 auto; min-width: 0; cursor: pointer; } .dl-tk input { width: 20px; height: 20px; margin-top: 2px; flex: 0 0 auto; }
+    .dl-tk span { min-width: 0; overflow-wrap: anywhere; } .dl-tk small, .dl-pi small { display: block; opacity: .85; margin-top: 2px; }
+    .dl-plist { display: grid; gap: 8px; }
+    .dl-pi { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px 10px; align-items: start; border: 1px solid var(--line, rgba(127,127,127,.3)); border-radius: 12px; padding: 10px 12px; cursor: pointer; background: var(--card, transparent); }
+    .dl-pi input { width: 19px; height: 19px; margin-top: 2px; } .dl-pi span { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
+    .dl-pi .dl-who2 { font-weight: 700; opacity: 1; margin: 0 0 2px; } .dl-pi.set { border-color: rgba(22,163,74,.5); } .dl-pi.past { opacity: .6; }
+    .dl-set { font-weight: 700; color: #15803d; white-space: nowrap; font-size: 13px; } html[data-theme="dark"] .dl-set { color: #4ade80; } @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .dl-set { color: #4ade80; } }
+    [data-pane] { display: grid; gap: 12px; min-width: 0; } [data-pane][hidden] { display: none; }
+    @media (max-width: 600px) { .dl-pi { grid-template-columns: 22px minmax(0, 1fr); } .dl-pi .dl-set { grid-column: 2; } .dl-tab { padding: 8px 12px; } }
+    .dl-calbox ol { padding-left: 20px; } .dl-calbox li { margin: 4px 0; }
   </style>`);
   const pct = st => st === 'lost' ? 100 : Math.round((Math.max(0, FLOW.indexOf(st)) + 1) / FLOW.length * 100);
 
@@ -60,7 +86,7 @@
     if (arg?.startsWith('new')) { const num = arg.split(':')[1]; const r = await H.call('deal_save', { title: num ? `Объект № ${num}` : 'Новая сделка', num: num ? +num : undefined }); location.hash = `deal=${r.deal.id}`; return; }
     if (arg) {   // v5.38: #deal=14:drf:pdkp,zadatok — конструктор с отмеченными шаблонами; #deal=14:sc:bank_no — сценарий исхода
       const [id, what, val] = String(arg).split(':');
-      return card(+id, what === 'drf' || what === 'sc' ? { [what]: val ?? '' } : null);
+      return card(+id, what === 'drf' || what === 'sc' ? { [what]: val ?? '' } : what ? { tab: what } : { tab: 'main' });   // v5.39: #deal=14:tasks — вкладка
     }
     const r = await H.call('deal_list');
     el.innerHTML = `<div class="dl-head"><h2>📑 Сделки</h2><button class="btn primary" data-new>＋ Новая сделка</button></div>${H.star()}
@@ -68,6 +94,7 @@
       <div class="dl-list">${r.deals.map(d => `<a class="dl-item${d.stage === 'lost' ? ' lost' : d.stage === 'done' ? ' done' : ''}" href="#deal=${d.id}">
         <b>${esc(d.title)}</b><small>${esc(kb.kinds.find(k => k.id === d.kind)?.name ?? '')}</small>
         <span class="dl-bar" aria-hidden="true"><i style="width:${pct(d.stage)}%"></i></span>
+        ${d.deal_at || d.next ? `<small class="dl-when">${d.deal_at ? `🗓 Сделка: <b>${esc(dtTxt(d.deal_at))}</b>` : ''}${d.next ? `<span class="${lateDays(d.next.due_at) ? 'dl-late' : ''}">⏰ ${esc(d.next.text.slice(0, 70))}${d.next.due_at ? ` · ${esc(dtTxt(d.next.due_at))}` : ''}</span>` : ''}</small>` : ''}
         <small class="dl-meta"><span class="dl-st">${esc(r.stages[d.stage])}</span><span>${H.when(d.updated_at)}</span></small></a>`).join('') || '<p class="muted">Сделок пока нет — нажмите «＋ Новая сделка».</p>'}</div>
       <section class="hub-sec dl-sec"><h3>📚 База знаний: виды сделок, расчёты, проверка собственника</h3><div id="d-kb"></div></section>`;
     window.KB?.render(el.querySelector('#d-kb'), kb);
@@ -84,62 +111,159 @@
       <details class="dl-plan"><summary>План для вида «${esc(k.name)}» (${k.stages.length} шагов)</summary><ol>${k.stages.map(s => `<li>${esc(s)}</li>`).join('')}</ol></details>`;
   }
 
+  // v5.39 (Алексей 06.11): каждая сделка — своя страница со вкладками; ссылка #deal=<id>:<вкладка>, переключение без перезагрузки
+  const TABS = [['main', '🧭 Обзор'], ['docs', '📎 Документы и проверка'], ['drf', '📝 Составить документы'], ['chat', '💬 Чаты'], ['tasks', '⏰ Задачи и напоминания']];
+  let tabNow = 'main';
+  const mskIn = iso => iso ? new Date(Date.parse(iso) + 3 * 3600e3).toISOString().slice(0, 16) : '';   // для <input type="datetime-local"> — время МСК
+  const mskOut = v => v ? `${v}:00+03:00` : null;
+  const dtTxt = iso => iso ? new Date(iso).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  const lateDays = iso => { if (!iso) return 0; const n = Math.floor((Date.now() - Date.parse(iso)) / 864e5); return n > 0 ? n : 0; };
+  function setTab(k, scroll = true) {
+    if (!el.querySelector(`.dl-tabs [data-tab="${k}"]`)) k = 'main';   // ревью v5.39: вкладки нет (конструктор не загрузился) — «Обзор», а не пустая страница
+    tabNow = k;
+    el.querySelectorAll('.dl-tabs [data-tab]').forEach(b => { const on = b.dataset.tab === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); if (on && b.parentElement) b.parentElement.scrollLeft = Math.max(0, b.offsetLeft - 8); });   /* только полоса вкладок вбок — страницу не дёргаем */
+    el.querySelectorAll('[data-pane]').forEach(x => { x.hidden = x.dataset.pane !== k; });
+    try { history.replaceState(null, '', `#deal=${cur.deal.id}${k === 'main' ? '' : `:${k}`}`); } catch { /* */ }
+    const nw = el.querySelector('[data-newtab]'); if (nw) nw.href = `hub.html#deal=${cur.deal.id}${k === 'main' ? '' : `:${k}`}`;
+    if (k === 'tasks') loadPlan();
+    if (scroll) el.querySelector('.dl-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function card(id, go) {
     const r = await H.call('deal_get', { id });
     cur = r;
     const d = r.deal, k = kb.kinds.find(x => x.id === d.kind) ?? kb.kinds[0], ch = d.checklist ?? {}, pay = kb.pay.find(x => x.id === d.pay);
     const box = (key, text) => `<label class="hub-chk"><input type="checkbox" data-ck="${esc(key)}"${ch[key] ? ' checked' : ''}> <span>${esc(text)}</span></label>`;
     const col = (icon, title, keys) => `<div class="dl-col" data-col><div class="dl-col-h"><b>${icon} ${title}</b><span class="dl-cnt" data-cnt></span></div>${keys.join('')}</div>`;
-    const o = r.object;
+    const o = r.object, tasksOpen = (r.tasks ?? []).filter(t => !t.done_at), late = tasksOpen.filter(t => lateDays(t.due_at) > 0).length;
+    const tab = go?.tab ?? (go?.drf != null ? 'drf' : go?.sc ? 'main' : tabNow);
+    const cnt = { docs: r.docs.length, tasks: tasksOpen.length };
     el.innerHTML = `<p class="dl-back"><a class="btn ghost" href="#deal">‹ Все сделки</a></p>
-      <div class="dl-head"><h2>📑 ${esc(d.title)}</h2></div>${H.star()}
+      <div class="dl-head dl-top"><div><h2>📑 ${esc(d.title)}</h2>
+        <p class="dl-sub"><span class="dl-st">${esc(kb.stages[d.stage] ?? '')}</span>${d.deal_at ? `<span>🗓 Сделка: <b>${esc(dtTxt(d.deal_at))}</b></span>` : '<button type="button" class="linkish" data-tab-go="tasks">🗓 Поставить дату сделки</button>'}${late ? `<span class="dl-late">⏰ просрочено задач: ${late}</span>` : ''}</p></div>
+        <a class="btn ghost" data-newtab href="hub.html#deal=${d.id}" target="_blank" rel="noopener" title="Открыть эту сделку в новой вкладке браузера">↗ В новой вкладке</a></div>${H.star()}
+      <div class="dl-tabs" role="tablist" aria-label="Разделы сделки">${TABS.filter(([x]) => x !== 'drf' || window.DRAFT).map(([x, t]) =>
+        `<button type="button" role="tab" class="dl-tab" data-tab="${x}">${t}${cnt[x] ? ` <span class="dl-tc">${cnt[x]}</span>` : ''}</button>`).join('')}</div>
 
+      <div data-pane="main">
       <section class="hub-sec dl-sec" id="d-path"><h3>🧭 Этапы сделки</h3>${stepper(d, k)}${pathHtml(d)}</section>
 
       <section class="hub-sec dl-sec"><h3>📋 Основное</h3><div class="hub-form">
         <label class="field">Название<input id="d-title" value="${esc(d.title)}" maxlength="120"></label>
         <label class="field">Вид сделки<select id="d-kind">${opt(kb.kinds, d.kind)}</select></label>
         <label class="field">Расчёт<select id="d-pay">${opt(kb.pay, d.pay)}</select></label>
+        <label class="field">Дата и время сделки (МСК)<input id="d-at" type="datetime-local" value="${esc(mskIn(d.deal_at))}"></label>
         <label class="field hub-wide">Заметки<textarea id="d-note" rows="2" maxlength="4000">${esc(d.note ?? '')}</textarea></label></div>
         <p class="dl-obj">🏠 ${o ? `${esc([o.rooms ? `${o.rooms}-комн.` : '', o.kind ?? o.type_name ?? '', o.area ? `${o.area} м²` : '', o.complex ?? '', o.sub ?? o.district ?? '', o.address ?? ''].filter(Boolean).join(', '))}${o.num ? ` · № ${o.num}` : ''}` : 'Объект не выбран — отправьте его в сделку с карточки объявления или эксклюзива'}</p>
         ${pay ? `<details class="dl-plan"><summary>💳 Как проходит расчёт «${esc(pay.name)}»</summary><p class="hint">${esc(pay.how)}</p>${pay.risks?.length ? `<p class="hint">⚠️ ${pay.risks.map(esc).join('; ')}</p>` : ''}</details>` : ''}
         <p class="hub-actions"><button class="btn primary" data-save>Сохранить</button>
           ${o?.num ? `<a class="btn soft" href="./#o=${o.num}" target="_blank">Открыть объект</a><button class="btn soft" data-rk="${o.num}">📣 В рекламу</button>` : ''}
-          <button class="btn soft" data-invite="lawyer">⚖️ Позвать юриста</button><button class="btn soft" data-invite="broker">🏦 Позвать ипотечного брокера</button><button class="btn ghost bad" data-del>Удалить сделку</button></p></section>
-
-      <section class="hub-sec dl-sec"><h3>✅ Документы и проверки — ${esc(k.name)}</h3>
-        <div class="dl-cols">${col('🧑‍💼', 'Продавец', k.seller.map((s, i) => box(`s${i}`, s)))}${col('🧑', 'Покупатель', k.buyer.map((s, i) => box(`b${i}`, s)))}${col('🔎', 'Проверка собственника', kb.checks.map(c => box(`c_${c.id}`, `${c.name} — ${c.where}`)))}</div>
-        <p class="hint">⚠️ Риски: ${k.risks.map(esc).join('; ')}. Галочки сохраняются сразу.</p>
-      </section>
-
-      ${r.docs_on ? docsSec(r) : ''}
-
-      ${window.DRAFT ? `<section class="hub-sec dl-sec" id="d-drf"><h3>📝 Составить документы</h3>
-        <div class="dl-drf-top"><button class="btn soft" data-drf-read>📖 Подставить из документов сделки</button>
-          <small class="hint">Юрист прочитает документы сделки (до 2 минут) — ФИО, паспорта, кадастровый номер и адрес встанут в поля сами.</small></div>
-        <div id="d-drf-box"></div></section>` : ''}
-
-      ${scenSec(d)}
+          <button class="btn soft" data-invite="lawyer">⚖️ Позвать юриста</button><button class="btn soft" data-invite="broker">🏦 Позвать ипотечного брокера</button><button class="btn ghost bad" data-del>Удалить сделку</button></p>
+        <div id="d-inv"></div></section>
 
       <section class="hub-sec dl-sec"><h3>👥 Участники</h3><div id="d-people">${(r.people.length ? r.people : [{ role: 'agent', name: '' }]).map(personRow).join('')}</div>
         <p class="hub-actions"><button class="btn ghost" data-add-p>＋ Участник</button> <button class="btn soft" data-save-p>Сохранить участников</button></p></section>
 
-      <section class="hub-sec dl-sec dl-compact"><h3>💬 Чат по сделке</h3><p class="hint">Коротко ответьте на вопросы — по ним составим список необходимого и первое сообщение для чатов.</p>
-        <div class="dl-qs">${kb.questions.map(q => `<label class="dl-q"><span>${esc(q.q)}</span><input data-q="${q.id}" maxlength="1000" value="${esc(d.answers?.[q.id] ?? '')}"></label>`).join('')}</div>
-        <p><button class="btn primary" data-chat>Создать 2 чата: с клиентом и без</button></p><div id="d-chat"></div></section>
+      ${scenSec(d)}
+      </div>
 
+      <div data-pane="docs" hidden>
+      <section class="hub-sec dl-sec"><h3>✅ Документы и проверки — ${esc(k.name)}</h3>
+        <div class="dl-cols">${col('🧑‍💼', 'Продавец', k.seller.map((s, i) => box(`s${i}`, s)))}${col('🧑', 'Покупатель', k.buyer.map((s, i) => box(`b${i}`, s)))}${col('🔎', 'Проверка собственника', kb.checks.map(c => box(`c_${c.id}`, `${c.name} — ${c.where}`)))}</div>
+        <p class="hint">⚠️ Риски: ${k.risks.map(esc).join('; ')}. Галочки сохраняются сразу.</p>
+      </section>
+      ${r.docs_on ? docsSec(r) : ''}
+      </div>
+
+      ${window.DRAFT ? `<div data-pane="drf" hidden><section class="hub-sec dl-sec" id="d-drf"><h3>📝 Составить документы</h3>
+        <div class="dl-drf-top"><button class="btn soft" data-drf-read>📖 Подставить из документов сделки</button>
+          <small class="hint">Юрист прочитает документы сделки (до 2 минут) — ФИО, паспорта, кадастровый номер и адрес встанут в поля сами.</small></div>
+        <div id="d-drf-box"></div></section></div>` : ''}
+
+      <div data-pane="chat" hidden>
       <section class="hub-sec dl-sec dl-compact"><h3>🧑‍⚖️ ИИ: юрист и ипотечный брокер по этой сделке</h3>
         <p class="hint">${r.ai.used} из ${r.ai.lim} за сегодня. Опишите подробно: что обсудили, какие вопросы остались, какие документы есть. Отдельный чат без лимита сделки — <a href="#lawyer">⚖️ Юрист</a> · <a href="#broker">🏦 Ипотечный брокер</a>.</p>
-        ${r.msgs.length ? `<div class="hub-msgs">${r.msgs.map(m => `<div class="hub-msg ${m.role}">${m.role === 'ai' ? H.md(m.text) : esc(m.text).replace(/\n/g, '<br>')}</div>`).join('')}</div>` : ''}
+        <div class="hub-msgs" id="d-msgs"${r.msgs.length ? '' : ' hidden'}>${r.msgs.map(m => msgHtml(m.role, m.text)).join('')}</div>
         <div class="law-in"><textarea id="d-ai" rows="3" maxlength="6000" placeholder="Например: продавец получил квартиру по наследству 2 года назад, есть второй наследник-брат… Покупатель берёт ипотеку… Что проверить и какие документы собрать?"></textarea>
           ${H.voiceOk() ? '<button type="button" class="btn soft law-mic" data-mic title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}</div>
-        <p><button class="btn primary" data-ai>Спросить</button></p>${H.star()}</section>`;
+        <p><button class="btn primary" data-ai>Спросить</button></p></section>
+      <section class="hub-sec dl-sec dl-compact"><h3>💬 Чаты с участниками: с клиентом и без</h3><p class="hint">Коротко ответьте на вопросы — по ним составим список необходимого и первое сообщение для чатов.</p>
+        <div class="dl-qs">${kb.questions.map(q => `<label class="dl-q"><span>${esc(q.q)}</span><input data-q="${q.id}" maxlength="1000" value="${esc(d.answers?.[q.id] ?? '')}"></label>`).join('')}</div>
+        <p><button class="btn primary" data-chat>Создать 2 чата: с клиентом и без</button></p><div id="d-chat"></div>${H.star()}</section>
+      </div>
+
+      <div data-pane="tasks" hidden>${tasksPane(r)}</div>`;
     el.onclick = onClick;
     el.onchange = onChange;
     counts();
     drfMount(go?.drf ? go.drf.split(',').filter(Boolean) : []);
+    setTab(tab, false);
     if (go?.drf != null) setTimeout(() => el.querySelector('#d-drf')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     if (go?.sc) scOpen(go.sc);
+  }
+  // чат: подпись, чьё сообщение (стиль — hub.css, поток C)
+  const msgHtml = (role, text) => role === 'ai' ? `<div class="hub-msg ai" data-who="⚖️ Юрист и брокер">${H.md(text)}</div>` : `<div class="hub-msg user" data-who="Вы">${esc(text).replace(/\n/g, '<br>')}</div>`;
+
+  // ревью v5.39: действия с задачами перерисовывают только вкладку задач — конструктор, вопрос ИИ и несохранённые поля других вкладок не теряются
+  async function refreshTasks() {
+    const r = await H.call('deal_get', { id: cur.deal.id }); cur = r;
+    const pane = el.querySelector('[data-pane="tasks"]'); if (pane) pane.innerHTML = tasksPane(r);
+    const n = (r.tasks ?? []).filter(t => !t.done_at).length, tb = el.querySelector('.dl-tabs [data-tab="tasks"]');
+    if (tb) { tb.querySelector('.dl-tc')?.remove(); if (n) tb.insertAdjacentHTML('beforeend', ` <span class="dl-tc">${n}</span>`); }
+    loadPlan();
+  }
+  // ---------- ⏰ задачи и напоминания сделки (v5.39) ----------
+  function taskRow(t) {
+    const late = !t.done_at ? lateDays(t.due_at) : 0;
+    return `<div class="dl-task${t.done_at ? ' done' : ''}${late ? ' late' : ''}" data-task="${t.id}">
+      <label class="dl-tk"><input type="checkbox" data-tk-done${t.done_at ? ' checked' : ''} aria-label="Выполнено"><span><b>${esc(t.text)}</b>
+        <small>${t.due_at ? `🗓 ${esc(dtTxt(t.due_at))}` : 'без срока'}${late ? ` · <span class="dl-late">просрочено ${late} дн.</span>` : ''}${t.done_at ? ' · ✓ выполнено' : ''}</small></span></label>
+      <button type="button" class="btn ghost sm" data-tk-del aria-label="Удалить задачу">✕</button></div>`;
+  }
+  function tasksPane(r) {
+    const d = r.deal, ts = r.tasks ?? [], open = ts.filter(t => !t.done_at), done = ts.filter(t => t.done_at);
+    return `<section class="hub-sec dl-sec"><h3>🗓 Дата сделки</h3>
+        <div class="dl-at"><label class="field">Дата и время (МСК)<input id="d-at2" type="datetime-local" value="${esc(mskIn(d.deal_at))}"></label>
+          <button class="btn primary" data-at-save>Сохранить дату</button>${d.deal_at ? '<button class="btn ghost" data-at-clear>Убрать дату</button>' : ''}</div>
+        <p class="hint">Сделка встанет в задачи «👥 Клиенты и задачи» с напоминанием в бот, на сайт и в календарь телефона. Сменили дату — поставленные напоминания переедут сами.</p></section>
+      <section class="hub-sec dl-sec"><h3>✅ Задачи сделки${open.length ? ` · ${open.length}` : ''}</h3>
+        <div class="dl-tasks">${open.map(taskRow).join('') || '<p class="muted">Открытых задач нет.</p>'}</div>
+        ${done.length ? `<details class="dl-plan"><summary>Выполненные — ${done.length}</summary><div class="dl-tasks">${done.map(taskRow).join('')}</div></details>` : ''}
+        <div class="dl-tadd"><input id="d-tk-text" maxlength="300" placeholder="Новая задача по сделке: например, «Забрать согласие супруга у нотариуса»"><input id="d-tk-due" type="datetime-local" aria-label="Срок">
+          <button class="btn soft" data-tk-add>＋ Задача</button></div></section>
+      <section class="hub-sec dl-sec" id="d-plan"><h3>⚖️🏦 Юрист и ипотечный брокер предлагают поставить напоминания</h3><div id="d-plan-box"><p class="muted">Загрузка…</p></div></section>
+      <section class="hub-sec dl-sec" id="d-cal"><h3>📅 Синхронизировать с телефоном</h3>
+        <p class="hint">Все задачи и даты сделок появятся в календаре телефона с напоминаниями — и обновятся сами, когда вы что-то поменяете здесь.</p>
+        <p class="hub-actions"><button class="btn primary" data-cal>📅 Подключить календарь</button></p><div id="d-cal-box"></div></section>`;
+  }
+  async function loadPlan() {
+    const bx = el.querySelector('#d-plan-box');
+    if (!bx || bx.dataset.done) return;
+    bx.dataset.done = 1;
+    try { drawPlan(await H.call('deal_plan', { deal_id: cur.deal.id })); } catch (er) { bx.innerHTML = `<p class="err">${esc(er.message)}</p>`; }
+  }
+  function drawPlan(p) {
+    const bx = el.querySelector('#d-plan-box'); if (!bx) return;
+    if (!p.items?.length) { bx.innerHTML = `<p class="hint">🗓 ${esc(p.hint ?? 'Поставьте дату и время сделки — юрист и ипотечный брокер предложат напоминания')}</p>`; return; }
+    const free = p.items.filter(x => !x.set && !x.past);
+    bx.innerHTML = `<div class="dl-plist">${p.items.map(x => `<label class="dl-pi${x.set ? ' set' : ''}${x.past && !x.set ? ' past' : ''}">
+        <input type="checkbox" data-pi="${esc(x.id)}"${x.set ? ' checked disabled' : x.past ? ' disabled' : ' checked'}>
+        <span><small class="dl-who2">${x.who === 'Юрист' ? '⚖️' : '🏦'} ${esc(x.who)} · 🗓 ${esc(dtTxt(x.due))}</small><b>${esc(x.text)}</b><small>${esc(x.why)}</small></span>
+        ${x.set ? `<span class="dl-set">✓ стоит <button type="button" class="linkish" data-pi-del="${esc(x.id)}">убрать</button></span>` : x.past ? '<span class="dl-set muted">время прошло</span>' : ''}</label>`).join('')}</div>
+      ${free.length ? `<p class="hub-actions"><button class="btn primary" data-pi-set>⏰ Поставить выбранные (${free.length})</button></p>` : '<p class="hint">✓ Все напоминания поставлены.</p>'}
+      <p class="hint">Напоминание придёт в бот, на сайт и в календарь телефона (если подключён). Это справка — суммы пошлин и комиссий уточните в МФЦ и банке.</p>`;
+  }
+  async function calShow(btn) {
+    const bx = el.querySelector('#d-cal-box'); btn.disabled = true;
+    try {
+      const c = await H.call('cal_get');
+      bx.innerHTML = `<div class="dl-calbox"><p class="hub-actions"><a class="btn primary" href="${esc(c.webcal)}">🍏 iPhone и Mac — подписаться</a>
+          <a class="btn soft" href="${esc(c.google)}" target="_blank" rel="noopener">📅 Google Календарь (Android)</a><button class="btn ghost" data-copy="${esc(c.https)}">📋 Скопировать ссылку</button></p>
+        <ol class="hint"><li><b>iPhone:</b> нажмите «iPhone и Mac — подписаться» → «Подписаться» → «Добавить». Или Настройки → Календарь → Учётные записи → Добавить → Другое → «Подписной календарь» → вставьте ссылку.</li>
+          <li><b>Android:</b> «Google Календарь» → войдите в аккаунт Google телефона → «Добавить». Календарь появится в приложении «Google Календарь» (обновляется раз в несколько часов — так устроен Google).</li>
+          <li>Ссылка личная — не пересылайте её: по ней видны ваши задачи.</li></ol></div>`;
+    } catch { bx.innerHTML = '<p class="hint">📅 Календарь телефона подключится совсем скоро — эта кнопка заработает после обновления сервиса.</p>'; }
+    btn.disabled = false;
   }
   // v5.38: путь до сделки — «что делать сейчас» на текущем этапе, остальные этапы раскрываются; чек-лист — ключи p_<этап>_<i> в d.checklist
   const tplName = id => window.DRAFT?.name?.(id) ?? ({ bron: 'Бронь', avans: 'Аванс', zadatok: 'Задаток', pdkp: 'ПДКП', garant: 'Гарантийное письмо', dkp: 'ДКП', dkp_share: 'ДКП доли',
@@ -180,6 +304,7 @@
   function scOpen(id) {
     const x = el.querySelector(`[data-sc="${CSS.escape(id)}"]`);
     if (!x) return;
+    setTab('main', false);
     x.open = true; x.classList.add('hl'); setTimeout(() => x.classList.remove('hl'), 2500);
     setTimeout(() => x.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
   }
@@ -194,6 +319,7 @@
   function drfPick(tpl) {
     const sec = el.querySelector('#d-drf');
     if (!sec) return;
+    setTab('drf', false);
     if (typeof drf?.select === 'function') drf.select(tpl); else if (!drfPre.includes(tpl)) drfMount([...drfPre, tpl]);
     sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     H.toast(`Отмечено: ${tplName(tpl)} — заполните поля и нажмите «Составить»`, 3500);
@@ -211,7 +337,8 @@
         Проверок сегодня: <b>${r.doc_ai.used} из ${r.doc_ai.lim}</b>. PDF или фото до 10 МБ. Файлы видите вы и приглашённые юрист или брокер; удаляются вместе со сделкой и через 30 дней после её закрытия.</p>
       <div class="dl-docs">${r.docs.map(docRow).join('') || '<p class="muted">Документов пока нет.</p>'}</div>
       <p class="hub-actions"><label class="btn primary dl-up" id="d-up">📎 Загрузить документ<input type="file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" multiple data-doc-file></label>
-        <label class="hub-chk"><input type="checkbox" id="d-autocheck" checked> <span>Сразу проверить ИИ-юристом</span></label></p>
+        <label class="hub-chk"><input type="checkbox" id="d-autocheck" checked> <span>Сразу проверить ИИ-юристом</span></label>
+        ${r.docs.length ? `<button type="button" class="btn ghost bad" data-doc-clear>🗑 Очистить все файлы (${r.docs.length})</button>` : ''}</p>
       ${r.docs.length ? `<div class="dl-lawchk"><p class="hub-actions"><button class="btn primary" data-law-check="object">⚖️ Проверка юриста: объект</button><button class="btn soft" data-law-check="owner">⚖️ Проверка юриста: собственник</button></p>
         <p class="hint">Юрист читает все документы сделки, сервис проверяет паспорт по базе МВД, банкротство и ФНС. Итог — отчёт на экране и два PDF в документах сделки: «Отчёт сервиса» и «Заключение юриста». Считается из «Проверок» тарифа в месяц.</p>
         <div id="d-lawrep"></div></div>` : ''}</section>`;
@@ -259,17 +386,55 @@
   }
   function onChange(e) {
     if (e.target.matches('[data-doc-file]')) { if (e.target.files?.length) upload(e.target.files); return; }
+    if (e.target.matches('[data-tk-done]')) { taskAct(+e.target.closest('[data-task]').dataset.task, e.target.checked ? 'done' : 'undo'); return; }
+    if (e.target.matches('[data-pi]')) { const n = el.querySelectorAll('[data-pi]:checked:not(:disabled)').length, b = el.querySelector('[data-pi-set]'); if (b) { b.disabled = !n; b.textContent = `⏰ Поставить выбранные (${n})`; } return; }
     if (!e.target.matches('[data-ck]')) return;
     counts();
     clearTimeout(saveT);
     saveT = setTimeout(() => H.call('deal_save', { id: cur.deal.id, checklist: checklist() }).then(() => H.toast('Отмечено', 1200)).catch(er => H.toast(er.message, 5000)), 600);
   }
 
+  async function taskAct(id, act) {
+    try { await H.web('crm_task_act', { id, act }); H.toast(act === 'done' ? '✓ Выполнено' : act === 'del' ? 'Задача удалена' : 'Задача снова открыта', 1500); } catch (er) { H.toast(er.message, 5000); }
+    await refreshTasks();
+  }
   async function onClick(e) {
     const t = e.target, d = cur.deal;
+    const tb = t.closest('[data-tab], [data-tab-go]');
+    if (tb) { setTab(tb.dataset.tab ?? tb.dataset.tabGo); return; }
+    if (t.closest('[data-at-save], [data-at-clear]')) {
+      const v = t.closest('[data-at-clear]') ? null : mskOut(el.querySelector('#d-at2').value);
+      if (t.closest('[data-at-save]') && !v) { H.toast('Выберите дату и время сделки'); return; }
+      try { const r0 = await H.call('deal_save', { id: d.id, deal_at: v }); if (r0.warn) H.toast(r0.warn, 6000); else H.toast(v ? 'Дата сделки сохранена — она в задачах' : 'Дата сделки убрана'); await card(d.id, { tab: 'tasks' }); } catch (er) { H.toast(er.message, 5000); }
+      return;
+    }
+    if (t.closest('[data-tk-del]')) { if (confirm('Удалить задачу?')) taskAct(+t.closest('[data-task]').dataset.task, 'del'); return; }
+    if (t.closest('[data-tk-add]')) {
+      const text = el.querySelector('#d-tk-text').value.trim(), due = mskOut(el.querySelector('#d-tk-due').value);
+      if (text.length < 3) { H.toast('Напишите, что сделать'); return; }
+      try { await H.call('deal_task_add', { deal_id: d.id, text, due }); H.toast('Задача добавлена'); await refreshTasks(); } catch (er) { H.toast(er.message, 5000); }
+      return;
+    }
+    if (t.closest('[data-pi-set]')) {
+      const ids = [...el.querySelectorAll('[data-pi]:checked:not(:disabled)')].map(x => x.dataset.pi), b = t.closest('[data-pi-set]');
+      if (!ids.length) return;
+      b.disabled = true;
+      try { const r = await H.call('deal_remind_set', { deal_id: d.id, ids }); H.toast(`Поставлено напоминаний: ${r.done.length}${r.skipped.length ? ` (время прошло: ${r.skipped.length})` : ''}`); await refreshTasks(); }
+      catch (er) { H.toast(er.message, 5000); b.disabled = false; }
+      return;
+    }
+    const pd = t.closest('[data-pi-del]');
+    if (pd) { e.preventDefault(); try { await H.call('deal_remind_del', { deal_id: d.id, id: pd.dataset.piDel }); await refreshTasks(); } catch (er) { H.toast(er.message, 5000); } return; }
+    if (t.closest('[data-cal]')) { calShow(t.closest('[data-cal]')); return; }
+    if (t.closest('[data-doc-clear]')) {
+      if (!confirm(`Удалить ВСЕ файлы сделки (${cur.docs.length})? Документы, отчёты юриста и проекты удалятся навсегда.`)) return;
+      try { const r = await H.call('deal_doc_clear', { deal_id: d.id }); H.toast(`Удалено файлов: ${r.cleared}`); await card(d.id, { tab: 'docs' }); } catch (er) { H.toast(er.message, 5000); }
+      return;
+    }
     const dt = t.closest('[data-drf-tpl]');
     if (dt) { drfPick(dt.dataset.drfTpl); return; }
     if (t.closest('[data-go-law]')) {
+      setTab('docs', false);
       const x = el.querySelector('.dl-lawchk') ?? el.querySelector('#d-docs');
       x?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (!el.querySelector('.dl-lawchk')) H.toast('Сначала загрузите документы сделки — потом «⚖️ Проверка юриста»', 4000);
@@ -290,7 +455,7 @@
     }
     if (t.closest('[data-save]')) {
       try { await H.call('deal_save', { id: d.id, title: el.querySelector('#d-title').value, kind: el.querySelector('#d-kind').value, pay: el.querySelector('#d-pay').value,
-        note: el.querySelector('#d-note').value, checklist: checklist() }); H.toast('Сохранено'); card(d.id); } catch (er) { H.toast(er.message, 5000); }
+        note: el.querySelector('#d-note').value, deal_at: mskOut(el.querySelector('#d-at').value), checklist: checklist() }); H.toast('Сохранено'); card(d.id); } catch (er) { H.toast(er.message, 5000); }
       return;
     }
     if (t.closest('[data-del]')) { if (!confirm('Удалить сделку? Участники, заметки и ответы ИИ удалятся.')) return; await H.call('deal_del', { id: d.id }); location.hash = 'deal'; return; }
@@ -331,8 +496,8 @@
     if (t.closest('[data-invite]')) {
       const role = t.closest('[data-invite]').dataset.invite === 'lawyer' ? 'lawyer' : 'broker';
       try { const r = await H.call('deal_invite', { deal_id: d.id, role });
-        el.querySelector('#d-chat').insertAdjacentHTML('afterbegin', `<div class="hub-note"><b>Ссылка для ${role === 'lawyer' ? 'юриста' : 'ипотечного брокера'}</b> (14 дней): <input readonly value="${esc(r.link)}"> <button class="btn soft" data-copy="${esc(r.text)}">Скопировать с текстом</button><p class="hint">${esc(r.note)}</p></div>`);
-        el.querySelector('#d-chat').scrollIntoView({ behavior: 'smooth' }); } catch (er) { H.toast(er.message, 5000); } return;
+        el.querySelector('#d-inv').insertAdjacentHTML('afterbegin', `<div class="hub-note"><b>Ссылка для ${role === 'lawyer' ? 'юриста' : 'ипотечного брокера'}</b> (14 дней): <input readonly value="${esc(r.link)}"> <button class="btn soft" data-copy="${esc(r.text)}">Скопировать с текстом</button><p class="hint">${esc(r.note)}</p></div>`);
+        el.querySelector('#d-inv').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (er) { H.toast(er.message, 5000); } return;
     }
     const cp = t.closest('[data-copy]'); if (cp) return H.copy(cp.dataset.copy);
     if (t.closest('[data-chat]')) {
@@ -351,9 +516,9 @@
       b.disabled = true; b.textContent = 'Думаю… до минуты';
       try {
         const r = await H.call('deal_ai', { deal_id: d.id, text }, { signal: AbortSignal.timeout?.(150000) });
-        let box = el.querySelector('.dl-compact .hub-msgs');
-        if (!box) { el.querySelector('.law-in').insertAdjacentHTML('beforebegin', '<div class="hub-msgs"></div>'); box = el.querySelector('.dl-compact .hub-msgs'); }
-        box.insertAdjacentHTML('beforeend', `<div class="hub-msg user">${esc(text)}</div><div class="hub-msg ai">${H.md(r.answer)}</div>`);
+        const box = el.querySelector('#d-msgs');
+        box.hidden = false;
+        box.insertAdjacentHTML('beforeend', msgHtml('user', text) + msgHtml('ai', r.answer));
         box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         el.querySelector('#d-ai').value = '';
       } catch (er) { H.toast(er.name === 'TimeoutError' ? 'ИИ думает слишком долго — попробуйте ещё раз' : er.message, 6000); }
