@@ -6,12 +6,29 @@ window.CONN = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const URL_ = () => String(window.API).replace(/\/web$/, '/auto');
   const token = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
-  async function call(action, extra = {}) {
+  async function call(action, extra = {}) { return action === 'conn_init' ? init(extra) : raw(action, extra); }
+  async function raw(action, extra = {}) {
     const r = await fetch(URL_(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: token() }, ...extra }) });
     const d = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
     if (!r.ok || d.error) throw Object.assign(new Error(d.message || d.error || `HTTP ${r.status}`), { code: d.error, status: r.status });
     return d;
   }
+  // v5.40: подписи сервисов. Авито и Циан (вход для проверки объявлений через российский прокси сервиса) — плитки только админу и группе Main;
+  // ДомКлик агентам не называем — «Реклама». Права — hub caps {admin, main}; сервер всё равно проверяет сам.
+  const SVC = { av: { name: 'Авито', icon: '🟦', note: 'Откроется вход Авито: номер телефона и код из СМС. Нужен сервису для проверки объявлений.' },
+    cian: { name: 'Циан', icon: '🔷', note: 'Откроется вход Циан: номер телефона и код или почта и пароль. Нужен сервису для проверки объявлений.' },
+    dc: { name: 'Реклама', icon: '🏠', note: 'Откроется кабинет для рекламы: номер телефона и код из СМС.' } };
+  const STAFF = new Set(['av', 'cian']);
+  let caps = null;
+  const staff = async () => { try { caps ??= await fetch(URL_().replace(/\/auto$/, '/hub'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'caps', auth: { token: token() } }) }).then(r => r.ok ? r.json() : {}); } catch { caps = {}; } return !!(caps?.admin || caps?.main); };
+  async function init(extra) {
+    const d = await raw('conn_init', extra);
+    if (!Array.isArray(d.items)) return d;
+    const all = d.items.some(x => STAFF.has(x.id)) && await staff();
+    d.items = d.items.filter(x => all || !STAFF.has(x.id)).map(x => SVC[x.id] ? { ...x, ...SVC[x.id], note: x.id === 'dc' ? SVC.dc.note : x.note || SVC[x.id].note } : x);
+    return d;
+  }
+  const name = svc => SVC[svc]?.name ?? svc;
   const KEYS = { Enter: 'Enter', Backspace: 'Backspace', Tab: 'Tab', Escape: 'Escape', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Delete: 'Delete' };
 
   function open(svc, o = {}) {
@@ -79,5 +96,5 @@ window.CONN = (() => {
     setTimeout(() => scr.focus(), 300);
     return { close };
   }
-  return { open, call };
+  return { open, call, name, SVC };
 })();

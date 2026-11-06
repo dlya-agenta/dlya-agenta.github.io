@@ -313,7 +313,7 @@
       <details${r.proxy?.wa || r.proxy?.all ? '' : ' open'}><summary>🛡 VPN (прокси) сервера для WhatsApp и Instagram${r.proxy && Object.keys(r.proxy).length ? ' — задан' : ' — не задан'}</summary>
         <p class="hint">Сервер рассылок стоит в России: WhatsApp Web с него не соединяется, Instagram закрыт. Нужен один прокси за пределами России (свой сервер или платный прокси; бесплатным — не доверяйте вход в аккаунты).
           Вид: <code>http://адрес:порт</code>, <code>socks5://адрес:порт</code> или <code>http://логин:пароль@адрес:порт</code>. Пустое поле — без прокси. Сейчас: ${Object.entries(r.proxy ?? {}).map(([k, v]) => `${k} → ${esc(v)}`).join(', ') || 'нет'}.</p>
-        ${[['wa', 'WhatsApp'], ['ig', 'Instagram'], ['all', 'Все остальные (если нужно)']].map(([k, t]) => `<label class="field">${t}<input id="mx-${k}" placeholder="${r.proxy?.[k] ? 'задан — оставьте пустым, чтобы не менять' : 'например socks5://1.2.3.4:1080'}" autocomplete="off" spellcheck="false"></label>`).join('')}
+        ${[['wa', 'WhatsApp'], ['ig', 'Instagram'], ['max', 'MAX — российский'], ['dc', 'ДомКлик — российский'], ['av', 'Авито — российский'], ['cian', 'Циан — российский'], ['all', 'Все остальные (если нужно)']].map(([k, t]) => `<label class="field">${t}<input id="mx-${k}" placeholder="${r.proxy?.[k] ? 'задан — оставьте пустым, чтобы не менять' : 'например socks5://1.2.3.4:1080'}" autocomplete="off" spellcheck="false"></label>`).join('')}
         <div class="ml-row"><button class="btn soft" id="ma-px">Сохранить прокси</button><button class="btn ghost" id="ma-px0">Убрать все</button></div></details>
       <p class="hint">Правила ТЗ не меняются: не чаще раза в ${m.gap_h} часа в группу, ${m.from_h}:00–${m.to_h}:00 МСК, 50 / 150 объявлений.</p>
       <div class="ml-row"><button class="btn primary" id="ma-save">Сохранить</button></div></section>
@@ -324,9 +324,9 @@
     $('#ma-tg').onclick = async () => {
       try { await call('mail_adm_tg', { api_id: $('#ma-id').value, api_hash: $('#ma-hash').value }); toast('Ключ сохранён'); admin(); } catch (e) { toast(e.message, 6000); }
     };
-    $('#ma-px').onclick = async () => { const b = {}; for (const k of ['wa', 'ig', 'all']) { const v = $('#mx-' + k).value.trim(); if (v) b[k] = v; }
+    $('#ma-px').onclick = async () => { const b = {}; for (const k of ['wa', 'ig', 'max', 'dc', 'av', 'cian', 'all']) { const v = $('#mx-' + k).value.trim(); if (v) b[k] = v; }
       try { await call('mail_adm_proxy', b); toast('Прокси сохранён — сервер применит его в течение минуты'); admin(); } catch (e) { toast(e.message, 6000); } };
-    $('#ma-px0').onclick = async () => { if (!confirm('Убрать все прокси?')) return; try { await call('mail_adm_proxy', { all: '', wa: '', ig: '', tg: '', max: '', yt: '', vk: '' }); toast('Прокси убраны'); admin(); } catch (e) { toast(e.message, 6000); } };
+    $('#ma-px0').onclick = async () => { if (!confirm('Убрать все прокси?')) return; try { await call('mail_adm_proxy', { all: '', wa: '', ig: '', tg: '', max: '', yt: '', vk: '', dc: '', av: '', cian: '' }); toast('Прокси убраны'); admin(); } catch (e) { toast(e.message, 6000); } };
     $('#ma-save').onclick = async () => {
       try { await call('mail_adm_set', { enabled: $('#ma-on').checked, mail: { testers: $('#ma-t').value.split(/[\s,]+/).filter(Boolean), pause: [+$('#ma-p0').value, +$('#ma-p1').value], photos: +$('#ma-ph').value } });
         toast('Сохранено'); admin(); } catch (e) { toast(e.message, 5000); }

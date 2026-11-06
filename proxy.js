@@ -3,7 +3,7 @@
 // Сервер — hub proxy_get | proxy_save | proxy_test → {job} | proxy_job | proxy_del. Пароль прокси сайту не возвращается: после сохранения — только маска адреса.
 (() => {
   if (window.PROXY) return;
-  const V = '5.31b1', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  const V = '5.40', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   if (!document.querySelector('link[data-proxy]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `proxy.css?v=${V}`; l.dataset.proxy = '1'; document.head.appendChild(l); }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
@@ -93,6 +93,16 @@
     b.innerHTML = '<p class="px-mut px-pad">Загрузка…</p>';
     try { view(b, await hub('proxy_get')); } catch (e) { b.innerHTML = `<p class="px-err px-pad">⚠️ ${esc(e.message)}</p>`; }
   }
+  // v5.40: российский адрес сервиса (пул админа) — закреплён за участником на месяц. Агентам: «ДомКлик» → «Реклама», Авито/Циан → «проверка объявлений».
+  const PSV = { dc: 'Реклама', max: 'MAX', av: 'проверка объявлений', cian: 'проверка объявлений', tg: 'Telegram', wa: 'WhatsApp', vk: 'ВКонтакте', ig: 'Instagram', yt: 'YouTube' };
+  const ddmm = d => d ? new Date(d).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit' }) : '';
+  function poolHtml(s) {
+    const p = s?.pool; if (!p?.mask) return '';
+    const ord = ['dc', 'max', 'av', 'cian', 'tg', 'wa', 'vk', 'ig', 'yt'], sv = [...new Set((p.svcs || []).slice().sort((a, c) => ord.indexOf(a) - ord.indexOf(c)).map(k => PSV[k]).filter(Boolean))];
+    const mine = s.set ? (p.svcs || []).filter(k => (s.svcs || []).includes(k) && SV[k]).map(k => SV[k]) : [];
+    return `<div class="px-pool"><span class="px-pool-i" aria-hidden="true">🇷🇺</span><div><p>Сервис закрепил за вами российский адрес <b>${esc(String(p.mask).replace(/:\d+$/, ''))}</b>${p.until ? ` до <b>${esc(ddmm(p.until))}</b>` : ''}${sv.length ? ` — для: ${esc(sv.join(', '))}` : ''}.</p>
+      <small>Адрес постоянный и сам не меняется — ничего делать не нужно.${mine.length ? ` Для ${esc(mine.join(', '))} работает ваш прокси — он главнее.` : ''}</small></div></div>`;
+  }
   function view(b, s) {
     if (s.set) return saved(b, s);
     form(b, s, null);
@@ -105,7 +115,7 @@
   };
   function saved(b, s) {
     const p = PROV.find(x => x.id === s.provider);
-    b.innerHTML = `<div class="px-on"><div class="px-on-h"><span class="px-dot ${s.err ? 'bad' : s.ok_at ? 'ok' : ''}"></span><div><b>Прокси ${s.err ? 'с ошибкой' : s.ok_at ? 'работает' : 'сохранён'}</b>
+    b.innerHTML = `${poolHtml(s)}<div class="px-on"><div class="px-on-h"><span class="px-dot ${s.err ? 'bad' : s.ok_at ? 'ok' : ''}"></span><div><b>Прокси ${s.err ? 'с ошибкой' : s.ok_at ? 'работает' : 'сохранён'}</b>
         <small>${esc(s.host_mask)} · ${esc(s.kind || 'HTTP')}${p && p.id !== 'other' ? ` · ${esc(p.name)}` : ''}</small></div></div>
       <p class="px-mut">Через прокси: ${(s.svcs || []).map(k => `<span class="px-chip">${esc(SV[k] || k)}</span>`).join(' ')}</p>
       ${s.err && !s.test?.res ? `<p class="px-err">❌ ${esc(s.err)}</p>` : ''}${s.ok_at ? `<p class="px-mut">Проверен ${esc(new Date(s.ok_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))}</p>` : ''}
@@ -125,7 +135,7 @@
   function form(b, s, prov) {
     let pick = prov || null;
     const svcs = new Set(s?.svcs?.length ? s.svcs : DEF);
-    b.innerHTML = `<div class="px-steps">
+    b.innerHTML = `${poolHtml(s)}<div class="px-steps">
       <section><h3><i>1</i> Где купить прокси</h3><div class="px-prov">${PROV.map(p => `<button type="button" class="px-pc${pick === p.id ? ' on' : ''}" data-p="${p.id}">
         <b>${esc(p.name)}</b>${p.price ? `<span class="px-price">${esc(p.price)}</span>` : ''}<small>${esc(p.note)}</small></button>`).join('')}</div>
         <div class="px-how"></div>${COUNTRY}</section>

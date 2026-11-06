@@ -5,7 +5,7 @@
 (() => {
   const $ = s => document.querySelector(s);
   const H = window.HUB, esc = H.esc;
-  const TITLES = { dash: 'Сводка', sales: 'Продажи и оплаты', users: 'Участники и настройки', listings: 'Объявления и выгрузка', support: 'Поддержка', ai: 'Ключи, API и ИИ', ref: 'Партнёрка', mod: 'Модерация', content: 'Новостройки и тексты', design: 'Стиль сайта', system: 'Система' };
+  const TITLES = { dash: 'Сводка', sales: 'Продажи и оплаты', users: 'Участники и настройки', listings: 'Объявления и выгрузка', support: 'Поддержка', ai: 'Ключи, API и ИИ', pxpool: 'Прокси сервиса (Россия)', ref: 'Партнёрка', mod: 'Модерация', content: 'Новостройки и тексты', design: 'Стиль сайта', system: 'Система' };
   let S = null, fx = null;
   const usd = v => `${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} $`;
   const money = v => fx ? `${H.rub(v, fx)}<small> · ${usd(v)}</small>` : usd(v);
@@ -28,8 +28,8 @@
     $('#adm-title').textContent = TITLES[s] ?? 'Сводка';
     $('#adm-at').textContent = S?.at ? `данные на ${H.when(S.at)}` : '';
     $('#adm-side').classList.remove('open');
-    $('#adm-body').onclick = null;   // обработчик прошлого раздела
-    ({ dash, sales, users, listings, support, ai, ref, mod, content, design, system }[s] ?? dash)();
+    $('#adm-body').onclick = null; $('#adm-body').onchange = null;   // обработчик прошлого раздела
+    ({ dash, sales, users, listings, support, ai, pxpool, ref, mod, content, design, system }[s] ?? dash)();
   }
   const body = h => { $('#adm-body').innerHTML = h; };
 
@@ -169,6 +169,7 @@
       if (d?.dataset.defIcons) return save(d, { icons: d.dataset.defIcons }, `Значки «${D.icons[d.dataset.defIcons]}»`);
     };
   }
+  function pxpool() { window.PXPOOL ? window.PXPOOL.open($('#adm-body')) : body('<p class="err">Блок прокси не загрузился — обновите страницу</p>'); }   // v5.40: пул российских прокси (pxpool.admin.js)
   function system() {
     const sp = S.space;
     body(`<div class="adm-tiles">${tile('База', `${n(sp.db_mb)} МБ`, 'из 500 МБ (Free)')}${Object.entries(sp.files ?? {}).map(([b, mb]) => tile(`Файлы: ${b}`, `${n(mb)} МБ`)).join('')}</div>

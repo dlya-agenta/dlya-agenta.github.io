@@ -71,3 +71,8 @@
   .px-prov { grid-template-columns: 1fr 1fr; }
   .px-row .px-btn { flex: 1 1 auto; }
 }
+/* v5.40: российский адрес сервиса (пул админа) — строка над своим прокси */
+.px-pool { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--px-ok) 10%, var(--px-card)); border: 1px solid color-mix(in srgb, var(--px-ok) 30%, transparent); }
+.px-pool-i { font-size: 20px; line-height: 1.2; flex: none; }
+.px-pool p { margin: 0; font-size: 14.5px; overflow-wrap: anywhere; }
+.px-pool small { display: block; margin-top: 3px; color: var(--px-mut); font-size: 13px; }
