@@ -41,12 +41,13 @@
       <section class="hub-body">
         <h2>🤖 Мой помощник</h2>
         <p class="hint">${quotaLine(st.quota)}</p>
-        <form class="hub-ask" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
-          ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
-          <button class="btn primary" id="h-go">Отправить</button></form>
         <div class="ex-box"><p class="ex-h">💡 Примеры просьб — нажмите, чтобы вставить</p><div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
         <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
-        <div id="h-turns"></div></section></div>`;
+        <div id="h-turns"></div>
+        <form class="hub-ask h-stick" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
+          ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
+          <button class="btn primary" id="h-go">Отправить</button></form>
+        </section></div>`;
     el.onclick = onClick; el.onchange = onChange;
     el.querySelector('#h-ask').onsubmit = e => { e.preventDefault(); ask(); };
     el.querySelector('#h-q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
@@ -59,6 +60,7 @@
       const r = await H.call('help_hist', { dialog_id: id });
       const byNum = new Map(r.items.map(x => [x.num, x]));
       box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.get(n)).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
+      box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5
     } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
   const actHtml = (a, i) => a.type === 'owners' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
@@ -69,11 +71,39 @@
     ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
     ${r.actions?.length ? `<p class="hub-acts" data-acts='${esc(JSON.stringify(r.actions))}'>${r.actions.map(actHtml).join('')}</p>` : ''}
     ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} ${r.alt.more ? `<b>+${r.alt.more}</b>` : ''} ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
-    ${(r.items ?? []).length ? `<div class="hub-grid">${r.items.slice(0, 30).map(card).join('')}</div>` : ''}
+    ${(r.items ?? []).length ? `<div class="hub-grid">${r.items.slice(0, 30).map(card).join('')}</div>${nextHtml(r)}` : ''}
     ${offer ? `<div class="hub-offer"><b>Что дальше?</b> Отметьте объекты галочками и попросите помощника или нажмите:
       <button class="btn soft" data-owners>✉️ Написать собственникам</button>
       <button class="btn soft" data-go-rk>📣 В рекламу</button><button class="btn soft" data-go-mail>📨 Рассылка</button>
       ${offer.video ? '<button class="btn soft" data-go-video>🎬 Ролик</button>' : ''}</div>` : ''}</article>`;
+
+
+  // v5.42A п. 4: под ответом с объектами — следующий шаг одним нажатием (без набора текста) и действия группами, как в главном меню
+  const NARROW = [['💸 Дешевле', 'То же самое, но дешевле на 10–15 %'], ['💎 Дороже', 'То же самое, но дороже на 10–20 % — что можно получить за эти деньги'],
+    ['🗺 + соседние районы', 'Добавь соседние микрорайоны к этому запросу'], ['🎯 Только этот район', 'Оставь только выбранный район, без соседних'],
+    ['🏢 + ЖК', 'Покажи варианты в ЖК в этом же месте'], ['➕ Комнат +1', 'То же, но на одну комнату больше'], ['➖ Комнат −1', 'То же, но на одну комнату меньше'],
+    ['📐 Больше площадь', 'То же, но площадь больше на 20 %'], ['🌊 Ближе к морю', 'То же, но до моря не дальше 1 км'], ['🛠 С ремонтом', 'Только с современным ремонтом'],
+    ['🏗 Новостройки', 'Только новостройки'], ['🏚 Вторичка', 'Только вторичка'], ['🚫 Не старый фонд', 'Без старого фонда (дома от 1990 года)'], ['⏬ Ещё 10', 'Покажи ещё 10 вариантов по этому запросу']];
+  const nextHtml = r => {
+    const nums = (r.items ?? []).map(x => x.num).slice(0, 30).join(','), asks = (r.actions ?? []).filter(a => a.type === 'ask');
+    const g = (t, b) => `<div class="h-g"><b>${t}</b>${b}</div>`, ln = (h, l) => `<a class="chip" href="${h}">${l}</a>`, ak = (l, q) => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(l)}</button>`;
+    return `<div class="h-next">
+      ${asks.length ? `<p class="ex-h">👉 Следующий шаг</p><div class="hub-tips">${asks.map(a => ak(a.label, a.q || a.label)).join('')}</div>` : ''}
+      <p class="ex-h">🔎 Расширить или сузить</p><div class="hub-tips">${NARROW.map(([l, q]) => ak(l, q)).join('')}</div>
+      <details class="h-groups"><summary>⚡ Что сделать с этими вариантами</summary>
+      ${g('Объявления', ak('📊 Сравнить с рынком', `Сравни цены с рынком: ${nums}`) + ak('🔁 Найти похожие', `Найди похожие на ${nums.split(',').slice(0, 3).join(', ')}`) + ln(`./#favs`, '★ Избранное'))}
+      ${g('Мои подборки', ak('📄 Сделать подборку', `Сделай подборку из объектов ${nums}`) + ln('./#sels=all', '📄 Мои подборки'))}
+      ${g('Моё', ak('👥 Клиенту в CRM', `Прикрепи объекты ${nums} к клиенту`) + ak('✅ Задача-напоминание', `Поставь задачу: показать объекты ${nums.split(',').slice(0, 3).join(', ')} клиенту завтра в 12:00`))}
+      ${g('Помощник', ln('hub.html#lawyer', '⚖️ Юрист') + ln('hub.html#broker', '🏦 Ипотека'))}
+      ${g('Продвижение', ak('✉️ Написать собственникам', `Напиши собственникам объектов ${nums.split(',').slice(0, 10).join(', ')}: есть покупатель, удобно ли показать?`) + ak('📣 В рекламу', `Отправь в рекламу объекты ${nums}`) + ak('✉️ В рассылку', `Подготовь рассылку объектов ${nums}`) + ak('🎬 Ролик', `Сделай ролик по объектам ${nums.split(',').slice(0, 10).join(', ')}`))}
+      ${g('Кабинет', ak('📑 В сделку', `Открой сделку по объекту ${nums.split(',')[0]}`))}
+      </details></div>`;
+  };
+  if (!document.getElementById('h-css')) document.head.insertAdjacentHTML('beforeend', `<style id="h-css">
+    .h-stick{position:sticky;bottom:0;z-index:5;background:var(--bg,#fff);padding:10px 0 calc(10px + env(safe-area-inset-bottom));margin-top:12px;border-top:1px solid color-mix(in srgb,currentColor 15%,transparent)}
+    .h-next{margin-top:12px}.h-next .hub-tips{margin:6px 0 10px}.h-groups summary{cursor:pointer;font-weight:700;padding:8px 0}
+    .h-g{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.h-g>b{min-width:120px;font-size:.9em;opacity:.8}
+    @media (max-width:760px){.h-g>b{width:100%}.h-next .chip{min-height:40px}}</style>`);
 
   async function ask(text) {
     const inp = el.querySelector('#h-q'), q = (text ?? inp.value).trim();
@@ -96,6 +126,7 @@
       box.querySelector('.hub-pending')?.remove();
       box.insertAdjacentHTML('beforeend', turnHtml({ ...r, q }, r.offer));
       box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => el.querySelector('#h-q')?.focus({ preventScroll: true }), 400);   // v5.42A п. 5: уточнить сразу, поле внизу
       el.querySelector('.hub-body .hint').innerHTML = quotaLine(st.quota);
     } catch (e) {
       el.querySelector('.hub-pending')?.remove();
@@ -107,6 +138,7 @@
     const t = e.target;
     if (t.closest('[data-new]')) { cur = null; draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
     const d = t.closest('[data-dlg]'); if (d) { cur = +d.dataset.dlg; history.replaceState(null, '', `#helper=${cur}`); draw(); loadDialog(cur); return; }
+    const ak = t.closest('[data-ask]'); if (ak) return ask(ak.dataset.ask);
     const a = t.closest('[data-alt]'); if (a) { const qs = JSON.parse(a.dataset.alt); ask(qs[0]); return; }
     if (t.closest('[data-owners]')) return owners();
     const tip = t.closest('[data-tip]'); if (tip) { const i = el.querySelector('#h-q'); i.value = tip.dataset.tip; i.focus(); return; }

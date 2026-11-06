@@ -24,6 +24,11 @@
   const css = `.vid-steps{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}.vid-step{min-width:0;grid-template-columns:minmax(0,1fr)}.vid-step>*{min-width:0}.vid-step .btn{white-space:normal;max-width:100%}.vid-opt label{min-width:0}.vid-ph{display:flex;flex-wrap:wrap;gap:8px}.vid-ph label{position:relative;width:92px;cursor:pointer}
     .vid-ph img{width:92px;height:122px;object-fit:cover;border-radius:10px;display:block;border:3px solid transparent}.vid-ph input{position:absolute;left:6px;top:6px;z-index:1}
     .vid-ph input:checked+img{border-color:${GOLD}}.vid-ph b{position:absolute;right:6px;top:4px;background:#0009;color:#fff;border-radius:8px;padding:0 6px;font-size:12px}
+    .vid-pc{position:absolute;left:0;right:0;bottom:3px;display:flex;justify-content:center;gap:4px}.vid-pc button{width:28px;height:28px;border:0;border-radius:8px;background:#000a;color:#fff;font-size:15px;line-height:1;cursor:pointer}.vid-pc button:disabled{opacity:.35}
+    .vid-add{width:92px;height:122px;border:2px dashed var(--line);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;cursor:pointer;color:var(--accent)}.vid-add small{color:var(--muted);font-weight:400}
+    .vid-od{margin-top:8px}.vid-od textarea{width:100%}.vid-orm{margin:4px 0 0}.vid-more{display:flex;flex-wrap:wrap;gap:8px}
+    .vid-ownf{position:fixed;inset:0;z-index:1000;background:#0008;display:flex;align-items:center;justify-content:center;padding:12px}.vid-ownc{background:var(--card,#fff);color:var(--text);border-radius:16px;padding:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto}
+    .vid-ownc .field input,.vid-ownc .field select,.vid-ownc textarea{font-size:16px;width:100%}.vid-add-big{cursor:pointer;min-height:46px;display:inline-flex;align-items:center}
     .vid-ph i{position:absolute;left:4px;right:4px;bottom:4px;background:#000a;color:#fff;border-radius:6px;padding:1px 4px;font-size:11px;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .vid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 12px}.vid-grid .field{margin:0}.vid-grid input,.vid-grid textarea,.vid-grid select{width:100%}
     .vid-sc{display:grid;grid-template-columns:48px 1fr 1fr;gap:6px;align-items:center;margin:4px 0}.vid-sc img{width:48px;height:64px;object-fit:cover;border-radius:6px}
@@ -52,6 +57,7 @@
     if (!ctx.caps?.can?.video) { el.innerHTML = H.locked('Видеомонтаж-СММ', 'Видеообзор объектов за минуту: ролик 9:16 из фото — по 15 секунд на каждую квартиру, с вашим именем и контактами на финальном кадре, плюс готовое описание к посту — для Reels, Shorts, статусов и Rutube. В тарифе MAX.', 'max'); return; }
     if (/^\d+$/.test(arg) && +arg < 100000) return show(+arg);   // готовый ролик по ссылке из уведомления
     const nums = [...new Set((arg ? arg.split(',') : []).map(Number).filter(n => n > 100000))].slice(0, 10);
+    if (arg === 'own') return ownStart();   // v5.42B: ролик из своего объекта — фото с телефона
     if (!nums.length) return empty();
     el.innerHTML = '<p class="muted">Готовлю фото и характеристики…</p>';
     try { prep = await H.call('vid_prepare', { nums }); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
@@ -61,7 +67,7 @@
     // объекты без своих фото — убираем из ролика (иначе у объекта были бы пустые 15 секунд)
     const withPh = new Set(prep.pick.map(p => p.num)), skipped = prep.items.filter(x => !withPh.has(x.num));
     prep.items = prep.items.filter(x => withPh.has(x.num)); prep.skipped = skipped;
-    scenes = prep.pick.map(p => ({ u: url(p.num, p.k, p.v), num: p.num, k: p.k, on: true, title: '', sub: '', fx: null }));
+    scenes = prep.pick.map(p => ({ u: p.u ?? url(p.num, p.k, p.v), num: p.num, k: p.k, on: true, title: '', sub: '', fx: null }));   // v5.42B: у эксклюзива — готовый адрес фото
     retitle();
     draw();
   }
@@ -74,7 +80,7 @@
         <li>Внизу появится полоса выбора — нажмите <b>«🎬 Ролик»</b>. Объекты пойдут в ролике в том порядке, в каком вы их отметили.</li><li>Или попросите помощника: «сделай ролик по № 172480».</li></ol>
       ${sel.length ? `<p><button class="btn primary" data-sel-go="${sel.slice(0, 10).join(',')}">🎬 Ролик из отмеченных на главной (${Math.min(sel.length, 10)})</button></p>` : ''}
       <form class="hub-ask" id="v-nums"><input id="v-n" placeholder="Или номера объектов через запятую: 172480, 188198" inputmode="numeric" aria-label="Номера объектов"><button class="btn primary">Сделать ролик</button></form>
-      <p><a class="btn soft" href="./">К объявлениям</a> <a class="btn soft" href="#helper">🤖 Помощник</a></p>
+      <p><a class="btn soft" href="#video=own">📷 Свой объект — фото с телефона</a> <a class="btn soft" href="excl.html">💎 Из «Эксклюзивов»</a> <a class="btn soft" href="./">К объявлениям</a> <a class="btn soft" href="#helper">🤖 Помощник</a></p>
       <section class="hub-sec"><h3>Мои ролики за 12 часов</h3><div id="v-mine"><p class="muted">Загрузка…</p></div></section>`;
     mine();
     el.onclick = e => { const b = e.target.closest('[data-sel-go]'); if (b) location.hash = `video=${b.dataset.selGo}`; else onSend(e); };
@@ -113,7 +119,11 @@
     const list = scenes.map((s, i) => [s, i]).filter(([s]) => s.num === x.num), n = prep.items.length;
     return `<div class="vid-ob" data-ob="${o}"><div class="vid-oh"><span class="k">${n > 1 ? String(o + 1).padStart(2, '0') : '№'}</span><b>№ ${x.num} · ${esc([x.zk, x.rooms || x.kind, area(x.area), x.place].filter(Boolean).join(' · '))}</b><span class="sp"></span>
         ${n > 1 ? `<button class="btn ghost" data-mv="${o}:-1"${o === 0 ? ' disabled' : ''} aria-label="Раньше">↑</button><button class="btn ghost" data-mv="${o}:1"${o === n - 1 ? ' disabled' : ''} aria-label="Позже">↓</button>` : ''}</div>
-      <div class="vid-ph">${list.map(([s, i], j) => `<label><input type="checkbox" data-on="${i}"${s.on ? ' checked' : ''} aria-label="Фото ${j + 1}"><img src="${esc(s.u)}" alt="" crossorigin="anonymous"><b>${j + 1}</b>${s.on && s.title ? `<i>${esc(s.title)}</i>` : ''}</label>`).join('')}</div></div>`;
+      <div class="vid-ph">${list.map(([s, i], j) => `<label><input type="checkbox" data-on="${i}"${s.on ? ' checked' : ''} aria-label="Фото ${j + 1}"><img src="${esc(s.u)}" alt="" crossorigin="anonymous"><b>${j + 1}</b>${s.on && s.title ? `<i>${esc(s.title)}</i>` : ''}
+          <span class="vid-pc"><button type="button" data-pm="${i}:-1"${j === 0 ? ' disabled' : ''} aria-label="Раньше">‹</button><button type="button" data-pm="${i}:1"${j === list.length - 1 ? ' disabled' : ''} aria-label="Позже">›</button><button type="button" data-pdel="${i}" aria-label="Удалить фото">✕</button></span></label>`).join('')}
+        ${list.length < 9 ? `<label class="vid-add">＋ Фото<small>${list.length} из 9</small><input type="file" accept="image/*" multiple data-padd="${x.num}" hidden></label>` : ''}</div>
+      <label class="field vid-od">Своё описание объекта (пойдёт в пост)<textarea data-od="${x.num}" rows="2" maxlength="300" placeholder="Например: евроремонт, вид на горы, 7 минут до моря пешком">${esc(x.descr_own ?? '')}</textarea></label>
+      ${n > 1 ? `<p class="vid-orm"><button type="button" class="linkish" data-odel="${o}">Убрать объект из ролика</button></p>` : ''}</div>`;
   }
   function draw() {
     const a = prep.agent, x = prep.items[0], need = !a.name || !a.phone, n = prep.items.length, d = Math.round(durOf());
@@ -127,6 +137,7 @@
             <div class="vid-cov" role="radiogroup" aria-label="Обложка">${scenes.map((s, i) => `<label><input type="radio" name="v-cover" data-cover="${i}"${i === cov ? ' checked' : ''} aria-label="Фото ${i + 1}"><img src="${esc(s.u)}" alt="" crossorigin="anonymous">${i === cov ? '<em>Обложка</em>' : ''}</label>`).join('')}</div></section>
           <section class="hub-sec vid-step"><h3><span class="vid-n">2</span>${n > 1 ? 'Объекты и фото — по порядку' : 'Фото в ролике'} <small class="muted" id="v-cnt">${cntText()}</small></h3>
             ${prep.items.map(objBlock).join('')}
+            ${n < 10 ? `<p class="vid-more"><button type="button" class="btn soft" data-own-add>📷 ＋ Свой объект</button><button type="button" class="btn soft" data-x-add>💎 ＋ Эксклюзив по номеру</button></p>` : ''}
             <details><summary>Подписи сцен (до 4 слов, подзаголовок до 5)</summary>${scenes.map((s, i) => !s.on ? '' : `<div class="vid-sc"><img src="${esc(s.u)}" alt="" crossorigin="anonymous">
               <input data-t="${i}" value="${esc(s.title)}" maxlength="40" aria-label="Название сцены ${i + 1}"><input data-s="${i}" value="${esc(s.sub)}" maxlength="50" aria-label="Подзаголовок сцены ${i + 1}"></div>`).join('')}</details></section>
           <section class="hub-sec vid-step"><h3><span class="vid-n">3</span>Стиль ролика</h3>
@@ -159,6 +170,8 @@
           <p class="hint">Пока ролик собирается, не сворачивайте вкладку — браузер записывает его в реальном времени.</p><div id="v-actions"></div></section>
       </div>`;
     el.onchange = e => {
+      const pa = e.target.closest('[data-padd]');
+      if (pa && pa.files?.length) { addPhotos(+pa.dataset.padd, pa.files); pa.value = ''; return; }
       const c = e.target.closest('[data-on]');
       if (c) { scenes[+c.dataset.on].on = c.checked; if (!scenes.some(s => s.on && s.num === scenes[+c.dataset.on].num)) { c.checked = true; scenes[+c.dataset.on].on = true; return H.toast('У объекта должно остаться хотя бы одно фото'); } retitle(); redraw(); return; }
       const cv = e.target.closest('[data-cover]');
@@ -174,7 +187,7 @@
       if (e.target.name === 'v-tpl') { opt.tpl = e.target.value; cover(); }
       if (e.target.name === 'v-acc') { opt.acc = e.target.value; cover(); }
     };
-    el.oninput = e => { const t = e.target; if (t.dataset.t) { scenes[+t.dataset.t].title = t.value; scenes[+t.dataset.t].own = true; } if (t.dataset.s) { scenes[+t.dataset.s].sub = t.value; scenes[+t.dataset.s].own = true; } };
+    el.oninput = e => { const t = e.target; if (t.dataset.od) { const it = prep.items.find(x => x.num === +t.dataset.od); if (it) it.descr_own = t.value; return; } if (t.dataset.t) { scenes[+t.dataset.t].title = t.value; scenes[+t.dataset.t].own = true; } if (t.dataset.s) { scenes[+t.dataset.s].sub = t.value; scenes[+t.dataset.s].own = true; } };
     el.onclick = onClick;
     cover();
   }
@@ -205,7 +218,7 @@
     const what = [i.rooms || (i.kind !== 'квартира' ? i.kind : ''), area(i.area)].filter(Boolean).join(' · ');
     const where = [i.place, i.zk].filter(Boolean).join(', ');
     const extra = [i.floor ? `${i.floor}/${i.floors ?? '?'} эт.` : '', i.sea_m && i.sea_m <= 1500 ? `${km(i.sea_m)} до моря` : '', i.finish].filter(Boolean).slice(0, 2).join(' · ');
-    return { what, where, extra, price: price && i.price ? H.mln(i.price) : '' };
+    return { what, where, extra: [extra, i.descr_own?.trim()].filter(Boolean).join(' · '), price: price && i.price ? H.mln(i.price) : '' };   // v5.42B: своё описание объекта — в пост
   }
   function post() {
     const x = prep.items[0], c = contact(), one = prep.items.length === 1, price = el.querySelector('#v-price').checked, n = prep.items.length;
@@ -542,7 +555,7 @@
   async function aiDirector(b) {
     b.disabled = true; b.textContent = 'ИИ смотрит фото… ~10–30 с';
     try {
-      const objs = prep.items.map(x => ({ facts: x, photos: scenes.filter(s => s.num === x.num).map(s => s.u) }));
+      const objs = prep.items.filter(x => !x.own).map(x => ({ facts: x, photos: scenes.filter(s => s.num === x.num && !s.local).map(s => s.u) }));   // v5.42B: свои фото из браузера ИИ не видит
       aiPlan = await H.call('vid_plan', { objs });
       const next = [];
       prep.items.forEach((x, o) => {
@@ -647,6 +660,73 @@
     } catch (er) { H.toast(er.message, 6000); }
     b.disabled = false; b.textContent = '✨ Написать ИИ ещё раз';
   }
+  // ---------- v5.42B: до 9 фото на объект, свой объект (фото остаются в браузере), эксклюзив по номеру ----------
+  function photoMove(i, d) {
+    const s = scenes[i], same = scenes.map((x, k) => [x, k]).filter(([x]) => x.num === s.num).map(([, k]) => k), j = same.indexOf(i), k2 = same[j + d];
+    if (k2 == null) return;
+    [scenes[i], scenes[k2]] = [scenes[k2], scenes[i]];
+    scenes.forEach(x => { if (x.num === s.num) x.own = false; }); retitle(); redraw();
+  }
+  function photoDel(i) {
+    const s = scenes[i];
+    if (scenes.filter(x => x.num === s.num).length < 2) return H.toast('У объекта должно остаться хотя бы одно фото — или уберите объект целиком');
+    scenes.splice(i, 1); if (cov >= scenes.length || cov === i) cov = 0; retitle(); redraw();
+  }
+  async function addPhotos(num, files) {
+    const have = scenes.filter(s => s.num === num).length, room = Math.max(0, 9 - have), list = [...files].filter(f => /^image\//.test(f.type)).slice(0, room);
+    if (!list.length) return H.toast(room ? 'Выберите фото (JPG, PNG, HEIC — как снимает телефон)' : 'У объекта уже 9 фото — удалите лишние');
+    let at = scenes.map(s => s.num).lastIndexOf(num) + 1;
+    for (const f of list) scenes.splice(at++, 0, { u: URL.createObjectURL(f), num, k: -1, on: true, title: '', sub: '', fx: null, local: true });
+    if (files.length > room) H.toast(`Добавлено ${list.length} — больше 9 фото на объект нельзя`);
+    retitle(); redraw();
+  }
+  let ownN = 0;
+  function ownForm(first = false) {
+    const box = document.createElement('div'); box.className = 'vid-ownf';
+    box.innerHTML = `<div class="vid-ownc" role="dialog" aria-label="Свой объект"><h3>📷 Свой объект</h3><p class="hint">Фото и описание остаются только в вашем браузере — в базу объявлений ничего не попадает.</p>
+      <div class="vid-grid"><label class="field">Что это<select id="o-kind"><option value="квартира">Квартира</option><option value="апартаменты">Апартаменты</option><option value="дом">Дом</option><option value="участок">Участок</option><option value="коммерция">Коммерция</option></select></label>
+        <label class="field">Комнат<select id="o-rooms"><option value="">—</option><option value="0">Студия</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+        <label class="field">Площадь, м²<input id="o-area" inputmode="decimal" maxlength="7"></label><label class="field">Этаж<input id="o-floor" inputmode="numeric" maxlength="3"></label>
+        <label class="field">Район или ЖК<input id="o-place" maxlength="60" placeholder="Адлер, ЖК Сочи-Парк"></label><label class="field">Цена, млн ₽<input id="o-price" inputmode="decimal" maxlength="7"></label>
+        <label class="field" style="grid-column:1/-1">Описание (пойдёт в пост)<textarea id="o-descr" rows="3" maxlength="300"></textarea></label></div>
+      <label class="btn primary vid-add-big">📷 Выбрать фото (до 9)<input type="file" accept="image/*" multiple id="o-files" hidden></label> <span class="muted" id="o-n">не выбрано</span>
+      <p class="hub-actions"><button type="button" class="btn primary" data-o-ok>Добавить в ролик</button><button type="button" class="btn ghost" data-o-no>Отмена</button></p></div>`;
+    document.body.append(box);
+    const q = s => box.querySelector(s); let files = [];
+    q('#o-files').onchange = e => { files = [...e.target.files].filter(f => /^image\//.test(f.type)).slice(0, 9); q('#o-n').textContent = files.length ? `выбрано фото: ${files.length}` : 'не выбрано'; };
+    box.onclick = e => {
+      if (e.target === box || e.target.closest('[data-o-no]')) { box.remove(); if (first && !prep.items.length) empty(); return; }
+      if (!e.target.closest('[data-o-ok]')) return;
+      if (!files.length) return H.toast('Выберите хотя бы одно фото');
+      const kind = q('#o-kind').value, rooms = q('#o-rooms').value, num = -(++ownN), place = q('#o-place').value.trim(), a = parseFloat(q('#o-area').value.replace(',', '.'));
+      const zk = /жк/i.test(place) ? place.replace(/^.*?(жк)/i, 'ЖК') : '';
+      prep.items.push({ num, own: true, kind, rooms: rooms === '' ? '' : rooms === '0' ? 'Студия' : `${rooms}-комн.`, area: a > 0 ? a : null, floor: +q('#o-floor').value || null, floors: null,
+        place: zk ? place.replace(/,?\s*ЖК.*$/i, '').trim() : place, zk, district: '', sea_m: null, finish: '', price: (parseFloat(q('#o-price').value.replace(',', '.')) || 0) * 1e6 || null, new: false, photos: files.length, fishka: '',
+        descr_own: q('#o-descr').value.trim() });
+      for (const f of files) scenes.push({ u: URL.createObjectURL(f), num, k: -1, on: true, title: '', sub: '', fx: null, local: true });
+      box.remove(); retitle(); prep.short ||= q('#o-descr').value.trim().slice(0, 200); if (first) draw(); else redraw();
+    };
+  }
+  async function ownStart() {
+    el.innerHTML = '<p class="muted">Готовлю…</p>';
+    try { prep = await H.call('vid_prepare', { nums: [], own: true }); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    blob = null; job = null; aiPlan = null; cov = 0; prep.skipped = []; scenes = [];
+    opt = { tpl: prep.tpl === 'classic' ? 'classic' : 'motion', acc: 'gold', style: -1 };
+    el.innerHTML = '<h2>🎬 Видеообзор своего объекта</h2><p class="muted">Заполните окно «Свой объект» — фото с телефона и пару слов об объекте.</p>';
+    ownForm(true);
+  }
+  async function exclAdd() {
+    const v = prompt('Номер эксклюзива (6 цифр, начинается с 9):', ''); const n = +String(v ?? '').replace(/\D/g, '');
+    if (!n) return; if (n < 900001) return H.toast('У эксклюзивов номера с 900001 — объявления базы добавляйте галочкой на главной');
+    if (prep.items.some(x => x.num === n)) return H.toast('Этот объект уже в ролике');
+    try {
+      const r = await H.call('vid_prepare', { nums: [n] });
+      if (!r.items.length) return H.toast('Эксклюзив не найден или снят');
+      if (!r.pick.length) return H.toast('У этого эксклюзива нет фото');
+      prep.items.push(...r.items); scenes.push(...r.pick.map(p => ({ u: p.u ?? url(p.num, p.k, p.v), num: p.num, k: p.k, on: true, title: '', sub: '', fx: null })));
+      retitle(); redraw(); H.toast('Эксклюзив добавлен в ролик');
+    } catch (er) { H.toast(er.message, 5000); }
+  }
   async function onClick(e) {
     if (e.target.closest('[data-make]')) return make();
     if (e.target.closest('[data-preview]')) return cover();
@@ -654,6 +734,12 @@
     if (e.target.closest('[data-plan]')) return aiDirector(e.target.closest('[data-plan]'));
     if (e.target.closest('[data-restyle]')) { opt.style = (opt.style + 1 + Math.floor(Math.random() * 3)) % 4; post(); return H.toast('Другой вариант описания'); }
     const mv = e.target.closest('[data-mv]'); if (mv) { const [o, d] = mv.dataset.mv.split(':').map(Number); return move(o, d); }
+    // v5.42B: фото объекта — порядок, удалить; объект — убрать; ＋ свой объект, ＋ эксклюзив
+    const pm = e.target.closest('[data-pm]'); if (pm) { e.preventDefault(); const [i, d] = pm.dataset.pm.split(':').map(Number); return photoMove(i, d); }
+    const pd = e.target.closest('[data-pdel]'); if (pd) { e.preventDefault(); return photoDel(+pd.dataset.pdel); }
+    const od = e.target.closest('[data-odel]'); if (od) { const x = prep.items[+od.dataset.odel]; if (!x || !confirm('Убрать этот объект из ролика?')) return; prep.items = prep.items.filter(y => y !== x); scenes = scenes.filter(s => s.num !== x.num); cov = 0; retitle(); return redraw(); }
+    if (e.target.closest('[data-own-add]')) return ownForm();
+    if (e.target.closest('[data-x-add]')) return exclAdd();
     if (e.target.closest('[data-copy-cap]')) return H.copy(el.querySelector('#v-cap').value, 'Описание скопировано');
     if (e.target.closest('[data-copy-title]')) return H.copy(el.querySelector('#v-title').value, 'Заголовок скопирован');
     onSend(e);

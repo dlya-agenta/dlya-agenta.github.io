@@ -123,9 +123,30 @@
   const msg = (who, text) => `<div class="hub-msg ${who === 'ai' ? 'ai' : 'user'}"${who === 'ai' ? ` data-who="${esc(`${R[S?.role]?.icon ?? '⚖️'} ${R[S?.role]?.title ?? 'Юрист'}`)}"` : ''}>${who === 'ai' ? H.md(text) : esc(text).replace(/\n/g, '<br>')}</div>`;
 
   // ---------- 📎 документы и проверка ----------
+  // v5.42B: каждая проверка — своей вкладкой сверху («Проверка 1 · Проверка 2 · ＋ Новая»), ✎ — своё название; внутри — только её документы и отчёты
+  const bName = (x, i) => x.title || `Проверка ${i + 1}`;
+  function checksBar() {
+    const L = S.st.batches ?? [], cur = S.batch?.id ?? (S.oldTab ? 'old' : 'new');
+    const known = new Set(L.map(x => x.id)), old = (S.st.reports ?? []).filter(x => !x.deal_id && (!x.batch_id || !known.has(x.batch_id)));
+    const btn = (id, label, sub, edit) => `<span class="lwc${String(cur) === String(id) ? ' on' : ''}"><button type="button" class="lwc-b" data-chk="${id}" aria-pressed="${String(cur) === String(id)}">${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ''}</button>${edit && String(cur) === String(id) ? `<button type="button" class="lwc-e" data-chk-ren="${id}" title="Переименовать" aria-label="Переименовать">✎</button>` : ''}</span>`;
+    return `<div class="lw-checks" role="tablist" aria-label="Проверки">${L.map((x, i) => btn(x.id, bName(x, i), `${new Date(x.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · ${x.n} файл.`, true)).join('')}
+      ${old.length ? btn('old', '🗂 Прежние отчёты', `${old.length}`) : ''}${btn('new', '＋ Новая', '')}</div>`;
+  }
+  const curReps = () => { const L = S.st.batches ?? [], known = new Set(L.map(x => x.id));
+    return (S.st.reports ?? []).filter(x => !x.deal_id && (S.batch ? x.batch_id === S.batch.id : S.oldTab ? (!x.batch_id || !known.has(x.batch_id)) : false)); };
+  async function pickCheck(id) {
+    S.ans = {}; S.oldTab = id === 'old';
+    if (id === 'new' || id === 'old') S.batch = null;
+    else try { S.batch = await H.call('law_batch', { batch: +id }); } catch (er) { return fail(er); }
+    docsTab(S.el.querySelector('#lw-p'));
+  }
   function docsTab(p) {
-    const b = S.batch, broker = S.role === 'broker';
-    p.innerHTML = `<section class="hub-sec dl-sec lw-docs">
+    const b = S.batch, broker = S.role === 'broker', reps = curReps();
+    if (S.oldTab && !b) {   // старые отчёты без пакета — только посмотреть
+      p.innerHTML = `${checksBar()}<section class="hub-sec dl-sec lw-old"><h3>🗂 Прежние отчёты</h3><p class="hint">Отчёты, у которых пакет документов уже удалён (файлы хранятся 30 дней). Нажмите, чтобы открыть.</p><div class="lw-reps">${reps.map(repRow).join('')}</div></section><div id="lw-rep"></div>`;
+      p.onclick = onDocsClick; return;
+    }
+    p.innerHTML = `${checksBar()}<section class="hub-sec dl-sec lw-docs">
         <label class="lw-drop" id="lw-drop"><input type="file" multiple accept="*/*" data-files>
           <b>📎 ${b ? 'Догрузить документы в этот пакет' : 'Перетащите документы сюда или нажмите, чтобы выбрать'}</b>
           <small>Любой формат: PDF, фото (JPG, PNG, HEIC), DOC/DOCX, XLS — до 20 МБ файл. ${b ? 'Догрузка в тот же пакет — без новой загрузки из лимита.' : `Загрузка — <span data-left="docs"></span>.`}</small></label>
@@ -135,7 +156,7 @@
         <div id="lw-batch">${b ? batchHtml(b) : ''}</div>
         <div id="lw-rep"></div></section>
       <section class="hub-sec dl-sec" id="lw-drf"><h3>📝 Составить документы</h3><div id="lw-drf-box"></div></section>
-      ${S.st.reports?.length ? `<section class="hub-sec dl-sec lw-old"><h3>🗂 Прошлые проверки</h3><div class="lw-reps">${S.st.reports.map(repRow).join('')}</div></section>` : ''}`;
+      ${reps.length ? `<section class="hub-sec dl-sec lw-old"><h3>🗂 Отчёты этой проверки</h3><div class="lw-reps">${reps.map(repRow).join('')}</div></section>` : ''}`;
     const drop = p.querySelector('#lw-drop');
     ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('on'); }));
     ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('on'); }));
@@ -190,6 +211,12 @@
         <button class="btn ghost" data-newb>Новый пакет</button>${(b.docs ?? []).length ? '<button class="btn ghost bad" data-clear>🗑 Очистить все файлы</button>' : ''}</div>
       <p class="hint">Проверка по документам и открытым источникам — 1–2 минуты. Где нужна капча или плата (ФССП, суды, выписка ЕГРН) — дадим ссылку, проверьте сами.</p>`;
   }
+  // v5.42B: вкладка текущей проверки — число файлов и новая проверка в списке
+  function syncList() {
+    const b = S.batch; if (!b) return;
+    const L = S.st.batches ??= [], x = L.find(y => y.id === b.id);
+    if (x) x.n = (b.docs ?? []).length; else L.push({ id: b.id, title: b.title ?? null, at: b.at ?? new Date().toISOString(), n: (b.docs ?? []).length });
+  }
   const drawBatch = () => { const box = S.el.querySelector('#lw-batch'); if (box) box.innerHTML = S.batch ? batchHtml(S.batch) : ''; setQ(); };
 
   // фото больше 3 МБ или не JPEG/PNG/WEBP (HEIC) — в JPEG до 2200 px, если браузер умеет; остальное — как есть
@@ -226,6 +253,7 @@
       S.batch = await H.call('law_doc_done', { batch: up.batch }, { signal: AbortSignal.timeout?.(170000) });
       if (S.batch.quota) setQ(S.batch.quota);
       else H.call('law_quota').then(setQ).catch(() => {});
+      syncList(); S.oldTab = false;   // v5.42B: новая проверка появилась вкладкой
       prog.hidden = true;
       docsTab(S.el.querySelector('#lw-p'));
       S.el.querySelector('#lw-batch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -234,6 +262,16 @@
   }
   async function onDocsClick(e) {
     const t = e.target;
+    const ck0 = t.closest('[data-chk]');
+    if (ck0) return pickCheck(ck0.dataset.chk);
+    const rn = t.closest('[data-chk-ren]');
+    if (rn) {
+      const L = S.st.batches ?? [], i = L.findIndex(x => String(x.id) === rn.dataset.chkRen), x = L[i];
+      const v = prompt('Название проверки (например, «Квартира на Виноградной» или «Покупатель Иванов»):', x ? bName(x, i) : '');
+      if (v == null) return;
+      try { const r = await H.call('law_batch_rename', { batch: +rn.dataset.chkRen, title: v.trim() }); if (x) x.title = r.title; docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); }
+      return;
+    }
     const qa = t.closest('[data-q]');
     if (qa) { S.ans[qa.dataset.q] = qa.dataset.a; qa.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === qa)); return; }
     const k = t.closest('[data-kind]');
@@ -241,14 +279,14 @@
     const op = t.closest('[data-open]');
     if (op) { try { const r = await H.call('law_doc_url', { id: +op.dataset.open }); window.open(r.url, '_blank', 'noopener'); } catch (er) { fail(er); } return; }
     const dl = t.closest('[data-del]');
-    if (dl) { if (!confirm('Удалить документ? Файл удалится из хранилища.')) return; try { S.batch = await H.call('law_doc_del', { id: +dl.dataset.del }); if (!S.batch?.docs?.length) S.batch = null; docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); } return; }
+    if (dl) { if (!confirm('Удалить документ? Файл удалится из хранилища.')) return; try { S.batch = await H.call('law_doc_del', { id: +dl.dataset.del }); syncList(); docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); } return; }
     if (t.closest('[data-clear]')) {   // v5.39: все файлы пакета — одной кнопкой (law_batch_clear), отчёты остаются
       const n = (S.batch?.docs ?? []).length;
       if (!confirm(`Удалить все файлы пакета (${n})? Файлы удалятся из хранилища, разбор юриста — тоже. Отчёты проверок останутся.${S.batch?.deal_id ? ' Документы самой сделки не удаляются.' : ''}`)) return;
-      try { const r = await H.call('law_batch_clear', { batch: S.batch.id }); S.batch = null; S.ans = {}; H.toast(`Удалено файлов: ${r.removed}`); docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); }
+      try { const r = await H.call('law_batch_clear', { batch: S.batch.id }); S.batch = await H.call('law_batch', { batch: S.batch.id }).catch(() => null); syncList(); S.ans = {}; H.toast(`Удалено файлов: ${r.removed}`); docsTab(S.el.querySelector('#lw-p')); } catch (er) { fail(er); }
       return;
     }
-    if (t.closest('[data-newb]')) { if (!confirm('Начать новый пакет документов? Это новая загрузка из лимита месяца.')) return; S.batch = null; S.ans = {}; docsTab(S.el.querySelector('#lw-p')); return; }
+    if (t.closest('[data-newb]')) return pickCheck('new');   // v5.42B: новая проверка — вкладкой «＋ Новая» (загрузка из лимита — при первом файле)
     const rp = t.closest('[data-rep]');
     if (rp) { try { const r = await H.call('law_report', { id: rp.dataset.rep }); showRep(r.id ?? rp.dataset.rep, r.report); } catch (er) { fail(er); } return; }
     const rr = t.closest('[data-reread]');
@@ -262,7 +300,7 @@
       try {
         const r = await H.call('law_check', { batch: S.batch.id, kind: S.kind, answers: { ...Object.fromEntries(qs.map(q => [q.id, 'Не знаю'])), ...S.ans }, role: S.role }, { signal: AbortSignal.timeout?.(170000) });
         if (r.quota) setQ(r.quota);
-        S.st.reports = [{ id: r.id, at: r.report.at ?? new Date().toISOString(), kind: S.kind, risk: r.report.risk, summary: r.report.summary, deal_id: null }, ...(S.st.reports ?? [])].slice(0, 10);
+        S.st.reports = [{ id: r.id, at: r.report.at ?? new Date().toISOString(), kind: S.kind, risk: r.report.risk, summary: r.report.summary, deal_id: null, batch_id: S.batch?.id ?? null }, ...(S.st.reports ?? [])].slice(0, 60);
         showRep(r.id, r.report);
       } catch (er) { fail(er); }
       ck.disabled = false; ck.firstChild.textContent = `🔎 Проверить ${S.kind === 'owner' ? 'собственника' : 'объект'} `;

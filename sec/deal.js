@@ -146,6 +146,7 @@
         `<button type="button" role="tab" class="dl-tab" data-tab="${x}">${t}${cnt[x] ? ` <span class="dl-tc">${cnt[x]}</span>` : ''}</button>`).join('')}</div>
 
       <div data-pane="main">
+      ${nextStep(d, o)}
       <section class="hub-sec dl-sec" id="d-path"><h3>🧭 Этапы сделки</h3>${stepper(d, k)}${pathHtml(d)}</section>
 
       <section class="hub-sec dl-sec"><h3>📋 Основное</h3><div class="hub-form">
@@ -154,7 +155,7 @@
         <label class="field">Расчёт<select id="d-pay">${opt(kb.pay, d.pay)}</select></label>
         <label class="field">Дата и время сделки (МСК)<input id="d-at" type="datetime-local" value="${esc(mskIn(d.deal_at))}"></label>
         <label class="field hub-wide">Заметки<textarea id="d-note" rows="2" maxlength="4000">${esc(d.note ?? '')}</textarea></label></div>
-        <p class="dl-obj">🏠 ${o ? `${esc([o.rooms ? `${o.rooms}-комн.` : '', o.kind ?? o.type_name ?? '', o.area ? `${o.area} м²` : '', o.complex ?? '', o.sub ?? o.district ?? '', o.address ?? ''].filter(Boolean).join(', '))}${o.num ? ` · № ${o.num}` : ''}` : 'Объект не выбран — отправьте его в сделку с карточки объявления или эксклюзива'}</p>
+        <p class="dl-obj">🏠 ${o ? `${esc([o.rooms ? `${o.rooms}-комн.` : '', o.kind ?? o.type_name ?? '', o.area ? `${o.area} м²` : '', o.complex ?? '', o.sub ?? o.district ?? '', o.address ?? ''].filter(Boolean).join(', '))}${o.num ? ` · № ${o.num}` : ''} <button type="button" class="x dl-obj-x" data-obj-x title="Убрать объект из сделки" aria-label="Убрать объект из сделки">✕</button>` : 'Объект не выбран — отправьте его в сделку с карточки объявления или эксклюзива'}</p>
         ${pay ? `<details class="dl-plan"><summary>💳 Как проходит расчёт «${esc(pay.name)}»</summary><p class="hint">${esc(pay.how)}</p>${pay.risks?.length ? `<p class="hint">⚠️ ${pay.risks.map(esc).join('; ')}</p>` : ''}</details>` : ''}
         <p class="hub-actions"><button class="btn primary" data-save>Сохранить</button>
           ${o?.num ? `<a class="btn soft" href="./#o=${o.num}" target="_blank">Открыть объект</a><button class="btn soft" data-rk="${o.num}">📣 В рекламу</button>` : ''}
@@ -200,6 +201,46 @@
     setTab(tab, false);
     if (go?.drf != null) setTimeout(() => el.querySelector('#d-drf')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     if (go?.sc) scOpen(go.sc);
+  }
+  // v5.42B: «Следующий шаг» — по одному действию за раз; отметка «готово» — в checklist сделки (ns_<шаг>)
+  const NS = [
+    ['req', '📨 Запросить документы для задатка', 'Готовый список документов и текст продавцу — отправьте в мессенджер одной кнопкой.', 'Запросить документы'],
+    ['up', '📎 Загрузить документы', 'Всё, что прислал продавец: ЕГРН, основание права, паспорта, согласие супруга. Фото с телефона тоже подходят.', 'Загрузить'],
+    ['zad', '📝 Договор задатка из документов', 'ФИО, паспорта, кадастровый номер и адрес подставятся из документов сами — останется проверить суммы и даты.', 'Составить договор задатка'],
+    ['law', '⚖️ Проверка юриста', 'Юрист проверит объект и собственника по документам и открытым источникам и скажет, что запросить ещё.', 'Проверить'],
+    ['bank', '🏦 Ипотека: одобрение и оценка', 'Одобрение покупателя и объекта банком, оценка, страховка. Спросите брокера, что подготовить.', 'Спросить брокера'],
+    ['dkp', '📝 Основной договор', 'Договор купли-продажи по виду сделки — из тех же документов.', 'Составить договор'],
+    ['reg', '🔑 Расчёты и регистрация', 'Напоминания за 3 дня, за сутки и в день сделки, потом — контроль регистрации.', 'Открыть план'],
+  ];
+  const nsNeed = d => NS.filter(([k]) => k !== 'bank' || /mort/.test(`${d.pay ?? ''} ${d.kind ?? ''}`));
+  function nextStep(d, o) {
+    const ch = d.checklist ?? {}, L = nsNeed(d), i = L.findIndex(([k]) => !ch[`ns_${k}`]);
+    const dots = L.map(([k, t], j) => `<span class="ns-dot${ch[`ns_${k}`] ? ' ok' : ''}${j === i ? ' cur' : ''}" title="${esc(t)}">${ch[`ns_${k}`] ? '✓' : j + 1}</span>`).join('');
+    if (i < 0) return `<section class="hub-sec dl-sec ns-box ns-done" id="d-next"><div class="ns-dots">${dots}</div><h3>🎉 Все шаги пройдены</h3><p class="hint">Осталось дождаться регистрации — напоминания стоят во вкладке «⏰ Задачи».</p><p><button type="button" class="linkish" data-ns-back>↩ Вернуть последний шаг</button></p></section>`;
+    const [k, t, why, btn] = L[i];
+    return `<section class="hub-sec dl-sec ns-box" id="d-next"><div class="ns-dots" aria-label="Шаг ${i + 1} из ${L.length}">${dots}</div>
+      <p class="ns-n">Следующий шаг · ${i + 1} из ${L.length}</p><h3>${esc(t)}</h3><p class="hint">${esc(why)}</p>
+      <p class="hub-actions"><button type="button" class="btn primary ns-go" data-ns-go="${k}">${esc(btn)}</button><button type="button" class="btn soft" data-ns-ok="${k}">✓ Сделано — дальше</button>
+        ${i ? '<button type="button" class="linkish" data-ns-back>↩ Назад</button>' : ''}</p></section>`;
+  }
+  async function nsMark(key, on) {
+    const ch = { ...(cur.deal.checklist ?? {}) };
+    if (on) ch[`ns_${key}`] = true; else delete ch[`ns_${key}`];
+    try { await H.call('deal_save', { id: cur.deal.id, checklist: ch }); cur.deal.checklist = ch; } catch (er) { return H.toast(er.message, 5000); }
+    const box = el.querySelector('#d-next'); if (box) box.outerHTML = nextStep(cur.deal, cur.object);
+  }
+  function nsGo(k) {
+    const d = cur.deal, o = cur.object;
+    if (k === 'req') {
+      if (o?.num && window.LAWREQ?.obj) return window.LAWREQ.obj({ num: o.num });
+      setTab('docs'); return H.toast('Объект в сделке не выбран — список документов для задатка — во вкладке «📎 Документы и проверка»', 5000);
+    }
+    if (k === 'up') { setTab('docs'); const f = el.querySelector('[data-doc-file]'); f?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return f?.click(); }
+    if (k === 'zad') return drfPick('zadatok');
+    if (k === 'dkp') return drfPick(d.kind === 'share' ? 'dkp_share' : d.kind === 'matcap' ? 'dkp_mc' : /mort/.test(`${d.pay ?? ''} ${d.kind ?? ''}`) ? 'dkp_mort' : 'dkp');
+    if (k === 'law') { setTab('docs'); const b = el.querySelector('[data-law-check="object"]'); if (b) { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); return b.click(); } return H.toast('Сначала загрузите документы — потом «⚖️ Проверка юриста»', 4000); }
+    if (k === 'bank') { setTab('chat'); const ta = el.querySelector('#d-ai'); if (ta) { ta.value ||= 'Покупатель берёт ипотеку. Что подготовить для одобрения покупателя и объекта банком, оценки и страховки? Какие сроки и на что обратить внимание?'; ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); } return; }
+    if (k === 'reg') return setTab('tasks');
   }
   // чат: подпись, чьё сообщение (стиль — hub.css, поток C)
   const msgHtml = (role, text) => role === 'ai' ? `<div class="hub-msg ai" data-who="⚖️ Юрист и брокер">${H.md(text)}</div>` : `<div class="hub-msg user" data-who="Вы">${esc(text).replace(/\n/g, '<br>')}</div>`;
@@ -372,7 +413,8 @@
   }
   const personRow = p => `<div class="hub-person"><input placeholder="Имя" data-pn value="${esc(p.name ?? '')}" maxlength="80"><input placeholder="Телефон" data-pp value="${esc(p.phone ? '+' + p.phone : '')}" inputmode="tel" maxlength="20">
     <select data-pr>${optMap(kb.roles, p.role ?? 'client')}</select><button class="btn ghost" data-rm-p aria-label="Убрать">✕</button></div>`;
-  const checklist = () => Object.fromEntries([...el.querySelectorAll('[data-ck]')].map(x => [x.dataset.ck, x.checked]));
+  // v5.42B: поверх сохранённого — иначе галочка в списке стирала отметки «Следующего шага» (ns_*)
+  const checklist = () => (cur.deal.checklist = { ...(cur.deal.checklist ?? {}), ...Object.fromEntries([...el.querySelectorAll('[data-ck]')].map(x => [x.dataset.ck, x.checked])) });
   function counts() {
     el.querySelectorAll('.dl-pcheck').forEach(c => {
       const all = c.querySelectorAll('[data-ck]').length, on = c.querySelectorAll('[data-ck]:checked').length, n = c.querySelector('[data-pcnt]');
@@ -402,6 +444,15 @@
     const t = e.target, d = cur.deal;
     const tb = t.closest('[data-tab], [data-tab-go]');
     if (tb) { setTab(tb.dataset.tab ?? tb.dataset.tabGo); return; }
+    // v5.42B: «Следующий шаг» и ✕ у объекта сделки
+    const ng = t.closest('[data-ns-go]'); if (ng) return nsGo(ng.dataset.nsGo);
+    const nk = t.closest('[data-ns-ok]'); if (nk) return nsMark(nk.dataset.nsOk, true);
+    if (t.closest('[data-ns-back]')) { const L = nsNeed(d), ch = d.checklist ?? {}, last = [...L].reverse().find(([k]) => ch[`ns_${k}`]); if (last) nsMark(last[0], false); return; }
+    if (t.closest('[data-obj-x]')) {
+      if (!confirm('Убрать объект из сделки? Сама сделка, документы, участники и задачи останутся. Объект можно снова добавить с его карточки («📑 В сделку»).')) return;
+      try { await H.call('deal_save', { id: d.id, num: null }); H.toast('Объект убран из сделки'); return card(d.id, { tab: 'main' }); } catch (er) { H.toast(er.message, 5000); }
+      return;
+    }
     if (t.closest('[data-at-save], [data-at-clear]')) {
       const v = t.closest('[data-at-clear]') ? null : mskOut(el.querySelector('#d-at2').value);
       if (t.closest('[data-at-save]') && !v) { H.toast('Выберите дату и время сделки'); return; }

@@ -375,6 +375,7 @@
           <button type="button" class="btn ghost" data-to="mail">✉️ В рассылку</button>
           <button type="button" class="btn ghost" data-to="client">👥 Клиенту</button>
           <a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>
+          <a class="btn ghost" href="hub.html#video=${x.num}" title="Видеообзор 9:16 из фото этого эксклюзива">🎬 Ролик</a>
           ${x.mine ? '<button type="button" class="btn ghost" data-to="ad">📣 В рекламу</button>' : ''}
         </div><p class="hint">Контакты собственника не публикуются — только контакт агента, разместившего объект.</p></div></div>
       <section class="ex-sim" id="ex-sim" aria-live="polite"><p class="muted">Подбираю похожие объекты…</p></section>`, '', true);
@@ -466,13 +467,14 @@
       document.body.insertAdjacentHTML('beforeend', `<div id="ex-selbar" class="ex-selbar" role="region" aria-label="Выбранные эксклюзивы" hidden>
         <span class="ex-sb-n"><b id="ex-sb-n">0</b><small class="muted">ссылкой до ${MAXSEL}, PDF до ${MAXPDF}</small></span>
         <button type="button" class="btn ghost" data-sb="clear">Очистить</button>
-        <span class="ex-sb-go"><button type="button" class="btn soft" data-sb="mail">✉️ В рассылку</button><button type="button" class="btn primary" data-sb="make">📄 В подборку</button></span></div>`);
+        <span class="ex-sb-go"><button type="button" class="btn soft" data-sb="mail">✉️ В рассылку</button><button type="button" class="btn soft" data-sb="video">🎬 Ролик</button><button type="button" class="btn primary" data-sb="make">📄 В подборку</button></span></div>`);   // v5.42B: 🎬 Ролик
       b = $('#ex-selbar');
       b.addEventListener('click', e => {
         const k = e.target.closest('[data-sb]')?.dataset.sb;
         if (k === 'clear') { const was = [...sel]; sel.clear(); jset(SKEY, []); was.forEach(n => pick(n, false)); }
         if (k === 'make') selMake();
         if (k === 'mail') toMail([...sel], e.target.closest('[data-sb]'));
+        if (k === 'video') location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`;   // v5.42B
       });
     }
     b.hidden = !sel.size;

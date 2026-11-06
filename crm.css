@@ -56,7 +56,7 @@
 .crm-obj img, .crm-noph { width: 64px; height: 48px; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: var(--soft); cursor: pointer; }
 .crm-obj > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; cursor: pointer; }
 .crm-obj small { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.crm-danger { margin: 6px 0 0; text-align: center; }
+.crm-danger { margin: 6px 0 0; text-align: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }   /* v5.42B: «В архив» и «Удалить» рядом */
 
 /* формы; кнопки — внизу, под большой палец */
 .crm-form { gap: 10px; }
@@ -153,3 +153,15 @@
 .crm-team .crm-form { padding: 12px; border: 1.5px solid var(--crm-line); border-radius: 12px; }
 .crm-team .crm-form .btn.primary { align-self: flex-start; }
 .crm-given summary { color: var(--link); font-weight: 600; }
+/* v5.42B: «🎧 Разговор» */
+.crm-talkv h3 { margin: 8px 0 4px; }
+.crm-talkv textarea { width: 100%; font-size: 16px; }
+.tk-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.tk-up { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; }
+.tk-up[aria-disabled="true"] { opacity: .6; cursor: default; }
+.tk-imgs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tk-img { position: relative; }
+.tk-img img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.tk-img .x { position: absolute; top: -6px; right: -6px; }
+.tk-plan { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.crm-big { min-height: 48px; font-size: 16px; padding: 0 22px; }

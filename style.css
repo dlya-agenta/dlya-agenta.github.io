@@ -971,3 +971,29 @@ html .iv-tools, html .iv-descr { border-color: var(--line2); }
 .zk-hint.small { margin: 6px 0 0; padding: 5px 8px; font-size: 12px; }
 .zk-mark { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, var(--card)); color: var(--link);
   font-size: 11px; font-weight: 600; vertical-align: 1px; }
+
+/* v5.42B: выбранные районы и ЖК значками с ✕; окно ЖК — число не под полосой прокрутки */
+.f-picked { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.f-picked[hidden] { display: none; }
+.f-picked .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; padding: 5px 10px; min-height: 32px; }
+.f-picked .chip b { margin-left: 4px; font-weight: 700; opacity: .75; }
+#zk-list, #ar-tree { padding-right: 14px; scrollbar-gutter: stable; }
+#zk-list .opt em { min-width: 3ch; text-align: right; padding-right: 2px; }
+/* v5.42B: юрист — проверки вкладками */
+.lw-checks { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; margin-bottom: 8px; scrollbar-width: thin; }
+.lw-checks .lwc { display: inline-flex; align-items: stretch; flex: none; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); }
+.lw-checks .lwc.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
+.lw-checks .lwc-b { border: 0; background: none; font: inherit; font-weight: 600; font-size: 14px; color: var(--text); padding: 8px 12px; cursor: pointer; text-align: left; min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
+.lw-checks .lwc-b small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.lw-checks .lwc.on .lwc-b { color: var(--link, var(--accent)); }
+.lw-checks .lwc-e { border: 0; border-left: 1px solid var(--line); background: none; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 16px; }
+/* v5.42B: сделка — «Следующий шаг» по одному действию */
+.ns-box { border: 2px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.ns-box h3 { margin: 2px 0 4px; font-size: 19px; }
+.ns-n { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+.ns-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ns-dot { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--soft); color: var(--muted); }
+.ns-dot.ok { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.ns-dot.cur { background: var(--accent); color: #fff; }
+.ns-box .ns-go { min-height: 46px; font-size: 16px; }
+.dl-obj-x { margin-left: 6px; vertical-align: middle; }

@@ -354,10 +354,17 @@ function renderFilters() {
   const nd = arr('d').length, nz = arr('zk').length;
   $('#open-areas').textContent = nd ? `${arr('d').map(areaName).slice(0, 2).join(', ')}${nd > 2 ? ` +${nd - 2}` : ''}` : 'Район';
   $('#open-areas').classList.toggle('on', !!nd);
-  $('#open-zk').textContent = nz ? `ЖК: ${nz}` : 'ЖК';
+  $('#open-zk').textContent = nz === 1 ? `ЖК ${zkById(arr('zk')[0])?.name ?? ''}`.trim() : nz ? `ЖК: ${nz}` : 'ЖК';
   $('#open-zk').classList.toggle('on', !!nz);
   { let h = $('#pick-hint'); if (!h) { h = document.createElement('p'); h.id = 'pick-hint'; h.className = 'zk-hint small'; $('#open-zk').parentElement.after(h); }
     const t = zkHint(); h.hidden = !t; h.textContent = t; }   // v5.41: «ЖК сужает свой район» — видно без инструкции
+  // v5.42B: каждое выбранное место и ЖК — значком с ✕ прямо в фильтре, снять без захода в список
+  { let pk = $('#f-picked'); if (!pk) { pk = document.createElement('div'); pk.id = 'f-picked'; pk.className = 'f-picked'; $('#pick-hint').before(pk);
+      pk.onclick = e => { const b = e.target.closest('[data-un]'); if (!b) return; const [key, v] = [b.dataset.un, b.dataset.v];
+        f[key] = arr(key).filter(x => String(x) !== v); if (!f[key].length) delete f[key]; fchg(); }; }
+    pk.innerHTML = [...arr('d').map(k => [`d`, k, `📍 ${areaName(k)}`]), ...arr('zk').map(id => ['zk', id, `🏢 ЖК ${zkById(id)?.name ?? id}`])]
+      .map(([key, v, l]) => `<button type="button" class="chip on" data-un="${key}" data-v="${esc(String(v))}" title="Убрать">${esc(l)} <b aria-hidden="true">✕</b></button>`).join('');
+    pk.hidden = !pk.innerHTML; }
   const n = Object.keys(f).filter(k => k !== 'al' && f[k] !== undefined && !(Array.isArray(f[k]) && !f[k].length)).length;
   // улица или дом из подсказки строки поиска — значок под строкой, ✕ снимает
   $('#q-place').innerHTML = f.a ? `<button type="button" class="chip on" data-x="a">📍 ${esc(f.al || 'улица')} ✕</button>` : '';
@@ -538,7 +545,8 @@ $('#open-zk').onclick = () => {
   const row = z => opt('zk', z.id, z.name, arr('zk').includes(z.id), z.n).replace('</span>', zkWhere(z) ? `<small class="zk-where">${esc(zkWhere(z))}</small></span>` : '</span>');
   const draw = () => {
     const q = $('#zk-find').value.trim().toLowerCase().replace(/ё/g, 'е');
-    const list = meta.zk.filter(z => !q || z.name.toLowerCase().replace(/ё/g, 'е').includes(q));
+    // v5.42B: больше предложений — выше (и в «ЖК в выбранных районах», и в «Других ЖК»)
+    const list = meta.zk.filter(z => !q || z.name.toLowerCase().replace(/ё/g, 'е').includes(q)).sort((a, b) => (b.n ?? 0) - (a.n ?? 0) || a.name.localeCompare(b.name, 'ru'));
     const sel = arr('d'), split = sel.length && zkHasA();
     const hint = zkHint(); $('#zk-hint').hidden = !hint; $('#zk-hint').textContent = hint;
     if (!list.length) { $('#zk-list').innerHTML = '<p class="muted">Не нашёл такой ЖК</p>'; return; }
@@ -1625,3 +1633,4 @@ document.addEventListener('click', async e => {
     b.classList.add('on'); toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`);
   } catch (err) { toast(err.message); } finally { b.disabled = false; }
 }, true);
+window.APPCARD = card; // v5.42A

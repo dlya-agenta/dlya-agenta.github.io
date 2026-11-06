@@ -70,7 +70,8 @@ window.CRM = (() => {
           ${fchip('only', 'late', '⏰ Просроченные')}${fchip('only', 'today', 'На сегодня')}${fchip('only', 'none', 'Без задач')}
           <select id="crm-sort" aria-label="Сортировка">${Object.entries(SORT).map(([k, v]) => `<option value="${k}"${F.sort === k ? ' selected' : ''}>↕ ${v}</option>`).join('')}</select></div>
         <div class="crm-chips crm-filt"><button type="button" class="chip${!F.status ? ' on' : ''}" data-st="">Все этапы · ${L.total}</button>${Object.entries(ST).map(([k, v]) =>
-          `<button type="button" class="chip${F.status === k ? ' on' : ''}" data-st="${k}">${v} · ${L.counts[k] ?? 0}</button>`).join('')}</div>
+          `<button type="button" class="chip${F.status === k ? ' on' : ''}" data-st="${k}">${v} · ${L.counts[k] ?? 0}</button>`).join('')}${L.counts.archive || F.status === 'archive' ? `<button type="button" class="chip${F.status === 'archive' ? ' on' : ''}" data-st="archive">🗄 Архив · ${L.counts.archive ?? 0}</button>` : ''}</div>
+        ${F.status === 'archive' ? '<p class="hint">Здесь клиенты, которых вы убрали в архив. Откройте клиента и нажмите «↩ Вернуть из архива».</p>' : ''}
         ${shown.length ? shown.map(c => `<button type="button" class="crm-client${c.late_days != null ? ' late' : ''}" data-client="${c.id}">
           <span class="crm-ctop"><span class="crm-nm"><b>${esc(c.name || c.phone || 'Без имени')}</b>${lateBadge(c.late_days)}</span>${pill(c.status)}</span>
           <small>${[c.kind ? esc(KIND[c.kind] ?? '') : '', c.phone && c.name ? esc(c.phone) : '', budget(c), c.objects ? `объектов: ${c.objects}` : '', c.source ? esc(SRC[c.source]) : ''].filter(Boolean).join(' · ')}</small>
@@ -147,6 +148,8 @@ window.CRM = (() => {
         <p class="muted crm-meta">${[c.source ? `Источник: ${esc(SRC[c.source])}` : '', `изменён ${esc(when(c.updated_at))}`].filter(Boolean).join(' · ')}</p>
         ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
       </section>
+      ${window.HUB ? `<section class="crm-sec crm-talk"><div class="crm-h"><b>🎧 Разговор с клиентом</b></div><p class="hint">Вставьте текст разговора или переписки, выгрузку чата WhatsApp/Telegram или скриншоты — помощник перескажет, что хочет клиент, предложит план, 3–5 объектов из базы и готовый текст клиенту. Итог запишется в журнал.</p>
+        <p><button type="button" class="btn soft" data-talk>🎧 Разобрать разговор</button></p></section>` : ''}
       <section class="crm-sec crm-journal"><div class="crm-h"><b>Журнал касаний</b><span class="muted">${(C.notes ?? []).length || ''}</span></div>
         <div class="crm-nk" role="radiogroup" aria-label="Что было">${Object.entries(C.note_kinds ?? NOTE).map(([k, v]) => `<button type="button" class="chip${NK === k ? ' on' : ''}" data-nk="${k}" role="radio" aria-checked="${NK === k}">${esc(v)}</button>`).join('')}</div>
         <div class="crm-nadd"><textarea id="crm-nt" rows="2" maxlength="2000" placeholder="О чём договорились: перезвонит в пятницу, ищет 2к до 15 млн…"></textarea><button type="button" class="btn primary" data-note-add>Записать</button></div>
@@ -162,7 +165,7 @@ window.CRM = (() => {
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
           <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
           ${window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lq-obj title="Проверка юриста: документы для задатка и сделки, запрос собственнику">⚖️</button>' : ''}<button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
-      ${C.can_del === false ? '' : '<p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p>'}</div>`;
+      <p class="crm-danger">${c.archived_at ? '<button type="button" class="btn soft" data-arch-client="0">↩ Вернуть из архива</button>' : '<button type="button" class="btn ghost" data-arch-client="1">🗄 В архив</button>'}${C.can_del === false ? '' : '<button type="button" class="btn ghost bad" data-del-client>🗑 Удалить</button>'}</p></div>`;
     bind(onClient);
     links(c);
     window.LAWREQ?.clientLine?.(body().querySelector('[data-lq-cl]'), c);   // v5.38r: «⚖️ Документы и проверка» клиента
@@ -244,8 +247,15 @@ window.CRM = (() => {
     if (obj && t.closest('[data-show-obj]')) { const x = C.items.find(i => i.num === +obj.dataset.num); return show(+obj.dataset.num, { client_id: c.id, what: x ? what(x) : '' }); }
     if (t.closest('[data-lk-sels]')) { e.preventDefault(); ui.closeSheet?.(); return document.querySelector('.top [data-go="sels"][data-tab="fb"]')?.click(); }
     if (obj && t.closest('[data-open-obj], img')) return +obj.dataset.num >= 900001 ? location.assign(`excl.html#o=${obj.dataset.num}`) : ui.openItem?.(+obj.dataset.num);   // v5.25b: эксклюзив — на его странице
+    if (t.closest('[data-talk]')) return talkView(c);
+    // v5.42B: архив — клиент уходит из списка (раздел «🗄 Архив», можно вернуть); удалить — пропадает у вас совсем
+    if (t.closest('[data-arch-client]')) {
+      const on = t.closest('[data-arch-client]').dataset.archClient === '1';
+      try { await ui.call('crm_client_arch', { id: c.id, on }); ui.toast(on ? 'Клиент в архиве — найдёте во вкладке «🗄 Архив»' : 'Клиент вернулся в список'); return open(); } catch (er) { ui.toast(er.message, 5000); }
+      return;
+    }
     if (t.closest('[data-del-client]')) {
-      if (!confirm(`Удалить клиента «${c.name || c.phone}»? Объекты у него пропадут, задачи останутся без клиента.`)) return;
+      if (!confirm(`Удалить клиента «${c.name || c.phone}» насовсем из вашей CRM?\n\nОн пропадёт из списка, поиска и помощника, напоминания его задач не придут. Вернуть не получится.\n\nЕсли просто не работаете с ним сейчас — лучше «🗄 В архив».`)) return;
       try { await ui.call('crm_client_del', { id: c.id }); ui.toast('Клиент удалён'); return open(); } catch (er) { ui.toast(er.message, 5000); }
       return;
     }
@@ -540,6 +550,86 @@ window.CRM = (() => {
       const b = f.querySelector('.btn.primary'); b.disabled = true;
       try { T = await ui.call('crm_team_invite', { who: f.who.value.trim(), name: f.elements.namedItem('name')?.value?.trim() || undefined }); ui.toast(`Приглашение отправлено: ${T.invited?.name ?? ''}`, 4000); teamView(); }
       catch (er) { err(er.message, f); b.disabled = false; }
+    };
+  }
+  // ---------- v5.42B: «🎧 Разговор» → пересказ, пожелания, план, объекты, текст клиенту (hub talk_crm; расход — в квоте помощника) ----------
+  let TK = { cid: 0, text: '', imgs: [] };
+  async function shrink(file) {   // скриншот → JPEG до 1400 px (меньше трафика, ИИ читает так же)
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+      const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement('canvas');
+      cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      return { b64: cv.toDataURL('image/jpeg', .82).split(',')[1], mime: 'image/jpeg', name: file.name };
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function talkView(c) {
+    if (TK.cid !== c.id) TK = { cid: c.id, text: '', imgs: [] };
+    let st = null; try { st = await window.HUB.call('talk_state'); } catch { /* квоту покажем после разбора */ }
+    const draw = (res) => {
+      body().innerHTML = `<div class="crm crm-talkv"><button type="button" class="btn ghost crm-back" data-back>‹ ${esc(c.name || c.phone || 'Клиент')}</button>
+        <h3>🎧 Разговор с клиентом</h3>
+        ${st?.quota ? `<p class="hint">Запросов помощника: осталось ${st.quota.left} из ${st.quota.lim}${st.quota.trial ? ' (пробные)' : ' в этом месяце'} — разбор считается как один запрос.</p>` : ''}
+        <label class="field">Текст разговора или переписки<textarea id="tk-text" rows="8" maxlength="30000" placeholder="Например: Клиент — Ирина, ищет 2-комнатную в Адлере до 15 млн, обязательно у моря, сроки — до весны, ипотека одобрена в Сбере…">${esc(TK.text)}</textarea></label>
+        <div class="tk-files"><label class="btn soft tk-up">📄 Файл чата (.txt)<input type="file" accept=".txt,text/plain" data-tk-txt hidden></label>
+          <label class="btn soft tk-up">🖼 Скриншоты переписки<input type="file" accept="image/*" multiple data-tk-img hidden></label>
+          <span class="btn ghost tk-up" aria-disabled="true" title="${st?.audio ? '' : 'Нужен ключ распознавания речи — скоро'}">🎙 Аудио — ${st?.audio ? 'загрузить' : 'скоро'}</span></div>
+        ${TK.imgs.length ? `<div class="tk-imgs">${TK.imgs.map((x, i) => `<span class="tk-img"><img src="data:${x.mime};base64,${x.b64}" alt=""><button type="button" class="x" data-tk-rm="${i}" aria-label="Убрать скриншот">✕</button></span>`).join('')}</div>` : ''}
+        <p class="hint">Выгрузка чата: WhatsApp — в чате «⋮ → Ещё → Экспорт чата → Без файлов»; Telegram (на компьютере) — «⋮ → Экспорт истории чата», формат «Текст». Скриншотов — до 4.</p>
+        <p><button type="button" class="btn primary crm-big" data-tk-go>🤖 Разобрать</button></p>
+        <div id="tk-res">${res ?? ''}</div></div>`;
+    };
+    const result = r => {
+      const w = r.wants ?? {}, li = (a) => (a ?? []).filter(Boolean).map(x => `<li>${esc(x)}</li>`).join('');
+      const wants = [w.budget_to_mln && `💰 ${w.budget_from_mln ? `${w.budget_from_mln}–` : 'до '}${w.budget_to_mln} млн`, w.district && `📍 ${w.district}`,
+        Array.isArray(w.rooms) && w.rooms.length && `🛏 ${w.rooms.map(n => n ? `${n}к` : 'студия').join(' / ')}`, w.kind && `🏠 ${w.kind}`, w.deadline && `⏳ ${w.deadline}`].filter(Boolean);
+      return `<section class="crm-sec"><div class="crm-h"><b>Коротко</b></div><p>${esc(r.summary)}</p>
+          ${wants.length ? `<div class="crm-chips">${wants.map(x => `<span class="chip on">${esc(x)}</span>`).join('')}</div>` : ''}
+          ${(w.must ?? []).length ? `<p class="hint">Важно: ${esc(w.must.join(', '))}</p>` : ''}${(w.no ?? []).length ? `<p class="hint">Не подходит: ${esc(w.no.join(', '))}</p>` : ''}</section>
+        ${(r.strategy ?? []).length ? `<section class="crm-sec"><div class="crm-h"><b>План</b></div><ol class="tk-plan">${li(r.strategy)}</ol></section>` : ''}
+        ${(r.items ?? []).length ? `<section class="crm-sec"><div class="crm-h"><b>Подходящие объекты</b><span class="muted">всего по запросу: ${r.total}</span></div>
+          <div class="crm-objs">${r.items.map(x => `<div class="crm-obj" data-num="${x.num}">${x.web_photos && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
+            <div data-tk-open="${x.num}"><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">№ ${x.num}</small></div>
+            <button type="button" class="btn soft sm" data-tk-add="${x.num}">＋ Клиенту</button></div>`).join('')}</div>
+          <p><button type="button" class="btn soft" data-tk-addall>＋ Все ${r.items.length} — клиенту</button>${r.search ? ` <span class="hint">Запрос: «${esc(r.search)}»</span>` : ''}</p></section>` : ''}
+        ${r.message ? `<section class="crm-sec"><div class="crm-h"><b>Текст клиенту</b></div><textarea id="tk-msg" rows="6">${esc(r.message)}</textarea>
+          <p class="crm-sel"><button type="button" class="btn primary" data-tk-copy>📋 Скопировать</button>${c.phone ? `<a class="btn soft" data-tk-wa href="https://wa.me/${String(c.phone).replace(/\D/g, '').replace(/^8/, '7')}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</p></section>` : ''}
+        <p class="hint">✓ Пересказ и план записаны в журнал клиента.</p>`;
+    };
+    draw();
+    bind(async e => {
+      const t = e.target;
+      if (t.closest('[data-back]')) { TK.text = body().querySelector('#tk-text')?.value ?? TK.text; return client(c.id); }
+      const rm = t.closest('[data-tk-rm]'); if (rm) { TK.text = body().querySelector('#tk-text').value; TK.imgs.splice(+rm.dataset.tkRm, 1); return draw(body().querySelector('#tk-res')?.innerHTML); }
+      const op = t.closest('[data-tk-open]'); if (op) return ui.openItem?.(+op.dataset.tkOpen);
+      const add = t.closest('[data-tk-add]'), all = t.closest('[data-tk-addall]');
+      if (add || all) {
+        const nums = add ? [+add.dataset.tkAdd] : [...body().querySelectorAll('[data-tk-add]')].map(b => +b.dataset.tkAdd);
+        try { for (const num of nums) await ui.call('crm_obj_add', { client_id: c.id, num }); ui.toast(`Клиенту добавлено: ${nums.length}`); (add ?? all).disabled = true; } catch (er) { ui.toast(er.message, 5000); }
+        return;
+      }
+      if (t.closest('[data-tk-copy]')) { const v = body().querySelector('#tk-msg').value; try { await navigator.clipboard.writeText(v); ui.toast('Скопировано'); } catch { ui.toast('Не удалось скопировать — выделите текст вручную'); } return; }
+      const wa = t.closest('[data-tk-wa]'); if (wa) { wa.href = `${wa.href.split('?')[0]}?text=${encodeURIComponent(body().querySelector('#tk-msg').value)}`; return; }
+      const go = t.closest('[data-tk-go]');
+      if (go) {
+        TK.text = body().querySelector('#tk-text').value.trim();
+        if (TK.text.length < 30 && !TK.imgs.length) return ui.toast('Вставьте текст разговора (хотя бы пару фраз) или добавьте скриншоты', 4000);
+        go.disabled = true; go.textContent = '⏳ Разбираю — до минуты…';
+        try {
+          const r = await window.HUB.call('talk_crm', { client_id: c.id, text: TK.text, images: TK.imgs.map(({ b64, mime }) => ({ b64, mime })) }, { signal: AbortSignal.timeout?.(150000) });
+          if (r.quota) st = { ...(st ?? {}), quota: r.quota };
+          draw(result(r)); body().querySelector('#tk-res')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (er) { ui.toast(er.message, 6000); go.disabled = false; go.textContent = '🤖 Разобрать'; }
+      }
+    });
+    body().onchange = async e => {
+      const t = e.target;
+      if (t.matches('[data-tk-txt]') && t.files?.[0]) { const f = t.files[0]; if (f.size > 3e6) return ui.toast('Файл больше 3 МБ — выгрузите чат без файлов или за последние месяцы', 5000);
+        const txt = await f.text(); TK.text = (body().querySelector('#tk-text').value + '\n' + txt.slice(-30000 + 200)).trim().slice(-30000); draw(body().querySelector('#tk-res')?.innerHTML); ui.toast('Чат добавлен в поле'); }
+      if (t.matches('[data-tk-img]') && t.files?.length) { TK.text = body().querySelector('#tk-text').value;
+        for (const f of [...t.files].slice(0, 4 - TK.imgs.length)) try { TK.imgs.push(await shrink(f)); } catch { ui.toast(`«${f.name}» не открылся`); }
+        draw(body().querySelector('#tk-res')?.innerHTML); }
     };
   }
   // ---------- v5.39: «📅 Календарь на телефоне» — подписка Apple / Google (hub cal_get) ----------

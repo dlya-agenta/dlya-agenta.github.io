@@ -1,0 +1,11 @@
+/* v5.42A п. 8: 🎤 в полях окон (voice.js) */
+.vwrap{position:relative;display:inline-block;width:100%;vertical-align:top}
+.vwrap>input{padding-right:44px;box-sizing:border-box;width:100%}
+.vwrap.vta{display:block}.vwrap.vta>textarea{padding-right:46px;box-sizing:border-box;width:100%}
+.vmic{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:0;background:transparent;font-size:18px;line-height:1;cursor:pointer;opacity:.75}
+.vwrap.vta .vmic{top:auto;bottom:6px;transform:none}
+.vmic:hover,.vmic:focus-visible{opacity:1;background:color-mix(in srgb,currentColor 10%,transparent)}
+.vmic.on{opacity:1;background:#e5484d;color:#fff;animation:vpulse 1.2s infinite}
+@keyframes vpulse{50%{box-shadow:0 0 0 6px rgba(229,72,77,.25)}}
+@media (prefers-reduced-motion:reduce){.vmic.on{animation:none}}
+#v-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;z-index:99999;max-width:90vw}
