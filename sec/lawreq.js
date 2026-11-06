@@ -21,7 +21,7 @@ window.LAWREQ = (() => {
     .lq-h { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px 10px; border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); }
     .lq-h b { font-size: 17px; display: block; } .lq-h small { color: var(--muted, #666); display: block; margin-top: 2px; overflow-wrap: anywhere; }
     .lq-h .x { margin-left: auto; border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: inherit; padding: 2px 6px; }
-    .lq-b { overflow: auto; padding: 12px 16px 16px; display: grid; gap: 12px; overscroll-behavior: contain; }
+    .lq-b { overflow: auto; padding: 12px 16px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; overscroll-behavior: contain; } .lq-b > * { min-width: 0; } .lq .btn { white-space: normal; max-width: 100%; } .lq-fl .chip, .lq-tab { white-space: normal; text-align: left; }
     .lq-tabs, .lq-fl, .lq-side { display: flex; flex-wrap: wrap; gap: 6px; }
     .lq-tab { border: 1px solid var(--line, rgba(127,127,127,.3)); background: none; color: inherit; border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer; }
     .lq-tab.on { background: var(--accent, #1453d8); border-color: var(--accent, #1453d8); color: var(--accent-text, #fff); }
@@ -194,8 +194,8 @@ window.LAWREQ = (() => {
       const d = await H().call('lreq_client', { client_id: c.id });
       if (!document.body.contains(box)) return;
       const b = d.batch, r = b?.report, rk = r ? RISK[r.risk] ?? RISK.mid : null, lastReq = d.reqs?.[0];
-      const info = [b ? `📎 файлов в проверке: ${b.docs.length}` : '', rk ? `${rk[0]} риск ${rk[1]} (${day(r.at)})` : '', lastReq ? `запрошено ${day(lastReq.at)}` : ''].filter(Boolean).join(' · ');
-      box.querySelector('.lq-line').innerHTML = `${btns}${b ? `<a class="btn soft" href="${lawUrl('ask', `c${c.id}`)}">💬 Чат с проверкой</a>` : ''}<span class="lq-muted">${esc(info || 'Списки для брони, задатка и сделки — и запрос клиенту в мессенджер.')}</span>`;
+      const info = [b?.docs.length ? `📎 файлов в проверке: ${b.docs.length}` : '', rk ? `${rk[0]} риск ${rk[1]} (${day(r.at)})` : '', lastReq ? `запрошено ${day(lastReq.at)}` : ''].filter(Boolean).join(' · ');
+      box.querySelector('.lq-line').innerHTML = `${btns}${b?.docs.length ? `<a class="btn soft" href="${lawUrl('ask', `c${c.id}`)}">💬 Чат с проверкой</a>` : ''}<span class="lq-muted">${esc(info || 'Списки для брони, задатка и сделки — и запрос клиенту в мессенджер.')}</span>`;
     } catch { /* нет доступа (Main, гость) — остаётся кнопка */ }
   }
 

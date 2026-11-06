@@ -112,6 +112,7 @@ window.CRM = (() => {
         <p class="muted crm-meta">${[c.source ? `Источник: ${esc(SRC[c.source])}` : '', `изменён ${esc(when(c.updated_at))}`].filter(Boolean).join(' · ')}</p>
         ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
       </section>
+      ${C.mine === false || !window.LAWREQ ? '' : '<section class="crm-sec" data-lq-cl></section>'}
       <section class="crm-sec"><div class="crm-h"><b>Задачи</b><button type="button" class="btn ghost" data-new-task>＋ Задача</button></div>
         ${open.length ? open.map(t => taskRow(t, false)).join('') : '<p class="muted crm-empty">Открытых задач нет.</p>'}
         ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(t => taskRow(t, false)).join('')}</details>` : ''}</section>
@@ -121,10 +122,11 @@ window.CRM = (() => {
         <div class="crm-objs">${C.items.map(x => `<div class="crm-obj" data-num="${x.num}">
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
           <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
-          <button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
+          ${window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lq-obj title="Проверка юриста: документы для задатка и сделки, запрос собственнику">⚖️</button>' : ''}<button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
       ${C.can_del === false ? '' : '<p class="crm-danger"><button type="button" class="btn ghost bad" data-del-client>Удалить клиента</button></p>'}</div>`;
     bind(onClient);
     links(c);
+    window.LAWREQ?.clientLine?.(body().querySelector('[data-lq-cl]'), c);   // v5.38r: «⚖️ Документы и проверка» клиента
   }
   // «📄 Из подборки» (v5.15): объекты подборки — клиенту; живую ссылку подборки — клиенту в WhatsApp, Telegram, MAX или скопировать
   async function fromSel(c) {
@@ -180,6 +182,8 @@ window.CRM = (() => {
       return ui.selStart?.(C.items.slice(0, k).map(x => x.num), `Для: ${c.name || c.phone || 'клиента'}`.slice(0, 80), f);
     }
     const obj = t.closest('[data-num]');
+    if (obj && t.closest('[data-lq-obj]')) return window.LAWREQ?.obj({ num: +obj.dataset.num });   // v5.38r
+    if (t.closest('[data-lq-cl]')) return;   // своя кнопка блока проверки — sec/lawreq.js
     if (obj && t.closest('[data-del-obj]')) {
       try { await ui.call('crm_obj_del', { client_id: c.id, num: +obj.dataset.num }); C.items = C.items.filter(x => x.num !== +obj.dataset.num); drawClient(); ui.toast('Объект убран у клиента'); } catch (er) { ui.toast(er.message, 5000); }
       return;

@@ -684,6 +684,16 @@ function phoneBox(p, owner, tg) {
       ${tgA}<button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>` : tgA ? `<div class="msgs">${tgA}</div>` : ''}</div>`;
 }
 
+// v5.38r: «⚖️ Проверка» — списки документов юриста; телефон собственника — тем же «phone» (по тарифу), карточка обновляется как при «📞 Телефон»
+function lawReq(num, x, cardEl) {
+  window.LAWREQ?.obj({ num, phone: x?.phone, tg: x?.tg }, { phone: async () => {
+    const p = await call('phone', { num });
+    PLANS.counter(p.used);
+    if (x) { x.phone = p.phone; if (p.tg) x.tg = p.tg; }
+    const b = cardEl?.querySelector('[data-phone]'); if (b && (p.phone || p.tg)) b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
+    return p;
+  } });
+}
 // действия в карточке
 $('#list').addEventListener('click', e => onCard(e, e.target.closest('.card')));
 // фото как у Авито (v5.15): на компьютере ведёшь мышкой по фото — кадры меняются, внизу полоски; ушёл — первое фото
@@ -705,6 +715,7 @@ async function onCard(e, cardEl) {
   if (!cardEl) return;
   const num = +cardEl.dataset.num, x = items.get(num);
   const t = e.target;
+  if (t.closest('[data-lawreq]')) { lawReq(num, x, cardEl); return; }   // v5.38r: «⚖️ Проверка» — sec/lawreq.js
   if (t.closest('[data-nav]')) { const g = t.closest('.gal'); const s = g.querySelector('.strip'); s.scrollBy({ left: s.clientWidth * +t.closest('[data-nav]').dataset.nav, behavior: 'smooth' }); return; }
   if (t.closest('[data-sel]')) {
     const c = t.closest('[data-sel]');
@@ -902,6 +913,7 @@ function ivTools(x) {
   const adm = me?.role === 'admin' || !!me?.main, agent = me && !me.guest;   // v5.37a: «Модерация» в объявлении — и группе Main
   const row = [meta.features.deals && agent ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
     meta.features.mail && agent ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
+    agent && window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lawreq title="Юрист подготовит списки документов для задатка и для сделки — отправите сами или запросите у собственника">⚖️ Проверка</button>' : '',   // v5.38r
     agent && !adm ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : ''].filter(Boolean).join('');
   const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
     : '<button type="button" class="btn ghost sm" data-adm="hide" title="Пропадёт у всех, будет в «🙈 Скрытые»">🙈 Скрыть</button><button type="button" class="btn ghost sm bad" data-adm="del" title="Пропадёт у всех, ночная загрузка не вернёт">🗑 Удалить</button>'}</div>` : '';

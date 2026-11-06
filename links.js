@@ -51,9 +51,13 @@ window.LINKS = (() => {
       !yes.length && no.length ? i(`Клиенту не подошло${no[0].cm ? `: ${no[0].cm}` : ''}`, 'grey', '👎') : '',
       show.length ? i(`На показ: ${show.map(c => c.name).join(', ')}`, '', '📅') : '',
       v.cl.length ? i(`У клиентов в CRM: ${v.cl.map(c => c.name).join(', ')}`, '', `👥${v.cl.length > 1 ? `<b>${v.cl.length}</b>` : ''}`) : '',
-      v.deal ? i(`В сделке${v.deal.title ? `: ${v.deal.title}` : ''}`, '', '📑') : ''].filter(Boolean);
+      v.deal ? i(`В сделке${v.deal.title ? `: ${v.deal.title}` : ''}`, '', '📑') : '',
+      v.law ? i(lawTip(v.law), v.law.risk === 'high' ? 'bad' : v.law.risk === 'low' ? 'ok' : '', '⚖️') : ''].filter(Boolean);   // v5.38r
     return parts.length ? `<div class="lk lk-ic agent-only" data-lk>${parts.join('')}</div>` : '';
   }
+  // v5.38r: «⚖️ Проверка» — пакет юриста по объекту и запросы документов (hub lnk_cards → law)
+  const RK = { low: 'низкий', mid: 'средний', high: 'высокий' };
+  const lawTip = l => ['Проверка юриста', l.docs ? `файлов: ${l.docs}` : '', l.risk ? `риск ${RK[l.risk] ?? l.risk}` : '', l.req ? `документы запрошены ${day(l.req)}` : ''].filter(Boolean).join(' · ');
   function strip(num, v) {
     const yes = v.sels.filter(s => s.fb === 'yes'), no = v.sels.filter(s => s.fb === 'no');
     const tab = v.own ? 'own' : yes.length || no.length ? 'fb' : 'all';
@@ -63,7 +67,8 @@ window.LINKS = (() => {
       !yes.length && no.length ? `<span class="lk-c grey" title="${esc(no.map(s => s.cm || s.title).join(' · '))}">👎 Клиенту не подошло</span>` : '',
       ...v.cl.slice(0, 3).map(c => `<button type="button" class="lk-c lnk" data-lk-cl="${c.id}" title="Карточка клиента в CRM">👥 ${esc(c.name)}</button>`),
       v.cl.length > 3 ? `<span class="lk-c grey">ещё ${v.cl.length - 3}</span>` : '',
-      v.deal ? `<a class="lk-c lnk" href="hub.html#deal=${v.deal.id}" title="${esc(v.deal.title || 'Сделка')}">📑 В сделке</a>` : ''].filter(Boolean);
+      v.deal ? `<a class="lk-c lnk" href="hub.html#deal=${v.deal.id}" title="${esc(v.deal.title || 'Сделка')}">📑 В сделке</a>` : '',
+      v.law ? `<button type="button" class="lk-c lnk${v.law.risk === 'high' ? ' bad' : ''}" data-lk-law title="${esc(lawTip(v.law))}">⚖️ Проверка${v.law.docs ? ` · ${v.law.docs} файл.` : v.law.req ? ' · запрошено' : ''}</button>` : ''].filter(Boolean);
     const acts = [yes.length || v.own?.st === 'yes' ? '<button type="button" class="btn soft lk-b" data-lk-show>📅 На показ</button>' : '',
       v.own?.st === 'yes' ? `<button type="button" class="btn ghost lk-b" data-lk-ex>💎 Предложить эксклюзив</button>` : ''].filter(Boolean);
     const off = v.own ? `<button type="button" class="lk-c lnk lk-off" data-lk-off title="Убрать отметку «написал» и ответ собственника (проверка ответа остановится)">✕ Снять отметку собственника</button>` : '';
@@ -165,6 +170,8 @@ window.LINKS = (() => {
     if (tip && ui) { e.preventDefault(); e.stopPropagation(); return ui.toast(tip.title, 4000); }
     const off = e.target.closest('[data-lk-off]');
     if (off && ui) { e.preventDefault(); e.stopPropagation(); return ownOff(+off.closest('.card')?.dataset.num, off); }
+    const lw = e.target.closest('[data-lk-law]');   // v5.38r: «⚖️ Проверка» — окно юриста со списками (sec/lawreq.js)
+    if (lw && window.LAWREQ) { e.preventDefault(); e.stopPropagation(); return window.LAWREQ.obj({ num: +(lw.closest('.card')?.dataset.num || lw.closest('[data-ivlk]')?.dataset.ivlk) }); }
     const s = e.target.closest('[data-lkf] [data-lk-sels], [data-lk-show], [data-lk-ex], [data-lk-cl]');
     if (!s || !ui) return;
     e.preventDefault(); e.stopPropagation();
