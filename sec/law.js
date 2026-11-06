@@ -33,8 +33,12 @@
   async function open(role, ctx, arg) {
     const c = R[role];
     ctx.el.innerHTML = '<p class="muted">Загрузка…</p>';
-    const st = await H.call('law_init', { role });
-    S = { role, el: ctx.el, st, tab: ['docs', 'grp'].includes(arg) ? arg : 'ask', batch: st.batch ?? null, ans: {}, kind: 'object', quota: st.quota };
+    // v5.38r: «docs:n123» / «ask:c45» — проверка объекта или клиента из карточки (sec/lawreq.js): его пакет или новый с привязкой
+    // v5.38: «drf:pdkp,zadatok» — сразу «📎 Документы и проверка» и конструктор с отмеченными шаблонами
+    const drf = /^drf(:|$)/.test(arg ?? '') ? String(arg).slice(4).split(',').filter(Boolean) : null;
+    const [ta, key] = drf ? ['docs', ''] : String(arg ?? '').split(':'), lr = key && window.LAWREQ ? await window.LAWREQ.lawCtx(key).catch(e => { H.toast(e.message, 5000); return null; }) : null;
+    const st = await H.call('law_init', { role, ...(lr?.batch_id ? { batch: lr.batch_id } : {}) });
+    S = { role, el: ctx.el, st, tab: ['docs', 'grp'].includes(ta) ? ta : 'ask', batch: lr && !lr.batch_id ? null : st.batch ?? null, ctx: lr?.ctx ?? null, ans: {}, kind: 'object', quota: st.quota, pre: drf ?? [], toDrf: !!drf };
     ctx.el.innerHTML = `<div class="law-wrap">
       <div class="dl-head law-head"><h2>${c.icon} ${c.title}</h2><a class="btn ghost" href="#${c.other[0]}">${c.other[1]}</a></div>
       <div class="lw-q" id="lw-q" aria-label="Лимиты в этом месяце"></div>
@@ -77,7 +81,7 @@
       box.insertAdjacentHTML('beforeend', msg('user', text) + '<div class="hub-msg ai law-typing"><span></span><span></span><span></span></div>');
       box.scrollTop = box.scrollHeight;
       try {
-        const r = await H.call('law_ask', { role: S.role, text, ...(S.about ? { report_id: S.about } : {}) }, { signal: AbortSignal.timeout?.(150000) });
+        const r = await H.call('law_ask', { role: S.role, text, ...(S.about ? { report_id: S.about } : {}), ...(S.ctx && S.batch ? { batch: S.batch.id } : {}) }, { signal: AbortSignal.timeout?.(150000) });
         if (r.seen) { S.st.seen = r.seen; const sl = p.querySelector('.lw-seen'); if (sl) sl.outerHTML = seenLine(); }
         box.querySelector('.law-typing')?.remove();
         box.insertAdjacentHTML('beforeend', msg('ai', r.answer));
@@ -125,9 +129,11 @@
           <b>📎 ${b ? 'Догрузить документы в этот пакет' : 'Перетащите документы сюда или нажмите, чтобы выбрать'}</b>
           <small>Любой формат: PDF, фото (JPG, PNG, HEIC), DOC/DOCX, XLS — до 20 МБ файл. ${b ? 'Догрузка в тот же пакет — без новой загрузки из лимита.' : `Загрузка — <span data-left="docs"></span>.`}</small></label>
         <p class="lw-tip">💡 Загрузите все документы сразу — проверка считается одной. ${broker ? 'Для ипотеки: ЕГРН, основание права, техплан, паспорт и доход покупателя.' : 'ЕГРН, основание права, паспорта, согласие супруга, справки — сколько есть.'}</p>
+        ${window.LAWREQ?.panel?.(S) ?? ''}
         <p class="hint" id="lw-prog" hidden></p>
         <div id="lw-batch">${b ? batchHtml(b) : ''}</div>
         <div id="lw-rep"></div></section>
+      <section class="hub-sec dl-sec" id="lw-drf"><h3>📝 Составить документы</h3><div id="lw-drf-box"></div></section>
       ${S.st.reports?.length ? `<section class="hub-sec dl-sec lw-old"><h3>🗂 Прошлые проверки</h3><div class="lw-reps">${S.st.reports.map(repRow).join('')}</div></section>` : ''}`;
     const drop = p.querySelector('#lw-drop');
     ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('on'); }));
@@ -135,6 +141,18 @@
     drop.addEventListener('drop', e => { if (e.dataTransfer?.files?.length) upload(e.dataTransfer.files); });
     p.onchange = e => { if (e.target.matches('[data-files]') && e.target.files?.length) { upload(e.target.files); e.target.value = ''; } };
     p.onclick = onDocsClick;
+    window.LAWREQ?.bind?.(p, S);
+    mountDrf(p);
+  }
+  // v5.38: конструктор документов (sec/draft.js) — черновик к пакету документов (новый пакет — новый черновик)
+  function mountDrf(p) {
+    const box = p.querySelector('#lw-drf-box');
+    if (!box || !window.DRAFT) return;
+    const pre = S.pre ?? [], go = S.toDrf;
+    S.pre = []; S.toDrf = false;
+    window.DRAFT.mount(box, { batch: S.batch?.id, role: S.role, pre }).then(() => {
+      if (go) p.querySelector('#lw-drf')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
   const repRow = x => `<button class="lw-rep" data-rep="${esc(x.id)}"><span class="lr-dot ${esc(x.risk ?? 'mid')}" aria-hidden="true"></span>
     <span><b>${x.kind === 'owner' ? 'Собственник' : 'Объект'} · ${esc((L().RISK[x.risk] ?? L().RISK.mid)[0])} риск</b><small>${esc((x.summary ?? '').slice(0, 140))}</small></span>
@@ -195,7 +213,7 @@
     drop.classList.add('busy'); prog.hidden = false; prog.textContent = '⏳ Готовим файлы…';
     try {
       const ready = []; for (const f of ok) ready.push(await prep(f));
-      const up = await H.call('law_doc_up', { role: S.role, batch: S.batch?.id, files: ready.map(x => ({ name: x.name, size: x.blob.size, mime: x.mime })) });
+      const up = await H.call('law_doc_up', { role: S.role, batch: S.batch?.id, ...(S.batch ? {} : S.ctx ?? {}), files: ready.map(x => ({ name: x.name, size: x.blob.size, mime: x.mime })) });
       let n = 0;
       for (const [i, it] of (up.items ?? []).entries()) {
         prog.textContent = `⏳ Загружаем ${i + 1} из ${up.items.length}: ${it.name}`;
@@ -325,6 +343,8 @@
       };
     }
   }
+
+  document.addEventListener('law-quota', e => { if (S?.el && document.body.contains(S.el)) setQ(e.detail); });   // вопрос юристу из конструктора
 
   window.SEC = window.SEC || {};
   window.SEC.lawyer = { title: 'Юрист', open: (a, ctx) => open('lawyer', ctx, a) };

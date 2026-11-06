@@ -28,6 +28,28 @@
     .dl-up.busy { opacity: .6; pointer-events: none; }
     .dl-invite { display: flex; flex-wrap: wrap; gap: 8px; }
     @media (max-width: 600px) { .dl-doc-b .btn { flex: 1 1 auto; } }
+    .dl-doc.rep.drf b { color: inherit; }
+    .dl-now { margin-top: 12px; border: 1px solid var(--line, rgba(127,127,127,.25)); border-radius: 14px; padding: 12px 14px; background: var(--card, transparent); }
+    .dl-now h4 { margin: 0 0 4px; font-size: 16px; } .dl-now .dl-goal { margin: 0 0 8px; opacity: .85; }
+    .dl-now-g { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px 18px; }
+    .dl-now-g > div { min-width: 0; } .dl-now ol, .dl-now ul { margin: 4px 0 0; padding-left: 20px; } .dl-now li { margin: 3px 0; line-height: 1.45; }
+    .dl-now .dl-who { margin: 8px 0 0; } .dl-now .dl-tip { margin: 8px 0 0; padding: 7px 10px; border-radius: 10px; background: rgba(234,88,12,.1); }
+    .dl-pdocs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .dl-pdocs .btn { font-size: 13.5px; padding: 6px 10px; white-space: normal; text-align: left; max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+    .dl-pdocs span.dl-pd { font-size: 13.5px; padding: 6px 10px; border-radius: 10px; border: 1px dashed var(--line, rgba(127,127,127,.35)); }
+    .dl-pcheck { margin-top: 10px; } .dl-pcheck .hub-chk { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; }
+    .dl-pcnt { font-weight: 700; font-size: 13px; border-radius: 999px; padding: 2px 9px; background: rgba(127,127,127,.15); margin-left: 6px; }
+    .dl-pcnt.full { background: rgba(22,163,74,.15); color: #15803d; } html[data-theme="dark"] .dl-pcnt.full { color: #4ade80; }
+    .dl-pnext { margin: 6px 0 0; } .dl-pnext[hidden] { display: none; }
+    .dl-pall { margin-top: 10px; } .dl-pall > summary { cursor: pointer; font-weight: 600; } .dl-pall details { margin: 6px 0 0 4px; } .dl-pall details summary { cursor: pointer; }
+    .dl-pall .dl-now { margin-top: 6px; }
+    .dl-scs { display: grid; gap: 8px; } .dl-sc { border: 1px solid var(--line, rgba(127,127,127,.25)); border-radius: 12px; padding: 0 12px; background: var(--card, transparent); }
+    .dl-sc > summary { cursor: pointer; padding: 10px 0; font-weight: 600; list-style-position: inside; } .dl-sc > summary small { font-weight: 400; opacity: .75; }
+    .dl-sc[open] { padding-bottom: 12px; } .dl-sc.hl { outline: 2px solid var(--acc, #2563eb); outline-offset: 2px; }
+    .dl-sc .dl-money { padding: 8px 10px; border-radius: 10px; background: rgba(37,99,235,.08); margin: 4px 0 8px; line-height: 1.45; }
+    .dl-sc ol { padding-left: 20px; margin: 4px 0; } .dl-sc li { margin: 3px 0; line-height: 1.45; }
+    .dl-sc, #d-drf, #d-sc, .dl-now, .dl-lawchk { scroll-margin-top: 110px; }
+    .dl-drf-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    @media (max-width: 760px) { .dl-now-g { grid-template-columns: minmax(0, 1fr); } .dl-now { padding: 10px; } }
   </style>`);
   const pct = st => st === 'lost' ? 100 : Math.round((Math.max(0, FLOW.indexOf(st)) + 1) / FLOW.length * 100);
 
@@ -36,7 +58,10 @@
     kb ??= await H.call('deal_kb');
     if (!kb.can) { el.innerHTML = H.locked('Сделка', 'Вкладка «Сделка» — во всех тарифах и в пробном периоде: карточка сделки, документы и их проверка ИИ-юристом, проверки по виду сделки, чаты с участниками, помощь ИИ-юриста и ипотечного брокера. Продлите доступ, чтобы открыть.') + '<div id="d-kb"></div>'; window.KB?.render(el.querySelector('#d-kb'), kb); return; }
     if (arg?.startsWith('new')) { const num = arg.split(':')[1]; const r = await H.call('deal_save', { title: num ? `Объект № ${num}` : 'Новая сделка', num: num ? +num : undefined }); location.hash = `deal=${r.deal.id}`; return; }
-    if (arg) return card(+arg);
+    if (arg) {   // v5.38: #deal=14:drf:pdkp,zadatok — конструктор с отмеченными шаблонами; #deal=14:sc:bank_no — сценарий исхода
+      const [id, what, val] = String(arg).split(':');
+      return card(+id, what === 'drf' || what === 'sc' ? { [what]: val ?? '' } : null);
+    }
     const r = await H.call('deal_list');
     el.innerHTML = `<div class="dl-head"><h2>📑 Сделки</h2><button class="btn primary" data-new>＋ Новая сделка</button></div>${H.star()}
       <p class="hint">Объект можно отправить в сделку и с карточки объявления — кнопка «📑 В сделку». Вопрос без сделки — <a href="#lawyer">⚖️ юристу</a> или <a href="#broker">🏦 ипотечному брокеру</a>.</p>
@@ -59,7 +84,7 @@
       <details class="dl-plan"><summary>План для вида «${esc(k.name)}» (${k.stages.length} шагов)</summary><ol>${k.stages.map(s => `<li>${esc(s)}</li>`).join('')}</ol></details>`;
   }
 
-  async function card(id) {
+  async function card(id, go) {
     const r = await H.call('deal_get', { id });
     cur = r;
     const d = r.deal, k = kb.kinds.find(x => x.id === d.kind) ?? kb.kinds[0], ch = d.checklist ?? {}, pay = kb.pay.find(x => x.id === d.pay);
@@ -69,7 +94,7 @@
     el.innerHTML = `<p class="dl-back"><a class="btn ghost" href="#deal">‹ Все сделки</a></p>
       <div class="dl-head"><h2>📑 ${esc(d.title)}</h2></div>${H.star()}
 
-      <section class="hub-sec dl-sec"><h3>🧭 Этапы сделки</h3>${stepper(d, k)}</section>
+      <section class="hub-sec dl-sec" id="d-path"><h3>🧭 Этапы сделки</h3>${stepper(d, k)}${pathHtml(d)}</section>
 
       <section class="hub-sec dl-sec"><h3>📋 Основное</h3><div class="hub-form">
         <label class="field">Название<input id="d-title" value="${esc(d.title)}" maxlength="120"></label>
@@ -89,6 +114,13 @@
 
       ${r.docs_on ? docsSec(r) : ''}
 
+      ${window.DRAFT ? `<section class="hub-sec dl-sec" id="d-drf"><h3>📝 Составить документы</h3>
+        <div class="dl-drf-top"><button class="btn soft" data-drf-read>📖 Подставить из документов сделки</button>
+          <small class="hint">Юрист прочитает документы сделки (до 2 минут) — ФИО, паспорта, кадастровый номер и адрес встанут в поля сами.</small></div>
+        <div id="d-drf-box"></div></section>` : ''}
+
+      ${scenSec(d)}
+
       <section class="hub-sec dl-sec"><h3>👥 Участники</h3><div id="d-people">${(r.people.length ? r.people : [{ role: 'agent', name: '' }]).map(personRow).join('')}</div>
         <p class="hub-actions"><button class="btn ghost" data-add-p>＋ Участник</button> <button class="btn soft" data-save-p>Сохранить участников</button></p></section>
 
@@ -105,11 +137,72 @@
     el.onclick = onClick;
     el.onchange = onChange;
     counts();
+    drfMount(go?.drf ? go.drf.split(',').filter(Boolean) : []);
+    if (go?.drf != null) setTimeout(() => el.querySelector('#d-drf')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    if (go?.sc) scOpen(go.sc);
+  }
+  // v5.38: путь до сделки — «что делать сейчас» на текущем этапе, остальные этапы раскрываются; чек-лист — ключи p_<этап>_<i> в d.checklist
+  const tplName = id => window.DRAFT?.name?.(id) ?? ({ bron: 'Бронь', avans: 'Аванс', zadatok: 'Задаток', pdkp: 'ПДКП', garant: 'Гарантийное письмо', dkp: 'ДКП', dkp_share: 'ДКП доли',
+    dkp_mort: 'ДКП с ипотекой', dkp_mc: 'ДКП с маткапиталом', akt: 'Акт приёма-передачи', raspiska: 'Расписка', improve: 'Неотделимые улучшения', dop: 'Допсоглашение',
+    rastorg: 'Расторжение', claim: 'Претензия', spouse: 'Согласие супруга', notice: 'Извещение сособственников' }[id] ?? id);
+  const drfBtn = (tpl, label) => window.DRAFT ? `<button type="button" class="btn soft" data-drf-tpl="${esc(tpl)}">📝 ${esc(label ?? `Составить: ${tplName(tpl)}`)}</button>` : '';
+  function stepBody(d, s, open) {
+    const p = kb.path?.[s];
+    if (!p) return '';
+    const ch = d.checklist ?? {}, i = FLOW.indexOf(s), next = FLOW[i + 1];
+    const docs = p.docs.map(x => x.tpl && window.DRAFT ? drfBtn(x.tpl, `Составить: ${x.name}`) : `<span class="dl-pd">📄 ${esc(x.name)}</span>`).join('');
+    const law = ['check', 'deposit', 'docs'].includes(s) && cur?.docs_on !== false ? '<button type="button" class="btn soft" data-go-law>⚖️ Проверка юриста</button>' : '';
+    return `<div class="dl-now" data-pstage="${s}">${open ? `<h4>👉 Что делать сейчас — ${esc(kb.stages[s])}</h4>` : ''}<p class="dl-goal">🎯 ${esc(p.goal)}</p>
+      <div class="dl-now-g"><div><b>Что сделать</b><ol>${p.do.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>
+        <div><b>Документы</b><div class="dl-pdocs">${docs}${law}</div><p class="dl-who"><b>Кто:</b> ${esc(p.who)}</p>
+          <div class="dl-pcheck"><b>Готово к следующему этапу</b><span class="dl-pcnt" data-pcnt></span>
+            ${p.check.map((x, j) => `<label class="hub-chk"><input type="checkbox" data-ck="p_${s}_${j}"${ch[`p_${s}_${j}`] ? ' checked' : ''}> <span>${esc(x)}</span></label>`).join('')}
+            ${next && open ? `<p class="dl-pnext hint" data-pnext hidden>✅ Всё готово — можно переходить к этапу «${esc(kb.stages[next])}» <button type="button" class="btn primary" data-stage="${next}">Перейти</button></p>` : ''}</div></div></div>
+      ${(p.tips ?? []).map(t => `<p class="dl-tip">💡 ${esc(t)}</p>`).join('')}</div>`;
+  }
+  function pathHtml(d) {
+    if (!kb.path) return '';
+    const st = d.stage === 'lost' || d.stage === 'done' ? (d.stage === 'done' ? 'done' : null) : d.stage;
+    return `${st ? stepBody(d, st, true) : ''}
+      <details class="dl-pall"><summary>📋 Все этапы: что делать, документы, кто (${FLOW.length})</summary>
+        ${FLOW.filter(s => s !== st).map(s => `<details><summary>${FLOW.indexOf(s) + 1}. ${esc(kb.stages[s])} — ${esc(kb.path[s]?.goal ?? '')}</summary>${stepBody(d, s, false)}</details>`).join('')}</details>`;
+  }
+  function scenSec(d) {
+    const sc = kb.scenarios ?? [];
+    if (!sc.length) return '';
+    return `<section class="hub-sec dl-sec" id="d-sc"><h3>⚠️ Если что-то пошло не так</h3>
+      <p class="hint">Что делать и какие документы составить, если сделка пошла не по плану. Деньги — что возвращается по закону и по вашим договорам.</p>
+      <div class="dl-scs">${sc.map(x => `<details class="dl-sc" data-sc="${esc(x.id)}"><summary>${esc(x.name)} <small>— ${esc(x.when)}</small></summary>
+        ${x.money ? `<p class="dl-money">💰 ${esc(x.money)}</p>` : ''}<ol>${x.steps.map(t => `<li>${esc(t)}</li>`).join('')}</ol>
+        ${x.checks?.length ? `<p class="hint">🔎 Проверить: ${x.checks.map(esc).join(', ')}</p>` : ''}
+        <div class="dl-pdocs">${x.tpls.map(t => drfBtn(t)).join('')}${x.lost && d.stage !== 'lost' ? '<button type="button" class="btn ghost bad" data-stage="lost">Отметить: сделка сорвалась</button>' : ''}</div></details>`).join('')}</div>${H.star()}</section>`;
+  }
+  function scOpen(id) {
+    const x = el.querySelector(`[data-sc="${CSS.escape(id)}"]`);
+    if (!x) return;
+    x.open = true; x.classList.add('hl'); setTimeout(() => x.classList.remove('hl'), 2500);
+    setTimeout(() => x.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  }
+  let drf = null, drfPre = [];
+  function drfMount(pre) {
+    const box = el.querySelector('#d-drf-box');
+    if (!box || !window.DRAFT) return;
+    drfPre = [...new Set(pre)];
+    const bad = er => { box.innerHTML = `<p class="err">${esc(er?.message ?? 'Конструктор не открылся')}</p>`; };
+    try { drf = window.DRAFT.mount(box, { deal_id: cur.deal.id, role: 'lawyer', pre: drfPre }); Promise.resolve(drf).then(x => { drf = x ?? null; }, bad); } catch (er) { bad(er); }
+  }
+  function drfPick(tpl) {
+    const sec = el.querySelector('#d-drf');
+    if (!sec) return;
+    if (typeof drf?.select === 'function') drf.select(tpl); else if (!drfPre.includes(tpl)) drfMount([...drfPre, tpl]);
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    H.toast(`Отмечено: ${tplName(tpl)} — заполните поля и нажмите «Составить»`, 3500);
   }
   // документы сделки: список с отметкой проверки, загрузка (несколько файлов сразу), проверка ИИ-юристом
-  const isRep = x => /^(Отчёт сервиса|Заключение )/.test(x.kind ?? '');   // v5.35: PDF проверки юриста — не документ на проверку
-  const docRow = x => `<div class="dl-doc${isRep(x) ? ' rep' : ''}" data-doc="${x.id}"><div class="dl-doc-h"><b>${isRep(x) ? '⚖️' : '📄'} ${esc(x.name)}</b>
-      ${isRep(x) ? '<span class="dl-badge none">отчёт проверки юриста</span>' : `<span class="dl-badge ${x.check_ok == null ? 'none' : x.check_ok ? 'ok' : 'warn'}">${x.check_ok == null ? 'не проверен' : x.check_ok ? '✓ без существенных замечаний' : '⚠️ есть замечания'}</span>`}
+  const isDrf = x => /^Проект:/.test(x.kind ?? '');   // v5.38: документ из конструктора («📝 Составить документы»)
+  const isRep = x => isDrf(x) || /^(Отчёт сервиса|Заключение )/.test(x.kind ?? '');   // v5.35: PDF проверки юриста — не документ на проверку
+  const docRow = x => `<div class="dl-doc${isRep(x) ? ' rep' : ''}${isDrf(x) ? ' drf' : ''}" data-doc="${x.id}"><div class="dl-doc-h"><b>${isDrf(x) ? '📝' : isRep(x) ? '⚖️' : '📄'} ${esc(x.name)}</b>
+      ${isDrf(x) ? '<span class="dl-badge none">проект документа</span>' : isRep(x) ? '<span class="dl-badge none">отчёт проверки юриста</span>' : `<span class="dl-badge ${x.check_ok == null ? 'none' : x.check_ok ? 'ok' : 'warn'}">${x.check_ok == null ? 'не проверен' : x.check_ok ? '✓ без существенных замечаний' : '⚠️ есть замечания'}</span>`}
       <small>${x.size ? kb2(x.size) + ' · ' : ''}${H.when(x.at)}</small></div>
       <div class="dl-doc-b"><button class="btn soft" data-doc-open="${x.id}">Открыть</button>${isRep(x) ? '' : `<button class="btn soft" data-doc-check="${x.id}">${x.check_ok == null ? '🔎 Проверить' : '🔎 Проверить снова'}</button>`}<button class="btn ghost bad" data-doc-del="${x.id}">Удалить</button></div>
       ${x.check_note && !isRep(x) ? `<details${x.check_ok === false ? ' open' : ''}><summary>Заключение ИИ-юриста</summary><div class="dl-note">${H.md(x.check_note)}</div></details>` : ''}</div>`;
@@ -154,6 +247,11 @@
     <select data-pr>${optMap(kb.roles, p.role ?? 'client')}</select><button class="btn ghost" data-rm-p aria-label="Убрать">✕</button></div>`;
   const checklist = () => Object.fromEntries([...el.querySelectorAll('[data-ck]')].map(x => [x.dataset.ck, x.checked]));
   function counts() {
+    el.querySelectorAll('.dl-pcheck').forEach(c => {
+      const all = c.querySelectorAll('[data-ck]').length, on = c.querySelectorAll('[data-ck]:checked').length, n = c.querySelector('[data-pcnt]');
+      if (n) { n.textContent = `готово ${on} из ${all}`; n.classList.toggle('full', on === all && all > 0); }
+      const nx = c.querySelector('[data-pnext]'); if (nx) nx.hidden = !(on === all && all > 0);
+    });
     el.querySelectorAll('[data-col]').forEach(c => {
       const all = c.querySelectorAll('[data-ck]').length, on = c.querySelectorAll('[data-ck]:checked').length;
       const n = c.querySelector('[data-cnt]'); n.textContent = `собрано ${on} из ${all}`; n.classList.toggle('full', on === all && all > 0);
@@ -169,6 +267,21 @@
 
   async function onClick(e) {
     const t = e.target, d = cur.deal;
+    const dt = t.closest('[data-drf-tpl]');
+    if (dt) { drfPick(dt.dataset.drfTpl); return; }
+    if (t.closest('[data-go-law]')) {
+      const x = el.querySelector('.dl-lawchk') ?? el.querySelector('#d-docs');
+      x?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!el.querySelector('.dl-lawchk')) H.toast('Сначала загрузите документы сделки — потом «⚖️ Проверка юриста»', 4000);
+      return;
+    }
+    const dr = t.closest('[data-drf-read]');
+    if (dr) {
+      const label = dr.textContent; dr.disabled = true; dr.textContent = '⏳ Юрист читает документы — до 2 минут';
+      try { await H.call('law_deal_read', { deal_id: d.id, role: 'lawyer' }, { signal: AbortSignal.timeout?.(170000) }); drfMount(drfPre); H.toast('Данные из документов подставлены — проверьте поля'); }
+      catch (er) { (window.LAWR?.fail ?? (x => H.toast(x.message, 6000)))(er); }
+      dr.disabled = false; dr.textContent = label; return;
+    }
     const st = t.closest('[data-stage]');
     if (st) {
       if (st.dataset.stage === 'lost' && !confirm('Отметить, что сделка сорвалась?')) return;
