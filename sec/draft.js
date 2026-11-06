@@ -41,9 +41,9 @@
     .drf-f.warn .drf-msg { color: #b45309; }
     .drf-f.warn input, .drf-f.warn textarea { border-color: #d97706; }
     .drf-src { font-style: normal; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--muted); white-space: nowrap; }
-    .drf-src.docs { background: rgba(22,163,74,.13); color: #15803d; }
-    .drf-src.deal { background: rgba(20,83,216,.12); color: var(--accent); }
-    .drf-src.ai { background: rgba(234,179,8,.22); color: #92400e; }
+    .drf-src.s-docs { background: rgba(22,163,74,.13); color: #15803d; }
+    .drf-src.s-deal { background: rgba(20,83,216,.12); color: var(--accent); }
+    .drf-src.s-ai { background: rgba(234,179,8,.22); color: #92400e; }
     .drf-f.ai input, .drf-f.ai textarea, .drf-f.ai select { background: rgba(234,179,8,.10); border-color: rgba(202,138,4,.6); }
     .drf-f.filled { animation: drf-flash 2.4s ease-out 1; }
     @keyframes drf-flash { 0% { box-shadow: 0 0 0 3px rgba(234,179,8,.6); border-radius: 10px; } 100% { box-shadow: 0 0 0 0 transparent; } }
@@ -68,9 +68,9 @@
     .drf-ask select, .drf-ask textarea { width: 100%; box-sizing: border-box; font-size: 15px; }
     .drf-ans .hub-msg { max-width: none; }
     @media (prefers-color-scheme: dark) {
-      .drf-src.docs, .drf-chip.done i::after { color: #4ade80; } .drf-src.ai { color: #fcd34d; } .drf-f.warn .drf-msg, .drf-row .drf-empty { color: #fbbf24; } .drf-f.err .drf-msg { color: #fca5a5; }
+      .drf-src.s-docs, .drf-chip.done i::after { color: #4ade80; } .drf-src.s-ai { color: #fcd34d; } .drf-f.warn .drf-msg, .drf-row .drf-empty { color: #fbbf24; } .drf-f.err .drf-msg { color: #fca5a5; }
     }
-    html[data-theme="dark"] .drf-src.docs, html[data-theme="dark"] .drf-chip.done i::after { color: #4ade80; } html[data-theme="dark"] .drf-src.ai { color: #fcd34d; }
+    html[data-theme="dark"] .drf-src.s-docs, html[data-theme="dark"] .drf-chip.done i::after { color: #4ade80; } html[data-theme="dark"] .drf-src.s-ai { color: #fcd34d; }
     html[data-theme="dark"] .drf-f.warn .drf-msg, html[data-theme="dark"] .drf-row .drf-empty { color: #fbbf24; } html[data-theme="dark"] .drf-f.err .drf-msg { color: #fca5a5; }
     @media (max-width: 640px) { .drf-grid { grid-template-columns: 1fr; } .drf-chips { grid-template-columns: 1fr; } .drf-acts .btn { flex: 1 1 100%; } }
   </style>`);
@@ -127,7 +127,7 @@
   let kbP = null;
   const kbGet = () => (kbP ??= H.call('law_drf_kb').catch(e => { kbP = null; throw e; }));
   const fail = e => (window.LAWR?.fail ?? (x => H.toast(x?.message ?? String(x), 6000)))(e);
-  const SRC = { docs: ['docs', '📄 из документов'], deal: ['deal', '📑 из сделки'], ai: ['ai', '🤖 ИИ — проверьте'], def: ['def', 'по умолчанию'] };
+  const SRC = { docs: ['s-docs', '📄 из документов'], deal: ['s-deal', '📑 из сделки'], ai: ['s-ai', '🤖 ИИ — проверьте'], def: ['s-def', 'по умолчанию'] };
   const PMAIN = ['name'];
   const live = new Set();   // смонтированные блоки — сохранить несохранённое перед новым монтированием
 
