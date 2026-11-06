@@ -58,6 +58,12 @@
     .drf-acts .btn { white-space: normal; }
     .drf-prog { margin: 0; font-size: 14px; }
     .drf-res { display: grid; gap: 6px; }
+    .drf-pv { font-family: 'Times New Roman', Georgia, serif; font-size: 15px; line-height: 1.5; text-align: justify; overflow-wrap: anywhere; }
+    .drf-pv h3.drf-pv-t, .drf-pv h4 { text-align: center; margin: 12px 0 6px; } .drf-pv h3 small { display: block; font-weight: 400; font-size: 13px; }
+    .drf-pv-pl { display: flex; justify-content: space-between; gap: 8px; } .drf-pv p { margin: 0 0 8px; }
+    mark.drf-gap { background: rgba(234,179,8,.35); color: inherit; border-radius: 3px; }
+    .drf-pv-miss { padding: 8px 12px; border-radius: 10px; background: rgba(234,179,8,.15); font-size: 14px; } .drf-pv-ok { color: #15803d; font-weight: 600; }
+    .lr-sheet [data-pvt] { width: 100%; margin-bottom: 8px; }
     .drf-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
     .drf-row > b { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
     .drf-row small { color: var(--muted); font-size: 12.5px; }
@@ -124,8 +130,8 @@
   }
 
   // ---------- справочник (один раз на страницу) ----------
-  let kbP = null;
-  const kbGet = () => (kbP ??= H.call('law_drf_kb').catch(e => { kbP = null; throw e; }));
+  let kbP = null, KB = null;
+  const kbGet = () => (kbP ??= H.call('law_drf_kb').then(k => (KB = k)).catch(e => { kbP = null; throw e; }));
   const fail = e => (window.LAWR?.fail ?? (x => H.toast(x?.message ?? String(x), 6000)))(e);
   const SRC = { docs: ['s-docs', '📄 из документов'], deal: ['s-deal', '📑 из сделки'], ai: ['s-ai', '🤖 ИИ — проверьте'], def: ['s-def', 'по умолчанию'] };
   const PMAIN = ['name'];
@@ -143,6 +149,8 @@
     const pre = (opt.pre ?? []).filter(id => kb.tpls.some(t => t.id === id));
     if (pre.some(id => !M.sel.has(id))) { pre.forEach(id => M.sel.add(id)); M.dirty = true; }
     M.flush = () => save(M);
+    // v5.38b: отметить шаблон без перезагрузки (кнопки «📝 Составить: …» на странице сделки)
+    M.select = id => { if (!tplOf(M, id) || M.sel.has(id)) return; M.sel.add(id); const c = M.el.querySelector(`[data-tpl="${CSS.escape(id)}"]`); if (c) { c.checked = true; c.closest('.drf-chip')?.classList.add('on'); } drawForm(M); drawCalc(M); drawAsk(M); showProblems(M); dirty(M); };
     live.add(M);
     el._drf = M;
     draw(M);
@@ -175,6 +183,7 @@
       <p class="drf-acts">
         <button type="button" class="btn soft" data-fill>🤖 Заполнить пустое по документам</button>
         <button type="button" class="btn ghost" data-refresh>📖 Подставить из документов</button>
+        <button type="button" class="btn ghost" data-view>👁 Текст документа</button>
         <button type="button" class="btn primary" data-make>📄 Составить PDF и Word</button></p>
       <p class="drf-prog hint" data-prog hidden></p>
       <div class="drf-res" data-res></div>
@@ -210,7 +219,7 @@
     return `<div class="drf-p" data-party="${p}" data-i="${i}"><div class="drf-ph"><b>${title} ${i + 1}</b>
         ${i > 0 ? `<button type="button" class="btn ghost bad" data-prm="${p}${i}" aria-label="Убрать: ${title} ${i + 1}">✕</button>` : ''}</div>
       ${f('name')}
-      <details${anyErr || M.openP?.has(`${p}${i}`) ? ' open' : ''} data-pd="${p}${i}"><summary>Паспорт, адрес, доля${x.pass ? ' · паспорт ✓' : ''}</summary><div class="drf-grid">${rest.map(f).join('')}</div></details></div>`;
+      <details${anyErr || M.openP?.has(`${p}${i}`) ? ' open' : ''} data-pd="${p}${i}"><summary>Паспорт, адрес, доля${String(x.pass ?? '').replace(/\D/g, '').length === 10 ? ' · паспорт ✓' : x.pass ? ' · паспорт ⚠️' : ''}</summary><div class="drf-grid">${rest.map(f).join('')}</div></details></div>`;
   }
   function drawForm(M) {
     const box = M.el.querySelector('[data-form]'), { kb, d } = M;
@@ -363,10 +372,33 @@
     if (t.closest('[data-fill]')) return fill(M, t.closest('[data-fill]'));
     if (t.closest('[data-refresh]')) return refresh(M, t.closest('[data-refresh]'));
     if (t.closest('[data-make]')) return make(M, t.closest('[data-make]'));
+    if (t.closest('[data-view]')) return view(M, t.closest('[data-view]'));
     const g = t.closest('[data-get]');
     if (g) return getFile(M, g.dataset.get, g.dataset.fmt);
     if (t.closest('[data-amic]')) { H.voice(M.el.querySelector('[data-aq]'), t.closest('[data-amic]')); return; }
     if (t.closest('[data-ask]')) return ask(M, t.closest('[data-ask]'));
+  }
+  // v5.38b: текст документа на экране до PDF — пустые места подсвечены
+  async function view(M, b) {
+    const ts = selTpls(M);
+    if (!ts.length) { H.toast('Отметьте документ'); return; }
+    const done = busyBtn(b, '⏳ Собираем текст…');
+    try {
+      if (M.dirty) await save(M);
+      let id = ts[0].id;
+      const show = async () => {
+        const r = await H.call('law_drf_preview', { id: M.d.id, tpl: id });
+        const hl = x => esc(x).replace(/_{3,}/g, m => `<mark class="drf-gap">${m}</mark>`);
+        const body = r.blocks.map(k => k.t === 'title' ? `<h3 class="drf-pv-t">${esc(k.text)}${k.sub ? `<small>${esc(k.sub)}</small>` : ''}</h3>`
+          : k.t === 'place' ? `<p class="drf-pv-pl"><span>${esc(k.l)}</span><span>${esc(k.r)}</span></p>` : k.t === 'h' ? `<h4>${esc(k.text)}</h4>`
+          : k.t === 'n' ? `<p><b>${esc(k.n)}</b> ${hl(k.text)}</p>` : k.t === 'sign' ? `<p><b>Подписи:</b> ${k.rows.map(x => `${esc(x.role)} — ${esc(x.name || '______')}`).join('; ')}</p>`
+          : k.t === 'note' ? `<p class="hint">${esc(k.text)}</p>` : `<p>${hl(k.text)}</p>`).join('');
+        return `${ts.length > 1 ? `<select data-pvt aria-label="Документ">${ts.map(t => `<option value="${esc(t.id)}"${t.id === id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}
+          ${r.empty.length ? `<p class="drf-pv-miss">⚠️ Не заполнено (${r.empty.length}): ${esc(r.empty.join(', '))}</p>` : '<p class="drf-pv-ok">✓ Все поля заполнены</p>'}<div class="drf-pv">${body}</div>`;
+      };
+      const sh = (window.LAWR?.sheet ?? (() => { H.toast('Окно просмотра недоступно'); return null; }))('👁 Текст документа', await show());
+      if (sh) sh.box.addEventListener('change', async e => { if (e.target.matches('[data-pvt]')) { id = e.target.value; sh.box.innerHTML = await show().catch(er => `<p class="err">${esc(er.message)}</p>`); } });
+    } catch (e) { fail(e); } finally { done(); }
   }
   const busyBtn = (b, text) => { const old = b.textContent; b.disabled = true; b.textContent = text; return () => { b.disabled = false; b.textContent = old; }; };
   async function fill(M, b) {
@@ -448,5 +480,6 @@
     done();
   }
 
-  window.DRAFT = { mount, rub, words };
+  // v5.38b: name(id) — название шаблона для кнопок страницы сделки (каталог берётся при первом mount)
+  window.DRAFT = { mount, rub, words, name: id => KB?.tpls?.find(t => t.id === id)?.name };
 })();
