@@ -27,3 +27,5 @@
 html .hub-reply { border: 1.5px solid var(--line2, var(--line)); border-left: 4px solid var(--ai-c, var(--accent)); border-radius: 4px 16px 16px 16px; }
 .hub-reply::before { content: '🤖 Помощник'; display: block; font-size: 11.5px; font-weight: 800; letter-spacing: .03em; color: var(--ai-c, var(--accent)); margin-bottom: 4px; }
 .hub-body .ex-box { margin: 8px 0 4px; } .hub-body .ex-box .hub-tips { margin: 0; }
+
+.h-context{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px}.h-context select,.h-memory input,.h-memory textarea{max-width:100%;width:100%;box-sizing:border-box;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}.h-memory .field{display:block;margin:8px 0}.h-memory summary{cursor:pointer;padding:10px 0}

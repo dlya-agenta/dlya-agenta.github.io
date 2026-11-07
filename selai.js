@@ -44,7 +44,7 @@
     h.addEventListener('touchend', e => { const d = (e.changedTouches[0]?.clientY ?? y0) - y0; box.style.transform = ''; y0 = null; if (d > 90) close(); });
     return ov.querySelector('.sai-b');
   }
-  const STEPS = ['Читаю отметки и комментарии клиента', 'Считаю бюджет и что ему важно', 'Ищу похожие варианты в базе', 'Ставлю вперёд варианты с современным ремонтом', 'Пишу текст клиенту'];
+  const STEPS = ['Читаю отметки и комментарии клиента', 'Проверяю пожелания и заданный бюджет', 'Ищу похожие варианты в базе', 'Ставлю вперёд варианты с современным ремонтом', 'Пишу текст клиенту'];
   function loading(b) {
     b.innerHTML = `<div class="sai-load"><div class="sai-spin" aria-hidden="true"></div><p><b>Помощник смотрит отклики…</b></p>
       <div class="sai-bar"><i></i></div><ol class="sai-steps">${STEPS.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`;
@@ -80,10 +80,10 @@
     const q = r.quota, alts = r.alts || [];
     b.innerHTML = `
       <section class="sai-s"><h3>Что понял помощник ${r.ai ? '<span class="sai-tag ai">ИИ</span>' : '<span class="sai-tag">по правилам</span>'}</h3>
-        ${!r.ai ? `<p class="sai-note">${r.ai_error ? 'ИИ сейчас не отвечает — ' : ''}разбор сделан по правилам: бюджет, районы, ремонт и вопросы клиента. Когда ключ ИИ заработает, текст станет живее.</p>` : ''}
+        ${!r.ai ? `<p class="sai-note">${r.ai_error ? 'ИИ сейчас не отвечает — ' : ''}разбор сделан по правилам: бюджет, районы, ремонт и вопросы клиента. </p>` : ''}
         ${r.cached ? `<p class="sai-note">Отклики не менялись — показан прошлый разбор (бесплатно). <button class="sai-lnk" type="button" data-fresh>Разобрать заново</button></p>` : ''}
         <p class="sai-sum">${esc(r.summary)}</p>
-        <div class="sai-chips">${r.budget?.from ? `<span>💰 ${esc(mln(r.budget.from))} – ${esc(mln(r.budget.to))}</span>` : ''}${r.want?.rooms ? `<span>🛏 ${esc(r.want.rooms)}</span>` : ''}${r.want?.area ? `<span>📐 ${esc(r.want.area)}</span>` : ''}${(r.want?.districts || []).length ? `<span>📍 ${esc(r.want.districts.join(', '))}</span>` : ''}</div>
+        <div class="sai-chips">${r.budget?.from || r.budget?.to != null ? `<span>💰 ${r.budget.from ? 'от ' + esc(mln(r.budget.from)) : ''}${r.budget.to != null ? ' до ' + esc(mln(r.budget.to)) : ''}</span>` : ''}${r.want?.rooms ? `<span>🛏 ${esc(r.want.rooms)}</span>` : ''}${r.want?.area ? `<span>📐 ${esc(r.want.area)}</span>` : ''}${(r.want?.districts || []).length ? `<span>📍 ${esc(r.want.districts.join(', '))}</span>` : ''}</div>
         <div class="sai-cols${r.likes.length && r.dislikes.length ? '' : ' one'}">${r.likes.length ? `<div><h4>👍 Подходит (${r.likes.length})</h4>${fbList(r.likes, '👍')}</div>` : ''}${r.dislikes.length ? `<div><h4>👎 Не подходит (${r.dislikes.length})</h4>${fbList(r.dislikes, '👎')}</div>` : ''}</div>
         ${r.questions.length ? `<h4>💬 Вопросы клиента (${r.questions.length})</h4><ul class="sai-q">${r.questions.map(x => `<li><span class="sai-n">№ ${x.num}</span> «${esc(x.q)}»</li>`).join('')}</ul>
           <a class="sai-btn" href="${esc(agentLink(o, 'q'))}">✉️ Спросить собственников</a>` : ''}

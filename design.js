@@ -39,7 +39,7 @@
   if (okLogo(qs.get('logo'))) ls.set('logo', qs.get('logo'));
   if (okIcons(qs.get('icons'))) ls.set('icons', qs.get('icons'));
   let def = ok(ls.get('design_def')) ?? 'sky', mine = ok(ls.get('design')), d = mine ?? def;
-  let logoDef = okLogo(ls.get('logo_def')) ?? 'gold', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
+  let logoDef = okLogo(ls.get('logo_def')) ?? 'key', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
   const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef;
   document.write(`<link rel="stylesheet" id="design-css" href="design-${d}.css?v=${V}">`);
   const root = document.documentElement;

@@ -9,7 +9,7 @@
   const title = x => [x.rooms === 0 ? 'Студия' : x.rooms ? `${x.rooms}-комн.` : '', x.type_name || x.kind || '', x.area ? `${x.area} м²` : '', x.floor ? `${x.floor}/${x.floors ?? '?'} эт.` : ''].filter(Boolean).join(' · ');
   const place = x => [x.zk || x.complex, x.sub || x.district].filter(Boolean).join(' · ');
   const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* */ } } };
-  let st = null, cur = null, picked = new Set(), el = null;
+  let st = null, cur = null, picked = new Set(), el = null, audience = null, clientId = null, clientContext = null, clients = [];
   const TIPS = ['Подбери 3 лучшие студии до 7 млн у моря и сравни с рынком', 'Проанализируй отмеченные объекты: что выгоднее и почему', 'Что у меня в очереди рекламы?',
     'Поставь задачу: показ завтра в 15:00', 'Сделай подборку из отмеченных', 'Какие документы нужны при продаже по наследству?'];
 
@@ -26,10 +26,11 @@
   async function open(arg, ctx) {
     el = ctx.el;
     st = await H.call('help_init');
-    cur = arg ? +arg : st.dialogs[0]?.id ?? null;
+    cur = arg ? +arg : null;
+    audience = null; clientId = null; clientContext = null; picked.clear();
     draw();
     const q0 = store.get('helper_q', '');   // голос из строки поиска на главной
-    if (q0) { localStorage.removeItem('helper_q'); cur = null; return ask(q0); }
+    if (q0) { localStorage.removeItem('helper_q'); cur = null; el.querySelector('#h-q').value = q0; }
     if (cur) loadDialog(cur);
   }
   function draw() {
@@ -39,7 +40,7 @@
         <div class="hub-list">${st.dialogs.map(d => `<button class="hub-li${d.id === cur ? ' on' : ''}" data-dlg="${d.id}"><b>${esc(d.title || 'Новый диалог')}</b><small>${H.when(d.updated_at)}</small></button>`).join('') || '<p class="muted">Диалогов пока нет</p>'}</div>
         <a class="hint" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a></aside>
       <section class="hub-body">
-        <h2>🤖 Мой помощник</h2>
+        <h2>🤖 Мой помощник</h2><div id="h-context"></div>
         <p class="hint">${quotaLine(st.quota)}</p>
         <div class="ex-box"><p class="ex-h">💡 Примеры просьб — нажмите, чтобы вставить</p><div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
         <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
@@ -48,16 +49,34 @@
           ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
           <button class="btn primary" id="h-go">Отправить</button></form>
         </section></div>`;
+    renderContext();
     el.onclick = onClick; el.onchange = onChange;
     el.querySelector('#h-ask').onsubmit = e => { e.preventDefault(); ask(); };
     el.querySelector('#h-q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
     el.querySelector('#h-mic')?.addEventListener('click', e => H.voice(el.querySelector('#h-q'), e.currentTarget, { onDone: t => ask(t) }));
+  }
+  function renderContext() {
+    const box = el.querySelector('#h-context'); if (!box) return;
+    const w = clientContext?.wishes ?? {};
+    box.innerHTML = `<section class="h-context"><b>Для кого подбираем?</b><div class="hub-tips">
+      <button type="button" class="btn ${audience === 'new' ? 'primary' : 'soft'}" data-audience="new">Новый клиент</button>
+      <button type="button" class="btn ${audience === 'crm' ? 'primary' : 'soft'}" data-audience="crm">Из CRM</button></div>
+      <p class="hint">Для нового клиента учитываю только ваш запрос в этом диалоге. Для клиента из CRM использую его карточку и сохранённые пожелания, чтобы давать конкретные рекомендации. Вы можете посмотреть и изменить память.</p>
+      ${audience === 'crm' ? `<label class="field">Клиент<select id="h-client"><option value="">Выберите клиента</option>${(clientContext?.client && !clients.some(c => c.id === clientId) ? [clientContext.client, ...clients] : clients).map(c => `<option value="${Number(c.id)}" ${c.id === clientId ? 'selected' : ''}>${esc(c.name || 'Клиент без имени')}</option>`).join('')}</select></label>` : ''}
+      ${clientContext?.client ? `<details class="h-memory"><summary>Пожелания ${esc(clientContext.client.name || 'клиента')}</summary>
+        <p class="hint">В карточке CRM: ${esc(clientContext.client.wish || 'пожелания пока не указаны')}. Сохраняйте только подтверждённое клиентом.</p>
+        <label class="field">Бюджет до, млн ₽<input id="h-budget" type="number" min="0" step="0.1" value="${(w.budget_max || clientContext.client.budget_to || 0) / 1e6 || ''}"></label>
+        <label class="field">Обязательно<textarea id="h-must" maxlength="1200">${esc(w.must || '')}</textarea></label>
+        <label class="field">Желательно<textarea id="h-prefer" maxlength="1200">${esc(w.prefer || '')}</textarea></label>
+        <label class="field">Не подходит<textarea id="h-avoid" maxlength="1200">${esc(w.avoid || '')}</textarea></label>
+        <button type="button" class="btn primary" data-memory-save>Запомнить для этого клиента</button></details>` : ''}</section>`;
   }
   async function loadDialog(id) {
     const box = el.querySelector('#h-turns');
     box.innerHTML = '<p class="muted">Загрузка…</p>';
     try {
       const r = await H.call('help_hist', { dialog_id: id });
+      clientContext = r.context; audience = r.context?.audience ?? 'new'; clientId = r.context?.client?.id ?? null; renderContext();
       const byNum = new Map(r.items.map(x => [x.num, x]));
       box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.get(n)).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
       box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5
@@ -89,7 +108,7 @@
     const g = (t, b) => `<div class="h-g"><b>${t}</b>${b}</div>`, ln = (h, l) => `<a class="chip" href="${h}">${l}</a>`, ak = (l, q) => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(l)}</button>`;
     return `<div class="h-next">
       ${asks.length ? `<p class="ex-h">👉 Следующий шаг</p><div class="hub-tips">${asks.map(a => ak(a.label, a.q || a.label)).join('')}</div>` : ''}
-      <p class="ex-h">🔎 Расширить или сузить</p><div class="hub-tips">${NARROW.map(([l, q]) => ak(l, q)).join('')}</div>
+      <p class="ex-h">🔎 Расширить или сузить</p><div class="hub-tips">${[['cheaper','Дешевле на 10 %'],['repair','С ремонтом'],['sea','Ближе к морю'],['more','Ещё варианты']].map(([op,label])=>`<button type="button" class="chip" data-refine="${op}">${label}</button>`).join('')}<span class="hint">Без расхода ИИ</span><details><summary>Другие уточнения</summary>${NARROW.slice(1,-1).map(([l,q])=>ak(l,q)).join('')}</details></div>
       <details class="h-groups"><summary>⚡ Что сделать с этими вариантами</summary>
       ${g('Объявления', ak('📊 Сравнить с рынком', `Сравни цены с рынком: ${nums}`) + ak('🔁 Найти похожие', `Найди похожие на ${nums.split(',').slice(0, 3).join(', ')}`) + ln(`./#favs`, '★ Избранное'))}
       ${g('Мои подборки', ak('📄 Сделать подборку', `Сделай подборку из объектов ${nums}`) + ln('./#sels=all', '📄 Мои подборки'))}
@@ -108,12 +127,13 @@
   async function ask(text) {
     const inp = el.querySelector('#h-q'), q = (text ?? inp.value).trim();
     if (!q) return inp.focus();
+    if (!audience || (audience === 'crm' && !clientId)) return H.toast('Сначала выберите: новый клиент или клиент из CRM');
     if (ask.busy) return H.toast('Помощник ещё работает над прошлой просьбой');
     ask.busy = true;
     const wait = el.querySelector('#h-wait'), go = el.querySelector('#h-go');
     let sec = 0; const tick = setInterval(() => { const s2 = el.querySelector('#h-sec'); if (s2) s2.textContent = ++sec; }, 1000);
     try {
-      if (!cur) { const d = await H.call('help_new'); cur = d.dialog.id; st.dialogs.unshift({ id: cur, title: q.slice(0, 80), updated_at: new Date().toISOString() }); draw(); history.replaceState(null, '', `#helper=${cur}`); }
+      if (!cur) { const d = await H.call('help_new', { audience, client_id: clientId }); cur = d.dialog.id; clientContext = d.context; st.dialogs.unshift({ id: cur, title: q.slice(0, 80), updated_at: new Date().toISOString() }); draw(); history.replaceState(null, '', `#helper=${cur}`); }
       el.querySelector('#h-wait').hidden = false; el.querySelector('#h-go').disabled = true;
       const box0 = el.querySelector('#h-turns');
       if (!box0.querySelector('.hub-turn')) box0.innerHTML = '';
@@ -136,8 +156,33 @@
   }
   async function onClick(e) {
     const t = e.target;
-    if (t.closest('[data-new]')) { cur = null; draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
+    if (ask.busy && t.closest('[data-new],[data-dlg],[data-audience],[data-memory-save]')) return H.toast('Дождитесь завершения запроса');
+    if (t.closest('[data-new]')) { cur = null; audience = null; clientId = null; clientContext = null; picked.clear(); draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
     const d = t.closest('[data-dlg]'); if (d) { cur = +d.dataset.dlg; history.replaceState(null, '', `#helper=${cur}`); draw(); loadDialog(cur); return; }
+    const rf = t.closest('[data-refine]');
+    if (rf) {
+      if (ask.busy) return H.toast('Дождитесь завершения запроса');
+      ask.busy = true; rf.disabled = true;
+      try { const r = await H.call('help_refine', {dialog_id:cur,op:rf.dataset.refine});
+        el.querySelector('#h-turns').insertAdjacentHTML('beforeend',turnHtml({...r,q:rf.textContent}));
+        el.querySelector('#h-turns').lastElementChild.scrollIntoView({block:'start'});
+      } catch(er) { H.toast(er.message); } finally {ask.busy=false;rf.disabled=false;} return;
+    }
+    const mode = t.closest('[data-audience]');
+    if (mode) {
+      cur = null; picked.clear(); clientId = null; clientContext = null; audience = mode.dataset.audience;
+      el.querySelector('#h-turns').innerHTML = ''; history.replaceState(null, '', '#helper');
+      if (audience === 'crm') try { clients = (await H.call('help_clients', {})).clients; } catch (er) { H.toast(er.message); }
+      renderContext(); return;
+    }
+    if (t.closest('[data-memory-save]')) {
+      try {
+        if (!cur) { const r = await H.call('help_new', {audience, client_id:clientId}); cur = r.dialog.id; history.replaceState(null, '', `#helper=${cur}`); }
+        const r = await H.call('help_memory_save', {dialog_id:cur, wishes:{must:el.querySelector('#h-must').value, prefer:el.querySelector('#h-prefer').value, avoid:el.querySelector('#h-avoid').value, budget_max: Number(el.querySelector('#h-budget').value) * 1e6 || null}});
+        clientContext = r.context; renderContext(); H.toast('Пожелания сохранены для этого клиента');
+      } catch (er) { H.toast(er.message); }
+      return;
+    }
     const ak = t.closest('[data-ask]'); if (ak) return ask(ak.dataset.ask);
     const a = t.closest('[data-alt]'); if (a) { const qs = JSON.parse(a.dataset.alt); ask(qs[0]); return; }
     if (t.closest('[data-owners]')) return owners();
@@ -157,7 +202,17 @@
       H.toast('Объекты добавлены в «Избранное» — рассылка возьмёт их оттуда'); setTimeout(() => location.href = 'mail.html', 1200); return;
     }
   }
-  function onChange(e) {
+  async function onChange(e) {
+    if (e.target.id === 'h-client') {
+      if (ask.busy) { e.target.value = clientId || ''; return H.toast('Дождитесь завершения запроса'); }
+      const id = Number(e.target.value); cur = null; picked.clear(); clientId = id || null; clientContext = null;
+      el.querySelector('#h-turns').innerHTML = ''; history.replaceState(null, '', '#helper');
+      if (clientId) try {
+        const r = await H.call('help_new', {audience:'crm',client_id:clientId}); cur = r.dialog.id; clientContext = r.context;
+        history.replaceState(null, '', `#helper=${cur}`);
+      } catch (er) { clientId = null; H.toast(er.message); }
+      renderContext(); return;
+    }
     const c = e.target.closest('[data-pick]'); if (!c) return;
     const n = +c.dataset.pick; c.checked ? picked.add(n) : picked.delete(n);
     c.closest('.hub-card').classList.toggle('on', c.checked);

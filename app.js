@@ -1096,6 +1096,8 @@ $('#sel-make').onclick = () => {
   if (!store.get('selPh523e', false)) { store.set('selPhones', false); store.set('selPh523e', 1); }
   sheet('Подборка', `
     <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
+    <label class="field">Твёрдый бюджет клиента, до (млн ₽, с комиссией)<input id="s-budget" type="number" min="0.1" step="0.1" placeholder="Если клиент назвал предел" value="${client.on && Number(f.pmax) > 0 ? esc(f.pmax) : ''}"></label>
+    <p class="hint">Помощник не предложит варианты дороже этого предела. Пустое поле — бюджет пока не задан.</p>
     ${SHARE.formatHtml(n)}
     <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
     <div class="hint">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
@@ -1149,7 +1151,8 @@ $('#sel-make').onclick = () => {
       const fmt = SHARE.format(), phones = $('#s-ph').checked && !me.guest, nums = [...sel].slice(0, fmt === 'link' ? MAXSEL : MAXPDF);
       if (sel.size > nums.length) throw new Error(`В PDF до ${MAXPDF} объектов — уберите ${sel.size - MAXPDF} или выберите «Ссылка»`);
       const args = { nums, title: $('#s-title').value, markup: +$('#s-mk').value, agent: $('#s-name').value, agent_phone: $('#s-phone').value,
-        hide_addr: $('#s-hide').checked, format: fmt, phones };
+        hide_addr: $('#s-hide').checked, format: fmt, phones,
+        search_constraints: { ...(Number($('#s-budget').value) > 0 ? { budget_max: Math.round(Number($('#s-budget').value) * 1e6) } : {}) } };
       if (phones) {
         // новых номеров больше, чем осталось, — не обрезаем молча: сколько не хватает; убрать объекты, докупить или собрать без части телефонов
         if (!partial) {
@@ -1256,7 +1259,7 @@ async function onSelPage(e) {
   const ai = e.target.closest('[data-selai]');
   if (ai) {
     const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null };
-    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.31b1'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.43.1'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
     if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
   }
 }
