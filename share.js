@@ -90,7 +90,7 @@ window.SHARE = (() => {
     s.comments && `💬 ${s.comments}`].filter(Boolean).join(' · ') : '';
   const linkBadge = s => s.link ? (s.live ? `<span class="sp-b">🔗 ссылка до ${day(s.link_until)}</span>` : '<span class="sp-b off">ссылка закончилась</span>')
     : s.url ? `<span class="sp-b">PDF до ${day(s.pdf_until)}</span>` : '<span class="sp-b off">PDF удалён</span>';
-  const meta = s => [when(s.created_at), obj(s.nums.length), s.markup ? `+${s.markup}% клиенту` : isEx(s) ? 'цены агентов' : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ');
+  const meta = s => [when(s.created_at), obj(s.nums.length), document.body.classList.contains('client') ? '' : s.markup ? `+${s.markup}% клиенту` : isEx(s) ? 'цены агентов' : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ');
   // v5.31a (п. 2 Алексея): карточка свёрнута — заголовок, дата, «клиент открыл N раз», ✓ ✗ 💬, главные кнопки и «⋯» (остальное и «🗑 Удалить подборку»);
   // отклики и ответы — по «Показать отклики (N) ▾», раскрытие помнится (localStorage spOpen). У подборки с 👍/💬 — «✉️ Написать собственникам по отмеченным»
   // (страница агента с фильтром и выбором, #…&a=1&f=cl) и «🤖 Позвать помощника ИИ» (selai.js вкладки B).
@@ -126,7 +126,7 @@ window.SHARE = (() => {
     const o = ownSum(s, marks), f = fbLine(s), rows = fbRows(s), orows = o ? ownRows(s, marks) : '';
     const det = `${rows ? `<div class="sp-sub">Отклики клиента</div><ul class="sp-rows">${rows}</ul>` : ''}${orows ? `<div class="sp-sub">Ответы собственников</div><ul class="sp-rows">${orows}</ul>` : ''}${clBtns(s) ? `<div class="sp-acts">${clBtns(s)}</div>` : ''}`;
     return `<article class="sp-card" data-sid="${s.id}">${head(s)}${f || o ? `<div class="sp-st">${f ? `<span>${f}</span>` : ''}${o ? `<span>${ownLine(o)}</span>` : ''}</div>` : ''}
-      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${kidBtn(s)}${btnExt(s)}${more(s)}</div>${fold(`all:${s.id}`, 'Показать отклики', (s.fb ?? []).length + (o?.sent ?? 0), det)}</article>`;
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${!isEx(s) ? `<button class="btn ghost agent-only" data-edit-selection="${s.id}">✎ Править</button>` : ''}${kidBtn(s)}${btnExt(s)}${more(s)}</div>${fold(`all:${s.id}`, 'Показать отклики', (s.fb ?? []).length + (o?.sent ?? 0), det)}</article>`;
   }
   function cardOwn(s, marks) {
     const o = ownSum(s, marks);
@@ -136,7 +136,7 @@ window.SHARE = (() => {
   function cardFb(s) {
     const rows = fbRows(s);
     return `<article class="sp-card" data-sid="${s.id}">${head(s)}<div class="sp-st"><span>${fbLine(s)}</span></div>
-      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${btnExt(s)}${more(s)}</div>${clBtns(s) ? `<div class="sp-acts sp-clrow">${clBtns(s)}</div>` : ''}${fold(`fb:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${rows}</ul>`)}</article>`;
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${!isEx(s) ? `<button class="btn ghost agent-only" data-edit-selection="${s.id}">✎ Править</button>` : ''}${btnExt(s)}${more(s)}</div>${clBtns(s) ? `<div class="sp-acts sp-clrow">${clBtns(s)}</div>` : ''}${fold(`fb:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${rows}</ul>`)}</article>`;
   }
   function toggle(key) {
     const o = opened(); o.has(key) ? o.delete(key) : o.add(key); put('spOpen', [...o].slice(-200));
@@ -158,7 +158,7 @@ window.SHARE = (() => {
       !isEx(s) && `<button class="btn ghost" data-again="${s.nums.join(',')}">В подборку</button>`].filter(Boolean).join('');
     return `<article class="sp-card" data-sid="${s.id}">${head(s)}<div class="sp-rel sp-owner">👤 аккаунт: ${esc(s.owner?.name || s.owner?.login)} (${esc(s.owner?.login)})</div>
       ${fbLine(s) ? `<div class="sp-st"><span>${fbLine(s)}</span></div>` : ''}
-      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${L}</div>${fold(`main:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${fbRows(s)}</ul>`)}</article>`;
+      <div class="sp-acts">${btnLink(s)}${btnAgent(s)}${!isEx(s) ? `<button class="btn ghost agent-only" data-edit-selection="${s.id}">✎ Править</button>` : ''}${L}</div>${fold(`main:${s.id}`, 'Показать отклики', (s.fb ?? []).length, `<ul class="sp-rows">${fbRows(s)}</ul>`)}</article>`;
   }
   function page(d, tab) {
     style();

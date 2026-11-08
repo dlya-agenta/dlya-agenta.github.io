@@ -319,6 +319,7 @@ function compatFix() {
   return c;
 }
 function renderFilters() {
+  window.FILTER_PRESETS?.mount($('#qform').parentElement,'search',()=>({f,text,sort}),v=>{f=v.f||{};text=String(v.text||'');sort=v.sort||'new';$('#q').value=text;renderFilters();changed();});
   const c = compatFix(), land = c.land ? 'У участков этого нет' : '';
   chipRow($('#f-kind'), KINDS, 'k');
   chipRow($('#f-rooms'), ROOMS, 'r', v => land || (v === 0 && !c.studio ? 'Студии бывают только у квартир и апартаментов' : ''));
@@ -1090,17 +1091,18 @@ $('#sel-mail').onclick = async () => {
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
+  let selectionDraft = {edits:{},intro:''};
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   const n = Math.min(sel.size, MAXSEL);
   // v5.23e: раньше selPhones = true записывался при каждой подборке и с галочкой «по умолчанию вкл.» — один раз сбрасываем, дальше — выбор агента
   if (!store.get('selPh523e', false)) { store.set('selPhones', false); store.set('selPh523e', 1); }
   sheet('Подборка', `
-    <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
-    <label class="field">Твёрдый бюджет клиента, до (млн ₽, с комиссией)<input id="s-budget" type="number" min="0.1" step="0.1" placeholder="Если клиент назвал предел" value="${client.on && Number(f.pmax) > 0 ? esc(f.pmax) : ''}"></label>
+    <p><button type="button" class="btn soft" id="s-preview">Объекты и правка подборки</button></p><label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к до 15 млн" maxlength="80"></label>
+    <label class="field">Твёрдый бюджет клиента, до (млн ₽)<input id="s-budget" type="number" min="0.1" step="0.1" placeholder="Если клиент назвал предел" value="${client.on && Number(f.pmax) > 0 ? esc(f.pmax) : ''}"></label>
     <p class="hint">Помощник не предложит варианты дороже этого предела. Пустое поле — бюджет пока не задан.</p>
     ${SHARE.formatHtml(n)}
-    <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
-    <div class="hint">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
+    <label class="field agent-only">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
+    <div class="hint agent-only">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
@@ -1124,6 +1126,7 @@ $('#sel-make').onclick = () => {
       ? `С галочкой из лимита уйдёт новых номеров: <b>${need ?? `до ${nums.length}`}</b>${room != null ? ` (осталось ${({ hour: 'в этот час', day: 'на сегодня', month: 'в этом месяце' })[c.why] ?? ''} ${room})`.replace('  ', ' ') : ''}, уже открытые — бесплатно. Можно не тратить сейчас: ${later}.`
       : `Номера не тратятся${need != null ? ` (новых в подборке: ${need})` : ''}. ${later[0].toUpperCase()}${later.slice(1)}.`;
   };
+  $('#s-preview').onclick=()=>window.SELECTION_EDITOR?.open(0,{nums:[...sel],markup:+$('#s-mk').value,title:$('#s-title').value,...selectionDraft,save:v=>{selectionDraft=v;sel=new Set(v.nums);store.set('sel',v.nums);$('#s-title').value=v.title;selbar();toast('Правки подготовлены. Нажмите «Сформировать».');}});
   $('#s-ph').addEventListener('change', () => { store.set('selPhones', $('#s-ph').checked); phHint(); });
   $('#s-fmt')?.addEventListener('change', phHint);
   phHint();
@@ -1138,11 +1141,12 @@ $('#sel-make').onclick = () => {
         ${r.phones != null && r.phones < r.total ? `<p class="hint">Телефоны собственников открыты: ${r.phones} из ${r.total}${limit ? ` (${esc(limit)})` : ''} — остальные можно открыть на странице «Ссылка агенту».</p>` : ''}
         ${r.photos_wait ? `<p class="hint"><b>Фото ${r.photos_wait} ${r.photos_wait % 10 === 1 && r.photos_wait % 100 !== 11 ? 'объекта' : 'объектов'} ещё загружаются (2–5 минут)${r.link ? ' — по ссылке клиент увидит их сам, как только загрузятся' : ''}${r.url ? ' — PDF лучше пересобрать чуть позже' : ''}.</b></p>` : ''}
         ${r.photos_none?.length ? `<p class="hint"><b>Без фото и в самом объявлении: № ${r.photos_none.map(n => esc(n)).join(', ')}</b> — клиент увидит заглушку «Фото нет». Можно убрать их и собрать подборку заново.</p>` : ''}
-        <p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
+        <p><button type="button" class="btn soft agent-only" id="s-edit-ready">✎ Править подборку</button></p><p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
       SHARE.bind($('#sheet-body'), toast);
       // первая подборка ссылкой — предложить «На экран Домой» (один раз), но после того, как агент закроет окно: раньше оно сразу закрывало ссылку клиенту и агенту
       if (r.link) { const sh = $('#sheet'), mo = new MutationObserver(() => { if (sh.hidden) { mo.disconnect(); setTimeout(() => NOTIFY.offerInstall('sel'), 400); } }); mo.observe(sh, { attributes: true, attributeFilter: ['hidden'] }); }
       if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
+      $('#s-edit-ready')?.addEventListener('click', () => window.SELECTION_EDITOR?.open(r.id));
       selCache = null;   // «Мои подборки» перечитать
     };
     let limit = '';
@@ -1179,7 +1183,7 @@ $('#sel-make').onclick = () => {
         }
       }
       prog(`${limit ? limit + ' ' : ''}${fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'}`); b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…';
-      const r = await call('sel_create', { ...args, partial: partial || !!limit });
+      const r = await call('sel_create', { ...args, edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
       if (r.used) PLANS.counter(r.used);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
       window.INVITE?.hit('sel');
@@ -1234,6 +1238,7 @@ function leaveSelections() {
   tabs();
 }
 async function onSelPage(e) {
+  const edit = e.target.closest('[data-edit-selection]'); if (edit) return window.SELECTION_EDITOR?.open(+edit.dataset.editSelection);
   const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); return; }
   const t = e.target.closest('.sp-tab'); if (t) { e.preventDefault(); showSelections(t.getAttribute('href').slice(6)); return; }
   const k = e.target.closest('[data-rk]'); if (k) return me.can_rk ? RK.send(k.dataset.rk.split(',').map(Number)) : PLANS.locked('rk');
@@ -1293,7 +1298,7 @@ document.addEventListener('click', e => { const g = e.target.closest('.top [data
 addEventListener('hashchange', () => { const h = /^#sels(?:=(\w+))?$/.exec(location.hash); if (h && me && !me.guest) showSelections(h[1] ?? 'all'); else if (!h) leaveSelections(); });
 addEventListener('popstate', () => { if (!/^#sels/.test(location.hash)) leaveSelections(); });
 // режим «С клиентом» (экран показывают клиенту) — раздел агента закрыть: там ответы собственников, ссылка агенту, PDF агенту
-new MutationObserver(() => { if (selTab && document.body.classList.contains('client')) leaveSelections(); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+// Подборки доступны в режиме клиента; служебные кнопки скрывает agent-only.
 
 // ---------- карта ----------
 // окно точки и список под картой — та же карточка, что в выдаче (card в компактном виде). Точка карты лёгкая (цена, площадь, этаж, ЖК, фото);
@@ -1637,3 +1642,5 @@ document.addEventListener('click', async e => {
   } catch (err) { toast(err.message); } finally { b.disabled = false; }
 }, true);
 window.APPCARD = card; // v5.42A
+
+window.APP_CARD_ACTION = onCard;

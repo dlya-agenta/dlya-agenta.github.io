@@ -44,18 +44,18 @@
       <div class="mg" data-g="obj"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🏠 Объявления <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <button class="link on" data-go="all" aria-current="page"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></button>
-          <a class="link agent-only" href="hub.html#newb">🏗 Новостройки</a>
-          <button class="link agent-only" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
+          <a class="link agent-only client-ok" href="hub.html#newb">🏗 Новостройки</a>
+          <button class="link agent-only client-ok" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
           <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
           <button class="link agent-only" data-go="hidden" id="go-hidden" hidden>🙈 Скрытые</button>
           <button class="link agent-only" data-go="mod" id="go-mod" hidden>🛡 Модерация</button>
         </div></div>
       <div class="mg" data-g="sels"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true"><span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span> <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
-          <button class="link agent-only" data-go="sels" data-tab="all">📄 Все подборки</button>
-          <button class="link agent-only" data-go="sels" data-tab="own">✉️ Ответы собственников</button>
-          <button class="link agent-only" data-go="sels" data-tab="fb">👍 Отклики клиентов</button>
-          <button class="link agent-only" data-go="sels" data-tab="ex">💎 Подборки эксклюзивов</button>
+          <button class="link agent-only client-ok" data-go="sels" data-tab="all">📄 Все подборки</button>
+          <button class="link agent-only client-ok" data-go="sels" data-tab="own">✉️ Ответы собственников</button>
+          <button class="link agent-only client-ok" data-go="sels" data-tab="fb">👍 Отклики клиентов</button>
+          <button class="link agent-only client-ok" data-go="sels" data-tab="ex">💎 Подборки эксклюзивов</button>
           <button class="link agent-only" data-go="selhow">💡 Как собрать подборку</button>
         </div></div>
       <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
@@ -69,10 +69,10 @@
       <div class="mg" data-g="help"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">🤖 Помощник <span class="mg-a" aria-hidden="true">▾</span></button>
         <div class="mg-p" role="menu">
           <a class="link agent-only client-ok" href="hub.html#helper">🤖 Мой помощник</a>
-          <a class="link agent-only" href="hub.html#lawyer">⚖️ Юрист</a>
+          <a class="link agent-only client-ok" href="hub.html#lawyer">⚖️ Юрист</a>
           <a class="link agent-only client-ok" href="hub.html#broker">🏦 Ипотечный брокер</a>
-          <a class="link agent-only" href="hub.html#kb">📚 База знаний</a>
-          <a class="link agent-only" href="hub.html#chat">💬 Чат подписчиков</a>
+          <a class="link agent-only client-ok" href="hub.html#kb">📚 База знаний</a>
+          <a class="link agent-only client-ok" href="hub.html#chat">💬 Чат подписчиков</a>
           <a class="link agent-only client-ok" href="hub.html#taxes">🧾 Налоги при продаже</a>
           <a class="link" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a>
         </div></div>
@@ -198,28 +198,30 @@
 <script src="vendor/leaflet/leaflet.min.js" defer></script>
 <script src="vendor/markercluster/leaflet.markercluster.min.js" defer></script>
 <script src="config.js"></script>
+<script src="filter-presets.js?v=5.44" defer></script>
+<script src="selection-editor.js?v=5.44" defer></script>
 <script src="mapbase.js?v=5.31e1"></script>
-<script src="filters.js?v=5.23e1" defer></script>
+<script src="filters.js?v=5.44" defer></script>
 <script src="suggest.js?v=5.23" defer></script>
 <script src="offer.js?v=5.23" defer></script>
-<script src="plans.js?v=5.25a1" defer></script>
+<script src="plans.js?v=5.44" defer></script>
 <script src="mfa.js?v=5.26e" defer></script>
-<script src="admin.js?v=5.37b" defer></script>
+<script src="admin.js?v=5.44" defer></script>
 <script src="guest.js?v=5.25a1" defer></script>
 <script src="partner.js?v=5.25a1" defer></script>
 <script src="invite.js?v=5.25a2" defer></script>
 <script src="profile.js?v=5.31c1" defer></script>
 <script src="notify.js?v=5.23" defer></script>
-<script src="share.js?v=5.37a" defer></script>
+<script src="share.js?v=5.44" defer></script>
 <script src="crm.js?v=5.42" defer></script>
-<script src="links.js?v=5.38r" defer></script>
+<script src="links.js?v=5.44" defer></script>
 <script src="sec/lawreq.js?v=5.39" defer></script>
 <script src="plc/plc.js?v=5.26f" defer></script>
 <script src="hub.js?v=5.23" defer></script>
-<script src="complaints.admin.js?v=5.24a1" defer></script>
-<script src="msgapp.js?v=5.25b1" defer></script>
+<script src="complaints.admin.js?v=5.44" defer></script>
+<script src="msgapp.js?v=5.44" defer></script>
 <script src="nav.js?v=5.40" defer></script>
-<script src="app.js?v=5.43.1" defer></script>
+<script src="app.js?v=5.44" defer></script>
 <script src="selai.js?v=5.43.1" defer></script>
 <script src="support.js?v=5.23" defer></script>
 </body>

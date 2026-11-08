@@ -69,7 +69,7 @@ window.ADMIN = (() => {
           <button type="button" class="btn ghost" data-a="pass">Новый пароль</button>
           <button type="button" class="btn ghost" data-a="kick">Выкинуть со всех устройств</button>
           <button type="button" class="btn ghost" data-a="role">${adm ? 'Снять админа' : 'Сделать админом'}</button>
-          ${u.status !== 'off' ? '<button type="button" class="btn ghost bad" data-a="off">Отключить</button>' : ''}</div></details>
+          ${owner() && !adm ? '<button type="button" class="btn ghost bad" data-a="erase">Удалить аккаунт и данные</button>' : ''}${u.status !== 'off' ? '<button type="button" class="btn ghost bad" data-a="off">Отключить</button>' : ''}</div></details>
       </div></article>`;
   }
 
@@ -166,6 +166,15 @@ window.ADMIN = (() => {
   // кнопки-действия срабатывают сразу; несохранённые правки сначала сохраняются, чтобы не потерялись
   async function act(b) {
     const login = b.closest('.ucard').dataset.login, a = b.dataset.a;
+    if(a==='erase') {
+      b.disabled=true;
+      try {
+        const preview=await ui.call('admin_account_remove',{login});
+        const confirmed=prompt(`Удалить аккаунт ${login} и связанные данные (${preview.rows} записей)? Вход и очереди отключатся. Защищённая резервная копия сохранится. Для подтверждения введите логин:`);
+        if(confirmed!==login)return;
+        await ui.call('admin_account_remove',{login,confirm:confirmed,rows:preview.rows});ui.toast('Аккаунт удалён');open();
+      }catch(e){ui.toast(e.message,7000);}finally{b.disabled=false;}return;
+    }
     const sets = { approve: { status: 'active', add_days: 30 }, plus: { add_days: 30 }, on: { status: 'active' }, off: { status: 'off' }, pack: { add_pack: 1 } };
     let set = sets[a], kick = false;
     if (a === 'off' && !confirm(`Отключить ${login}? Он выйдет со всех устройств.`)) return;

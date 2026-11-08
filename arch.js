@@ -122,6 +122,7 @@ function areaLabel() {
   return names;
 }
 function renderFilters() {
+  window.FILTER_PRESETS?.mount($('#q').closest('form').parentElement,'archive',()=>({f:af,text,sort}),v=>{af=v.f||{};text=String(v.text||'');sort=v.sort||'new';$('#q').value=text;renderFilters();changed();});
   const c = compatFix(), land = c.land ? 'У участков этого нет' : '';
   chipRow($('#f-kind'), KINDS, 'k');
   chipRow($('#f-rooms'), ROOMS, 'r', v => land || (v === 0 && !c.studio ? 'Студии бывают только у квартир и апартаментов' : ''));
@@ -291,7 +292,7 @@ async function act(x, a, box) {
       if (s.has(num)) s.delete(num);
       else if (s.size >= MAXSEL) return toast(`В одной подборке до ${MAXSEL} объектов — сформируйте PDF на главной и начните новую`, 4000);
       else s.add(num);
-      store.set('sel', [...s]); selbar();
+      store.set('sel', [...s]); const archived=new Set(store.get('sel_arch',[]));s.has(num)?archived.add(num):archived.delete(num);store.set('sel_arch',[...archived]);selbar();
       toast(s.has(num) ? `В подборке № ${num} — PDF формируется на главной (кнопка внизу)` : 'Убрано из подборки', 3500);
     }
   } catch (e) { toast(e.message, 4000); }

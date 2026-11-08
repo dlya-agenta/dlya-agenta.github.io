@@ -134,7 +134,7 @@
     const tab = (k, t) => `<button type="button" class="chip${rightTab === k ? ' on' : ''}" data-rt="${k}">${t}</button>`;
     let body = '';
     if (rightTab === 'approve') {
-      body = (open.length ? open.map(card).join('') : '<p class="muted">Сейчас ничего не ждёт вашего решения.</p>')
+      body = (S?.lessons ?? []).map(x=>`<article class="mg-card"><h3>Уроки недели · ${esc(x.week)}</h3><div style="white-space:pre-wrap">${esc(x.review || x.error || 'Готовится')}</div><p>${esc({pending:'Проверено Управляющим, ждёт вашего решения',approved:'Одобрено',rejected:'Отклонено',failed:'Не удалось подготовить',building:'Подготовка'}[x.status] || x.status)}</p>${x.status === 'pending' ? `<button class="btn primary" data-lesson="${x.id}" data-decision="approved">Одобрить уроки</button> <button class="btn ghost" data-lesson="${x.id}" data-decision="rejected">Отклонить</button>` : ''}</article>`).join('') + (open.length ? open.map(card).join('') : '<p class="muted">Сейчас ничего не ждёт вашего решения.</p>')
         + (done.length ? `<details><summary>Решённые (${done.length})</summary>${done.slice(0, 10).map(card).join('')}</details>` : '');
     } else if (rightTab === 'log') {
       body = msgs.filter(m => m.role !== 'owner').slice(-30).reverse().map(m => `<div class="mg-log">
@@ -238,6 +238,9 @@
 
   // кнопки шапки и правой колонки перерисовываются при обновлении — вешаем заново каждый раз
   function bindRight() {
+    document.querySelectorAll('[data-lesson]').forEach(b=>b.onclick=async()=>{
+      b.disabled=true;try{merge(await call('lesson_decide',{id:+b.dataset.lesson,status:b.dataset.decision,after:last(),thread}));render();toast('Решение сохранено');}catch(e){b.disabled=false;toast(e.message);}
+    });
     $('#mg-lbtn')?.addEventListener('click', () => document.body.classList.toggle('mg-lopen'));
     $('#mg-rbtn')?.addEventListener('click', () => document.body.classList.toggle('mg-ropen'));
     document.querySelectorAll('[data-rt]').forEach(b => b.onclick = () => { rightTab = b.dataset.rt; render(); });

@@ -51,7 +51,7 @@
   const STEPS = ['Вход', 'Группы', 'Что рассылаем', 'Расписание', 'Тестовая отправка'];
   // v5.19: источник — «chat» (своя группа или «Избранное» мессенджера) или «site» («Список рассылки» — колонка справа, кнопка «✉️ В рассылку» на сайте)
   const isChat = () => S?.acc.src === 'chat' || S?.acc.src === 'saved';
-  const srcName = () => isChat() ? `«${S.acc.src_title || 'Избранное'}»` : '«Списка рассылки»';
+  const srcName = () => S?.acc.src === 'sel' ? `подборки № ${S.acc.src_sel}` : isChat() ? `«${S.acc.src_title || 'Избранное'}»` : '«Списка рассылки»';
   const picked = () => (S?.list ?? []).filter(x => x.pick && !x.gone);
   const money = v => `${Math.round(v).toLocaleString('ru-RU')} ₽`;
   // колонка «Список рассылки»: отметить, убрать, добавить по номеру или из Избранного
@@ -179,12 +179,12 @@
     const sel = `<select id="ml-sp">${saved ? `<option value="saved" ${cur === 'saved' ? 'selected' : ''}>⭐ Избранное (сообщения для себя)</option>` : ''}
       ${own.length ? `<optgroup label="Ваши группы и каналы">${own.map(opt).join('')}</optgroup>` : ''}${rest.length ? `<optgroup label="Другие группы">${rest.map(opt).join('')}</optgroup>` : ''}</select>`;
     return `<h3>3. Что рассылаем ${help('src')}</h3>
-      <div class="ml-src">
+      <div class="ml-src"><label class="opt big"><input type="radio" name="ml-src" value="sel" ${S.acc.src === 'sel' ? 'checked' : ''}><span><b>Из моей подборки — с правками цены и описания</b><input id="ml-selection" type="number" min="1" placeholder="Номер подборки" value="${S.acc.src_sel || new URLSearchParams(location.search).get('selection') || ''}"></span></label>
         <label class="opt big"><input type="radio" name="ml-src" value="chat" ${chat ? 'checked' : ''}><span><b>Пересылать из группы ${MN[M]}</b> — ваша группа-витрина или «Избранное». Складывайте туда объявления, а мы перешлём их во все группы как есть.</span></label>
         <div class="ml-src-pick" ${chat ? '' : 'hidden'}>${chats.length ? `<label class="field">Откуда пересылать${sel}</label>
             <p class="hint">Свои группы — первыми. ${M === 'wa' ? 'Удобно: создайте в WhatsApp свою группу (например, «Мои Вторички»), складывайте туда предложения — отсюда они разойдутся по остальным.' : 'Пересылаем объявления (текст от 40 знаков, альбом — одним объявлением), одинаковые — один раз.'}</p>`
           : `<p class="hint">Список ваших чатов ещё не загружен.</p><div class="ml-row"><button class="btn soft" id="ml-gall">Загрузить мои чаты из ${MN[M]}</button></div>`}</div>
-        <label class="opt big"><input type="radio" name="ml-src" value="site" ${chat ? '' : 'checked'}><span><b>С сайта — «Список рассылки»</b> (колонка справа): текст и фото соберём сами, с вашими контактами; описание перепишет ИИ.</span></label>
+        <label class="opt big"><input type="radio" name="ml-src" value="site" ${!chat && S.acc.src !== 'sel' ? 'checked' : ''}><span><b>С сайта — «Список рассылки»</b> (колонка справа): текст и фото соберём сами, с вашими контактами; описание перепишет ИИ.</span></label>
         <div class="ml-src-site" ${chat ? 'hidden' : ''}>
           <p class="ml-big">${picked().length ? `Отмечено ${picked().length} объявлений — за одну рассылку в группу уйдёт до ${S.limit}.` : 'В списке рассылки пока ничего не отмечено.'}</p>
           <label class="field">Комиссия сверху цены, %<input id="ml-mk" type="number" min="0" max="10" step="0.5" value="${S.acc.markup}"></label>
@@ -259,7 +259,7 @@
       const del = e.target.closest('[data-gdel]');
       if (del) { S.groups = (await call('mail_group_del', { id: +del.dataset.gdel })).groups; wizard(); }
       if (id === 'ml-mk-save') { const src = document.querySelector('input[name="ml-src"]:checked')?.value ?? S.acc.src;
-        S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +($('#ml-mk')?.value ?? S.acc.markup), src, ...(src === 'chat' && $('#ml-sp') ? { src_peer: $('#ml-sp').value } : {}) })).acc;
+        S.acc = (await call('mail_sched', { hours: S.acc.hours, auto: S.acc.auto, markup: +($('#ml-mk')?.value ?? S.acc.markup), src, ...(src==='sel'?{src_sel:Number($('#ml-selection')?.value)}:{}), ...(src === 'chat' && $('#ml-sp') ? { src_peer: $('#ml-sp').value } : {}) })).acc;
         toast(isChat() ? `Рассылаем из ${srcName()}` : 'Рассылаем «Список рассылки»'); step = 4; wizard(); }
       // список рассылки
       const lp = e.target.closest('[data-lpick]');

@@ -6,10 +6,10 @@
   let el = null, caps = null;
   const tel = p => p ? `<a href="tel:+${esc(p)}">+${esc(p)}</a>` : '—';
 
-  async function open(arg, ctx) {
+  async function open(arg, ctx, query = {}) {
     el = ctx.el; caps = ctx.caps;
     if (arg) return card(+arg);
-    const r = await H.call('nb_list', {});
+    const r = await H.call('nb_list', query);
     const devs = new Set(r.partners.map(p => p.developer));
     el.innerHTML = `<h2>🏗 Новостройки</h2>
       ${r.news.length ? `<section class="hub-sec hub-news"><h3>📣 Важное от застройщиков</h3>${r.news.map(n => `<p><b>${esc(n.title)}</b>${n.body ? ` — ${esc(n.body)}` : ''}${n.url ? ` <a href="${esc(n.url)}" target="_blank" rel="noopener">источник</a>` : ''} <small class="muted">${H.day(n.at)}</small></p>`).join('')}</section>` : ''}
@@ -20,7 +20,10 @@
         <b>${esc(o.kind)} «${esc(o.name)}»</b><small>${esc([o.city, o.district].filter(Boolean).join(', '))}</small>
         <small class="muted">${o.price_from ? `от ${esc(H.mln(o.price_from))}` : ''}${o.deadline ? ` · сдача ${esc(o.deadline)}` : ''}${o.developer && devs.has(o.developer) ? ' · 🔗 кабинет подключён' : ''}</small></a>`).join('') || '<p class="muted">Ничего не нашлось.</p>'}</div>
       <p class="hint">Список дополняется: ЖК из нашей базы, данные наш.дом.рф и фиды застройщиков (подключаются с российского сервера). Телефоны отделов продаж — только с официальных сайтов застройщиков.</p>`;
-    el.onsubmit = async e => { e.preventDefault(); const x = await H.call('nb_list', { q: el.querySelector('#nb-q').value, kind: el.querySelector('#nb-k').value }); r.items = x.items; open('', ctx).then(() => { el.querySelector('#nb-q').value = ''; }); };
+    const getQuery = () => ({q:el.querySelector('#nb-q').value,kind:el.querySelector('#nb-k').value});
+    el.querySelector('#nb-q').value=query.q||'';el.querySelector('#nb-k').value=query.kind||'';
+    window.FILTER_PRESETS?.mount(el.querySelector('#nb-f').parentElement,'newb',getQuery,v=>open('',ctx,v));
+    el.onsubmit = async e => {e.preventDefault();await open('',ctx,getQuery());};
     el.onclick = e => { if (e.target.closest('[data-nb-new]')) admForm({}); };
   }
 

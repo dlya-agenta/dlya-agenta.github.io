@@ -135,7 +135,7 @@
     $('#s-app').innerHTML = `
       ${d.owner ? `<div class="s-owner">Это ваша подборка — так её видит клиент. Ваши открытия не считаются и уведомления о них не приходят.${d.views != null ? ` Клиент открывал: ${d.views} ${plural(d.views, 'раз', 'раза', 'раз')}.` : ''}</div>` : ''}
       <header class="s-hero">
-        <h1>${esc(d.title)}</h1>
+        <h1>${esc(d.title)}</h1>${d.intro ? `<p style="white-space:pre-wrap">${esc(d.intro)}</p>` : ''}
         <p class="muted">Подборка от ${day(d.created_at)} · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · ссылка действует до ${day(d.until)}</p>
         ${d.agent || tel ? `<div class="s-agent"><span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
           ${tel ? `<a class="btn soft" href="tel:+${tel}">Позвонить</a><a class="btn ghost" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</span></div>` : ''}
@@ -185,7 +185,7 @@
     const img = e.target.closest('.s-ph img');
     if (img) open(+img.closest('.s-ph').dataset.i, +img.dataset.k);
     const mp = e.target.closest('[data-map]');
-    if (mp && !agentMode) mapOpen(mp.dataset.map === 'all' ? null : +mp.dataset.map);
+    if (mp) mapOpen(mp.dataset.map === 'all' ? null : +mp.dataset.map);
     if (e.target.closest('[data-mapx]') || e.target.classList.contains('s-map')) mapClose();
   });
 
@@ -212,7 +212,7 @@
     hd.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
     hd.addEventListener('touchend', e => { if (y0 != null && e.changedTouches[0].clientY - y0 > 70) mapClose(); y0 = null; });
     try {
-      const [, md] = await Promise.all([leaflet(), mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call('sel_map')]);
+      const [, md] = await Promise.all([leaflet(), mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call(agentMode?'sel_map_agent':'sel_map',agentMode?{id:data.id}:{})]);
       mapData = md;
       if (!$('#s-map')) return;
       drawMap(num);
@@ -331,6 +331,7 @@
     const I = { mail: 'M3.5 6.5A1.5 1.5 0 0 1 5 5h14a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5zM4 6.5l8 6.5 8-6.5',
       eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
       note: 'M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 20zM14.5 3.5v4.5H19M9 12h6M9 15.5h6', check: 'M4.5 12.5 9.5 17.5 19.5 6.5' };
+    const unpicked = new Set();
     let svcs = null, job = null, marks = {}, filter = get(FKEY, 'all');
     // v5.31a: #…&a=1&f=liked | q | cl — из «Моих подборок» / помощника ИИ: сразу фильтр и выбор «отмеченные клиентом»
     const fHash = /(?:^|[?&])f=(liked|q|cl)(?:&|$)/.exec(hs)?.[1] ?? null;
@@ -383,6 +384,7 @@
       const st = job?.items?.find(j => j.num === x.num);
       return `<article class="sa-card${k ? ` sa-${k}` : ''}${open ? ' sa-open' : ''}" data-num="${x.num}">${x.photos?.length ? gal(x.photos, i) : noPhoto()}
         <div class="sa-body">
+          <label class="chk"><input type="checkbox" data-action-pick value="${x.num}" ${unpicked.has(x.num) ? "" : "checked"}> Выбрать для действия</label>
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
           ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с продажи</p>' : ''}
@@ -407,7 +409,7 @@
           <small class="muted s-no-num">${i + 1} из ${data.items.length} · № ${x.num}</small>
         </div></article>`;
     }
-    const sendList = () => data.items.filter(x => x.phone && (data.kind === 'excl' || !cpick || clPick(x)));
+    const sendList = () => data.items.filter(x => !unpicked.has(x.num) && x.phone && (data.kind === 'excl' || !cpick || clPick(x)));
     function svcHtml() {
       const n = sendList().length;
       if (!svcs) return '<p class="muted">Проверяю подключённые мессенджеры…</p>';
@@ -467,6 +469,7 @@
         ${xOk(x) ? `<label class="sa-xpick"><input type="checkbox" data-xpick="${x.num}"${!xpick.size || xpick.has(x.num) ? ' checked' : ''}> в «Написать всем»</label>` : ''}</div>`;
       return `<article class="sa-card sa-open${k ? ` sa-${k}` : ''}" data-num="${x.num}">${x.photos?.length ? gal(x.photos, i) : noPhoto()}
         <div class="sa-body">
+          <label class="chk"><input type="checkbox" data-action-pick value="${x.num}" ${unpicked.has(x.num) ? "" : "checked"}> Выбрать для действия</label>
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
           ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с размещения</p>' : ''}
@@ -484,7 +487,7 @@
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels=ex">← Подборки эксклюзивов</a>
           <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь контакты коллег и комиссия. Клиенту — «Ссылка для клиента».</div>
-          <h1>${esc(data.title)}</h1>
+          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}
           <p class="muted">💎 Эксклюзивы коллег · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · агентов: ${ags} · цены агентов</p>
         </header>
         ${data.can_view ? `<section class="sa-box">
@@ -498,13 +501,18 @@
           <a class="btn primary" href="pay.html">Оформить подписку</a></div></section>`}
         <div class="sa-list">${data.items.map(xRow).join('') || '<p class="muted sa-nolist">В подборке нет объектов.</p>'}</div>`;
     }
+    document.addEventListener('click', async e => {
+      if (e.target.closest('[data-edit-selection]')) window.SELECTION_EDITOR?.open(data.id);
+      const b = e.target.closest('[data-selection-pdf]');
+      if (b) { b.disabled = true; try {const r = await call('sel_pdf', {id:data.id}); const a=document.createElement('a');a.href=r.url;a.target='_blank';a.rel='noopener';a.className='btn primary';a.textContent='Открыть готовый PDF';b.after(a);a.click();} catch(e) {toast(e.message, 6000);} finally {b.disabled=false;} }
+    });
     function draw() {
       if (data.kind === 'excl') return xDraw();
       const n = data.items.length, wp = data.items.filter(x => x.phone).length, closed = n - wp;
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels">← Мои подборки</a>
           <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь телефоны собственников и переписка с ними. Клиенту — «Ссылка для клиента» или проверенная подборка.</div>
-          <h1>${esc(data.title)}</h1>
+          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}
           <p class="muted">Собственники подборки · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · телефон открыт у ${wp} · цены собственника</p>
         </header>
         <section class="sa-box">
@@ -516,9 +524,12 @@
           <div class="sa-all"><div class="sa-h">Написать всем сразу — с ваших аккаунтов</div><div id="sa-svc">${svcHtml()}</div><div id="sa-job">${jobHtml()}</div></div>
           ${closed ? `<button type="button" class="btn soft sa-openall" data-open-all>📞 Открыть телефоны (${closed})</button>` : ''}
         </section>
-        <div id="sa-sum">${sumHtml()}</div>
+        <div id="sa-actions"></div><div id="sa-sum">${sumHtml()}</div>
         <div class="sa-list">${listHtml()}</div>`;
     }
+    document.addEventListener('change', e=>{if(!e.target.matches('[data-action-pick]'))return;const n=+e.target.value;if(e.target.checked)unpicked.delete(n);else unpicked.add(n);redraw();});
+    const drawWithActions=draw;
+    draw=function(){drawWithActions();window.SELECTION_ACTIONS?.mount($('#sa-actions'),data);};
     const redraw = () => { if (data.kind === 'excl' && $('#sa-text')) put(XKEY, $('#sa-text').value.trim() || TPLX);
       const y = scrollY, v = $('#sa-text')?.value, f = document.activeElement?.id === 'sa-text';
       draw(); if (v != null) $('#sa-text').value = v; if (f) $('#sa-text').focus({ preventScroll: true }); scrollTo(0, y); };   // v5.23e: поле на телефоне раскрыто, пока в нём пишут — не сворачивать при обновлении

@@ -16,7 +16,7 @@
   const card = x => `<label class="hub-card${picked.has(x.num) ? ' on' : ''}" data-num="${x.num}">
     <span class="hub-ph">${photo(x) ? `<img src="${esc(photo(x))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="hub-noph">🏠</span>'}</span>
     <input type="checkbox" data-pick="${x.num}"${picked.has(x.num) ? ' checked' : ''} aria-label="Отметить № ${x.num}">
-    <b>${esc(H.mln(x.price))}</b><small>${esc(title(x))}</small><small class="muted">${esc(place(x))} · № ${x.num}</small>
+    ${x.archived ? '<small class="tag">Архив · требуется уточнить актуальность</small>' : ''}<b>${esc(H.mln(x.price))}</b><small>${esc(title(x))}</small><small class="muted">${esc(place(x))} · № ${x.num}</small>
     <a class="hub-open" href="./#o=${x.num}" target="_blank" rel="noopener">Открыть</a></label>`;
 
   function quotaLine(q) {
@@ -78,7 +78,7 @@
       const r = await H.call('help_hist', { dialog_id: id });
       clientContext = r.context; audience = r.context?.audience ?? 'new'; clientId = r.context?.client?.id ?? null; renderContext();
       const byNum = new Map(r.items.map(x => [x.num, x]));
-      box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.get(n)).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
+      box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.has(n)?{...byNum.get(n),archived:t.f?._archive_nums?.includes(n)}:null).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
       box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5
     } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
@@ -190,7 +190,7 @@
     const ab = t.closest('[data-act]');
     if (ab) {
       const a = JSON.parse(ab.closest('[data-acts]').dataset.acts)[+ab.dataset.act];
-      if (a.type === 'selection') { store.set('sel', a.nums); if (a.cm) store.set('sel_cm', a.cm); location.href = './#selmake'; return; }
+      if (a.type === 'selection') { store.set('sel', a.nums); store.set('sel_arch',a.arch_nums||[]); if (a.cm) store.set('sel_cm', a.cm); location.href = './#selmake'; return; }
       if (a.type === 'owners') { ownersOut(a.items, a.text); return; }
     }
     const nums = [...picked];
@@ -198,8 +198,8 @@
     if (t.closest('[data-go-video]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); location.hash = `video=${nums.join(',')}`; return; }
     if (t.closest('[data-go-mail]')) {   // рассылка берёт объекты из «Избранного»
       if (!nums.length) return H.toast('Отметьте объекты галочками');
-      for (const num of nums) await H.web('fav', { num, on: true }).catch(() => {});
-      H.toast('Объекты добавлены в «Избранное» — рассылка возьмёт их оттуда'); setTimeout(() => location.href = 'mail.html', 1200); return;
+      const r=await fetch(window.API.replace(/\/web$/,'/auto'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mail_list_add',auth:{token:store.get('token',null)},nums})});const d=await r.json();if(!r.ok||d.error)return H.toast(d.message||'Не удалось добавить в рассылку');
+      H.toast('Объекты добавлены в список рассылки');location.href='mail.html';return;
     }
   }
   async function onChange(e) {
