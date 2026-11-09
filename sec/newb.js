@@ -13,13 +13,13 @@
     const devs = new Set(r.partners.map(p => p.developer));
     el.innerHTML = `<h2>🏗 Новостройки</h2>
       ${r.news.length ? `<section class="hub-sec hub-news"><h3>📣 Важное от застройщиков</h3>${r.news.map(n => `<p><b>${esc(n.title)}</b>${n.body ? ` — ${esc(n.body)}` : ''}${n.url ? ` <a href="${esc(n.url)}" target="_blank" rel="noopener">источник</a>` : ''} <small class="muted">${H.day(n.at)}</small></p>`).join('')}</section>` : ''}
-      <form class="hub-ask" id="nb-f"><input id="nb-q" type="search" placeholder="Название ЖК" aria-label="Поиск новостройки"><select id="nb-k"><option value="">Все типы</option>${r.kinds.map(k => `<option>${k}</option>`).join('')}</select><button class="btn primary">Найти</button></form>
+      <form class="hub-ask" id="nb-f"><input id="nb-q" type="search" placeholder="Название ЖК или адрес" aria-label="Поиск новостройки"><select id="nb-k"><option value="">Все типы</option>${r.kinds.map(k => `<option>${k}</option>`).join('')}</select><button class="btn primary">Найти</button></form>
       <p class="hint">Подключённые кабинеты застройщиков: ${r.partners.length ? r.partners.map(p => esc(p.developer)).join(', ') : 'нет'}. ${caps?.admin ? '<button class="btn soft" data-nb-new>＋ Добавить объект (админ)</button>' : ''}</p>
       <div class="hub-grid">${r.items.map(o => `<a class="hub-card" href="#newb=${o.id}">
         <span class="hub-ph">${o.photos?.[0]?.url ? `<img src="${esc(o.photos[0].url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="hub-noph">🏗</span>'}</span>
         <b>${esc(o.kind)} «${esc(o.name)}»</b><small>${esc([o.city, o.district].filter(Boolean).join(', '))}</small>
         <small class="muted">${o.price_from ? `от ${esc(H.mln(o.price_from))}` : ''}${o.deadline ? ` · сдача ${esc(o.deadline)}` : ''}${o.developer && devs.has(o.developer) ? ' · 🔗 кабинет подключён' : ''}</small></a>`).join('') || '<p class="muted">Ничего не нашлось.</p>'}</div>
-      <p class="hint">Список дополняется: ЖК из нашей базы, данные наш.дом.рф и фиды застройщиков (подключаются с российского сервера). Телефоны отделов продаж — только с официальных сайтов застройщиков.</p>`;
+      <p class="hint">В справочнике — описания и адреса комплексов, искать можно по названию или улице. «Географию уточнить» — в каталоге неполный адрес, сверьте его по карте. Наличие квартир, цены и условия сделки уточняйте у застройщика.</p>`;
     const getQuery = () => ({q:el.querySelector('#nb-q').value,kind:el.querySelector('#nb-k').value});
     el.querySelector('#nb-q').value=query.q||'';el.querySelector('#nb-k').value=query.kind||'';
     window.FILTER_PRESETS?.mount(el.querySelector('#nb-f').parentElement,'newb',getQuery,v=>open('',ctx,v));
@@ -32,7 +32,7 @@
     el.innerHTML = `<p><a class="btn ghost" href="#newb">‹ Все новостройки</a></p>
       <h2>${esc(o.kind)} «${esc(o.name)}»</h2>
       <div class="hub-gal">${(o.photos ?? []).map(p => `<figure><img src="${esc(p.url)}" alt="" loading="lazy" referrerpolicy="no-referrer"><figcaption>Источник: ${esc(p.src)}</figcaption></figure>`).join('') || '<p class="muted">Фото и рендеры появятся из официальных источников застройщика.</p>'}</div>
-      <section class="hub-sec"><p>${esc([o.city, o.district, o.address].filter(Boolean).join(', '))}</p>
+      <section class="hub-sec"><p>${esc([o.city, o.district, (o.address ?? '').replace(/^(Росси(я|йская Федерация),\s*)?(Краснодарский край,\s*)?(г\.\s*)?Сочи,\s*/i, '')].filter(Boolean).join(', '))}</p>${o.description ? `<h3>О комплексе</h3><div style="white-space:pre-wrap">${esc(o.description)}</div><p class="hint">Описание из каталога комплексов от 08.11.2026 — могло устареть. Наличие квартир, цены и условия сделки уточняйте у застройщика.</p>` : ''}
         <p>Застройщик: <b>${esc(o.developer ?? '—')}</b>${o.dev_site ? ` · <a href="${esc(o.dev_site)}" target="_blank" rel="noopener">сайт</a>` : ''} · Класс: ${esc(o.class ?? '—')} · Сдача: ${esc(o.deadline ?? '—')}</p>
         <p>Цена: ${o.price_from ? `от ${esc(H.mln(o.price_from))}` : '—'}${o.price_m2_from ? ` · от ${Math.round(o.price_m2_from / 1000).toLocaleString('ru-RU')} тыс. ₽/м²` : ''}</p>
         <p>Отдел продаж: ${tel(o.sales_phone)}</p>
