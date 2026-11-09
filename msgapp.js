@@ -4,6 +4,7 @@
 // (whatsapp://, tg://, max://), а в первый раз за день — окно с предупреждением (и про 30 незнакомых в день, и про не основной аккаунт).
 // v5.25b (Алексей 04.11): приложение не установлено — веб-версия: кнопка «Открыть веб-версию» в подсказке; выбрал её — дальше этот мессенджер
 // сразу открывается в веб-версии (localStorage msgappWeb:<svc>, «Снова через приложение» — сброс).
+// v5.46a: ссылки на Telegram-ботов (MSGAPP.isBot) не перехватываются.
 // window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
 window.MSGAPP = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -32,6 +33,13 @@ window.MSGAPP = (() => {
     }
     if (h === 'web.max.ru' || h === 'max.ru') return { svc: 'max', url: 'max://' };
     return null;
+  }
+  // v5.46a (часть A): ссылка на Telegram-бота (имя кончается на «bot») — не переписка с человеком: открываем как есть, без окна «30 незнакомых»
+  // и с параметром start (код привязки учётки / код партнёра); раньше tg://resolve?domain=… терял start, и бот не узнавал человека
+  function isBot(href) {
+    let u; try { u = new URL(href, location.href); } catch { return false; }
+    const h = u.hostname.replace(/^www\./, '');
+    return (h === 't.me' || h === 'telegram.me') && /^\/[A-Za-z][\w]{2,}bot\/?$/i.test(u.pathname);
   }
   // веб-версия того же чата: WhatsApp — web.whatsapp.com с номером и текстом, Telegram — t.me (там «Открыть в веб-версии»), MAX — web.max.ru
   function webUrl(svc, phone = '', text = '') {
@@ -95,6 +103,7 @@ window.MSGAPP = (() => {
     const a = e.target.closest?.('a[href]');
     if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || a.dataset.web != null) return;
     if (/\/s\.html$/.test(location.pathname) && !document.body.classList.contains('sa')) return;
+    if (isBot(a.getAttribute('href'))) return;   // бот — открыть как есть
     const m = appUrl(a.getAttribute('href'));
     if (!m) return;
     e.preventDefault();
@@ -118,5 +127,5 @@ window.MSGAPP = (() => {
 .ma-toast[hidden]{display:none}
 .ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, webUrl, text: TEXT };
+  return { warn, open, appUrl, webUrl, isBot, text: TEXT };
 })();

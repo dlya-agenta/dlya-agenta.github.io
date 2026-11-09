@@ -256,3 +256,4 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .s-map .map-info button:hover { opacity: 1; }
 .s-map .map-info span { background: rgba(255, 255, 255, .85); padding: 1px 6px; border-radius: 6px; }
 .s-map .map-info a { color: #1453d8; }
+.s-agent-ph { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; }   /* v5.46a: фото агента */

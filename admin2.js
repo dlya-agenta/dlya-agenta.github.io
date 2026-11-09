@@ -205,7 +205,10 @@
       <section class="hub-sec adm-lawpaid" id="law-paid"><h3>⚖️ Сервис проверки для юриста — api-assist</h3><p class="muted">Загрузка…</p></section>
       <section class="hub-sec"><h3>Ключи сервисов и API</h3><p class="hint">Меняются здесь, без программиста. Значения не показываются — только «задан» или нет. Остальные секреты (вход в источник, токен бота, CryptoBot) — в своих разделах: бот — «Участники и настройки», CryptoBot — «Продажи и оплаты».</p>
         ${r.secrets.filter(x => !x.name.startsWith('ai_key') && x.name !== 'law_paid_key').map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
-          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button></div>`).join('')}</section>`
+          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button>${x.name === 'yandex_speech_key' ? `<button class="btn ghost" data-speech-test>Проверить</button>
+          <details class="tip"><summary>Где взять ключ (5 минут)</summary><p class="hint">1. console.yandex.cloud → войти через Яндекс ID → создать платёжный аккаунт (карта, оплата по факту, ~0,6 ₽ за минуту; новым — стартовый грант).<br>
+          2. «Сервисные аккаунты» → «Создать» → роль <b>ai.speechkit-stt.user</b>.<br>3. Открыть аккаунт → «Создать новый ключ» → «API-ключ» → скопировать секрет и вставить сюда → «Сохранить» → «Проверить».<br>
+          После этого голосовые до 30 секунд в боте (режим «🤖 Помощник») превращаются в текст и уходят Помощнику. Расход видно в «Расходе ИИ» строкой speech.</p></details>` : ''}</div>`).join('')}</section>`
       + `<section class="hub-sec"><h3>Карта Яндекса</h3><p class="hint">Ключ «JavaScript API и HTTP Геокодер» из кабинета разработчика Яндекса (developer.tech.yandex.ru). С ключом все карты сайта — Яндекс, без ключа — OpenStreetMap.
         Ключ браузерный: его видно в коде страницы, это нормально. В кабинете Яндекса ограничьте его адресом dlya-agenta.github.io.</p>
         <div class="adm-key"><input id="ymap-key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"><button class="btn soft" id="ymap-save">Сохранить</button><button class="btn ghost" id="ymap-off">Убрать (OpenStreetMap)</button></div></section>`);
@@ -222,6 +225,7 @@
       if (sk) { const k = sk.dataset.saveKey, v = $(`[data-key="${k}"]`).value.trim(); if (!v && !confirm('Пустое значение удалит ключ. Удалить?')) return;
         try { await H.call('adm_secret_set', { name: k, value: v }); H.toast(v ? 'Ключ сохранён' : 'Ключ удалён'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
       if (e.target.closest('[data-lp-test]')) { lawPaid(true); return; }
+      if (e.target.closest('[data-speech-test]')) { try { const x = await H.call('adm_speech_test'); H.toast(x.ok ? 'Ключ SpeechKit принят — голосовые в боте работают' : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.46a
       const lpOn = e.target.closest('[data-lp-on]');
       if (lpOn) { try { await H.call('adm_law_paid_set', { on: lpOn.dataset.lpOn === '1' }); H.toast(lpOn.dataset.lpOn === '1' ? 'Сервис включён — проверки юриста идут через него' : 'Сервис выключен — проверки без него'); lawPaid(); } catch (er) { H.toast(er.message, 5000); } return; }
       const t = e.target.closest('[data-test]');

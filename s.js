@@ -137,7 +137,7 @@
       <header class="s-hero">
         <h1>${esc(d.title)}</h1>${d.intro ? `<p style="white-space:pre-wrap">${esc(d.intro)}</p>` : ''}
         <p class="muted">Подборка от ${day(d.created_at)} · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · ссылка действует до ${day(d.until)}</p>
-        ${d.agent || tel ? `<div class="s-agent"><span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
+        ${d.agent || tel ? `<div class="s-agent">${d.agent_photo ? `<img class="s-agent-ph" src="${esc(d.agent_photo)}" alt="" width="48" height="48" loading="lazy">` : ''}<span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
           ${tel ? `<a class="btn soft" href="tel:+${tel}">Позвонить</a><a class="btn ghost" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</span></div>` : ''}
         <p class="hint">Отметьте у каждого объекта ✓ «подходит» или ✗ «не подходит» и напишите, что нравится, а что нет, — агент увидит сразу.</p>
         ${n && d.kind !== 'excl' ? '<button type="button" class="btn soft s-allmap" data-map="all">🗺 Все объекты на карте</button>' : ''}

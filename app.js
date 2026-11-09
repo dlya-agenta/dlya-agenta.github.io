@@ -59,7 +59,7 @@ function savePrefs() {
 
 // «Load failed» / «Failed to fetch» (v5.18): сеть или сервер на миг не ответили (холодный старт функции, смена Wi-Fi/LTE, 502–546 без заголовков CORS) —
 // повторяем ещё 2 раза через 0,8 и 2 с; действия, которые нельзя повторять (код входа, регистрация, подборка, оплата), — без повтора
-const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay', 'pw_reset', 'pw_reset_set']);
+const NO_RETRY = new Set(['login_code', 'register', 'sel_create', 'pay', 'pw_reset', 'pw_reset_set', 'link_login']);   // link_login — код одноразовый, повтор дал бы «устарела»
 const NET_MSG = 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
 async function call(action, extra = {}, signal) {   // signal — отменить устаревший запрос (новый поиск вместо прежнего)
   const body = JSON.stringify({ action, auth, ...extra });
@@ -155,11 +155,30 @@ function showLogin(reason, tab = 'login') {
     } catch (err) { $('#gerr').textContent = err.message; btn.disabled = false; }
   });
 }
-function logout() { token = null; auth = null; store.set('token', null); showLogin(); }
+function logout(reason) { token = null; auth = null; store.set('token', null); showLogin(typeof reason === 'string' ? reason : undefined); }   // v5.46a: текст на экране входа («Профиль удалён»)
 // Mini App (кнопка «Сайт» в боте): initData → токен своей сессии, как вход по паролю
 async function tgLogin() {
   try { const r = await call('tg_login', { auth: tg.initData, fp: await fp() }); token = r.token; store.set('token', token); auth = { token }; return true; }
-  catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || (e.data ? e.message : 'no_auth')); return false; }   // текст сервера: админу Mini App закрыт, «Слишком часто…»
+  catch (e) {
+    if (e.data?.error === 'no_reg') { botReg(e.data.bot, e.message); return false; }   // v5.46a: Telegram без учётки — регистрация в боте, учётка сама не заводится
+    if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.gate || (e.data ? e.message : 'no_auth')); return false;
+  }   // текст сервера: админу Mini App закрыт, «Слишком часто…»
+}
+// v5.46a: Mini App без учётки — кнопка в бот с кодом партнёра (из ?r= или из ссылки бота), там регистрация одной кнопкой
+function botReg(bot, msg) {
+  const code = (new URLSearchParams(location.search).get('r') || tg?.initDataUnsafe?.start_param || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+  const url = bot ? `https://t.me/${encodeURIComponent(bot)}?start=${code ? 'r_' + code : 'reg'}` : '';
+  gate(`<div data-brand></div><h2>Регистрация</h2><p class="muted">${esc(msg)}</p>
+    ${url ? `<p><a class="btn primary" id="bot-reg" href="${esc(url)}" target="_blank" rel="noopener">✈️ Зарегистрироваться в боте</a></p>` : ''}
+    <p><button class="btn ghost" id="to-login">У меня есть логин и пароль</button></p>`);
+  $('#bot-reg')?.addEventListener('click', e => { if (tg?.openTelegramLink) { e.preventDefault(); tg.openTelegramLink(url); tg.close?.(); } });
+  $('#to-login').onclick = () => showLogin();
+}
+// v5.46a: одноразовая ссылка входа из бота (?k=<код>, 10 минут): код убирается из адреса сразу, чтобы не остался в истории и закладках
+async function linkLogin(k) {
+  const u = new URL(location.href); u.searchParams.delete('k'); history.replaceState(null, '', u);
+  try { const r = await call('link_login', { k, fp: await fp() }); token = r.token; store.set('token', token); auth = { token }; return true; }
+  catch (e) { if (e.data?.pay) payGate(e.data.pay, e.message); else showLogin(e.message); return false; }
 }
 // v5.26: после регистрации — подключить бот одним нажатием (ссылка t.me/<бот>?start=l_<код> привязывает Telegram к учётке)
 async function botStep() {
@@ -212,6 +231,8 @@ async function fp() {
 async function start() {
   window.__stage = 'start';   // v5.26d: этап запуска — виден на «Загрузка…» через 15 с (tg.js)
   tg?.ready(); tg?.expand(); try { tg?.disableVerticalSwipes?.(); } catch { /* старый Telegram */ }
+  const lk = new URLSearchParams(location.search).get('k');
+  if (lk && !(await linkLogin(lk))) return;   // v5.46a: вход по ссылке из бота — и поверх старого входа (другая учётка в этом браузере)
   if (!auth && tg?.initData && !(await tgLogin())) return;
   if (!auth) return showLogin(undefined, location.search.includes('r=') ? 'reg' : 'login');   // ссылка партнёра ?r=код — сразу регистрация
   window.__stage = 'init'; try { meta = await call('init'); window.__stage = 'init ok'; }
@@ -226,7 +247,9 @@ async function start() {
   const safe = (name, fn) => { window.__stage = name; try { fn(); } catch (e) { (window.__errs ??= []).push(`${name}: ${e?.message ?? e}`); console.error(name, e); } };
   safe('GUEST', () => { if (me.guest) GUEST.use(me); });   // гостевой доступ: только посмотреть (site/guest.js)
   safe('PLANS', () => { PLANS.use({ call, sheet, toast }, meta); });
-  safe('PROFILE', () => { PROFILE.use({ call, sheet, toast, logout, saved: name => { me.name = name; $('#who').textContent = name || me.login; } }); });
+  const avatar = url => { $('#go-prof .who-ph')?.remove(); if (url) $('#go-prof').insertAdjacentHTML('afterbegin', `<img class="who-ph" src="${esc(url)}" alt="" width="28" height="28">`); };   // v5.46a: фото профиля в шапке
+  safe('AVATAR', () => avatar(me.photo));
+  safe('PROFILE', () => { PROFILE.use({ call, sheet, toast, logout, photo: avatar, saved: name => { me.name = name; $('#who').textContent = name || me.login; } }); });
   safe('NOTIFY', () => { NOTIFY.start({ call, sheet, toast }, meta); });   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
   safe('CRM', () => { CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta); });   // клиенты и задачи (site/crm.js, шаг 3.4)
   safe('LINKS', () => { window.LINKS?.use({ call, sheet, closeSheet, toast, me: () => me, agent: () => !!me && !me.guest }); });   // v5.23c: связи под карточкой — собственник, подборки, клиенты (site/links.js)
