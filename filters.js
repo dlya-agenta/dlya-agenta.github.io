@@ -72,7 +72,8 @@ function pairs(f) {
 // несовместимые варианты неактивны: у участков нет комнат и этажей, студии — только у квартир и апартаментов, «не первый» при «этаж до 1»
 function compat(f) {
   const k = Array.isArray(f.k) ? f.k : [], land = k.length > 0 && k.every(x => x === 'участок');
-  return { land, studio: !k.length || k.some(x => x === 'квартира' || x === 'апартаменты'), nf: !land && +f.fmax !== 1 };
+  const nofloor = k.length > 0 && k.every(x => x === 'участок' || x === 'дом');   // v5.46 D: у домов этажа нет — фильтр этажа к ним не относится
+  return { land, nofloor, studio: !k.length || k.some(x => x === 'квартира' || x === 'апартаменты'), nf: !nofloor && +f.fmax !== 1 };
 }
 
 // «Ничего не нашлось»: сервер посчитал, сколько нашлось бы без каждого фильтра (drop), и без всех сразу (hidden)

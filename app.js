@@ -11,7 +11,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* приватный режим */ } },
 };
 const MSG = 'Здравствуйте! Ваше предложение по продаже в Сочи ещё актуально? Хотели уточнить несколько нюансов по просмотру.';
-const KINDS = [['квартира', 'Квартиры'], ['апартаменты', 'Апартаменты'], ['дом', 'Дома'], ['коммерция', 'Коммерция'], ['участок', 'Участки']];
+const KINDS = [['квартира', 'Квартиры'], ['апартаменты', 'Апартаменты'], ['дом', 'Дома и ТХ'], ['коммерция', 'Коммерция'], ['участок', 'Участки']];
 const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // «С ремонтом» = дизайнерский + евроремонт + современный (одним видом); white box в фильтре нет, в данных — остаётся
 // v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
@@ -337,8 +337,11 @@ function compatFix() {
   const c = FUI.compat(f), gone = ['r', 'fmin', 'fmax', 'nf', 'nl', 'fin', 'fz', 'm'].filter(k => c.land && f[k] !== undefined);
   gone.forEach(k => delete f[k]);
   if (gone.length) toast('У участков нет комнат, этажа и отделки — эти фильтры сняты', 4000);
+  const fgone = ['fmin', 'fmax', 'nf', 'nl'].filter(k => c.nofloor && f[k] !== undefined);   // v5.46 D: дома без этажа
+  fgone.forEach(k => delete f[k]);
+  if (fgone.length && !gone.length) toast('У домов и таунхаусов нет этажа — фильтр этажа снят', 4000);
   if (!c.studio && arr('r').includes(0)) { toggleIn('r', 0); toast('«Студия» снята: студии бывают только у квартир и апартаментов', 4000); }
-  if (!c.nf && f.nf) { delete f.nf; if (!c.land) toast('«Не первый» снят: этаж «до 1» — это только первый этаж', 4000); }
+  if (!c.nf && f.nf) { delete f.nf; if (!c.nofloor) toast('«Не первый» снят: этаж «до 1» — это только первый этаж', 4000); }
   return c;
 }
 function renderFilters() {
@@ -370,9 +373,9 @@ function renderFilters() {
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, f[k] ?? '');
   $('#nf').checked = !!f.nf; $('#nl').checked = !!f.nl; $('#nold').checked = !!f.nold;
   for (const k of ['pmin', 'pmax']) put(k, f[k] ? mlnTxt(f[k]) : '');
-  for (const k of ['fmin', 'fmax', 'nl']) $('#' + k).disabled = c.land;
+  for (const k of ['fmin', 'fmax', 'nl']) $('#' + k).disabled = c.nofloor;
   $('#nf').disabled = !c.nf;
-  $('#fmin').closest('.fcell').classList.toggle('off', c.land);
+  $('#fmin').closest('.fcell').classList.toggle('off', c.nofloor);
   FUI.pairs(f);
   $('#sea').value = f.sea ?? '';
   const nd = arr('d').length, nz = arr('zk').length;
@@ -834,6 +837,7 @@ async function onCard(e, cardEl) {
     call('phone_wait', { num }).then(r => { w.outerHTML = r.ready ? '<b>Номер уже есть — нажмите «Телефон»</b>' : '<b>🔔 Сообщим, как только номер появится</b>'; }).catch(err => { w.disabled = false; toast(err.message); });
     return;
   }
+  if (t.closest('[data-edit]')) { window.EDITMAIN?.open(num, () => openItem(num)); return; }   // v5.46 D: правка Main — цена, описание, фото
   if (t.closest('[data-adm]')) {   // v5.22: админ — 👁 скрыть, 🗑 удалить, ↩ вернуть
     const as = t.closest('[data-adm]').dataset.adm;
     if (as === 'del' && !confirm(`Удалить объявление № ${num}? Оно пропадёт у всех и не вернётся ночной загрузкой. Вернуть можно в «Скрытые» → «Удалённые».`)) return;
@@ -993,7 +997,7 @@ function ivTools(x) {
     meta.features.mail && agent ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
     agent && window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lawreq title="Юрист подготовит списки документов для задатка и для сделки — отправите сами или запросите у собственника">⚖️ Проверка</button>' : '',   // v5.38r
     agent && !adm ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : ''].filter(Boolean).join('');
-  const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
+  const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${window.EDITMAIN && !x.hidden_kind ? `<button type="button" class="btn ghost sm" data-edit title="Цена, описание, фото — правка видна всем">✏️ Править</button>${x.edited ? '<span class="muted">изменено Main</span>' : ''}` : ''}${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
     : '<button type="button" class="btn ghost sm" data-adm="hide" title="Пропадёт у всех, будет в «🙈 Скрытые»">🙈 Скрыть</button><button type="button" class="btn ghost sm bad" data-adm="del" title="Пропадёт у всех, ночная загрузка не вернёт">🗑 Удалить</button>'}</div>` : '';
   return row || mod ? `<div class="iv-tools agent-only">${row ? `<div class="iv-row">${row}</div>` : ''}<div class="iv-lk" data-ivlk="${x.num}"></div><div class="iv-cmpf" hidden></div>${mod}</div>` : '';
 }
