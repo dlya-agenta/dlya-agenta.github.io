@@ -248,7 +248,7 @@
     };
   }
 
-  window.AGENT = { open, ask, listen, minimize, rate, searched, command };
+  window.AGENT = { open, ask, listen, minimize, rate, searched, command, bg: q => { shell(); panel(); load(); bg(q); } };   // bg — запрос в фоне, ответ карточкой (п. 4)
   // кнопки не мешают вводу: на странице Помощника (там своё поле с 🎤) — скрыты; пока печатают в поле (на телефоне клавиатура) или
   // открыто окно «Помощь» — тоже скрыты
   const H = document.documentElement;

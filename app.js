@@ -22,6 +22,7 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // «С ремонтом» = дизайнерский + евроремонт + современный (одним видом); white box в фильтре нет, в данных — остаётся
 // v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
 const FIN = [['clean', 'Чистовая'], ['rough', 'Черновая']];
+const REPF = { modern: ['📷 Современный ремонт — по фото', 'ok'], good: ['📷 Хороший ремонт — по фото', ''], old: ['📷 По фото: старый ремонт', 'warn'], none: ['📷 По фото: без ремонта', 'warn'] };
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 20, MAXPDF = 10;   // v5.23: подборка ссылкой — до 20 объектов, PDF и «PDF + ссылка» — до 10
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
@@ -743,7 +744,9 @@ function tags(x) {
   return [...[...new Set((x.finish || []).map(t => FINL[t] ?? t))].map(t => `<span class="tag">${esc(t)}</span>`),
     x.fz214 ? '<span class="tag">ФЗ-214</span>' : '', x.pool ? '<span class="tag">Бассейн</span>' : '',
     x.sea_m != null && x.sea_m <= 5000 ? `<span class="tag sea" title="По прямой до берега">≈ ${seaTxt(x.sea_m)} до моря</span>` : '',
-    x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
+    x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : '',
+    // v5.49 (п. 12): два разных признака ремонта — «С ремонтом» выше по словам объявления, а этот — проверка ремонта по фото (только агенту)
+    REPF[x.repair] ? `<span class="tag agent-only ${REPF[x.repair][1]}" title="Проверено по фото объявления">${REPF[x.repair][0]}</span>` : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
 }
 // микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
 const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
