@@ -29,3 +29,17 @@ html .hub-reply { border: 1.5px solid var(--line2, var(--line)); border-left: 4p
 .hub-body .ex-box { margin: 8px 0 4px; } .hub-body .ex-box .hub-tips { margin: 0; }
 
 .h-context{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px}.h-context select,.h-memory input,.h-memory textarea{max-width:100%;width:100%;box-sizing:border-box;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}.h-memory .field{display:block;margin:8px 0}.h-memory summary{cursor:pointer;padding:10px 0}
+
+/* v5.47 E (Алексей, п. 6): карточки ответа — как в поиске (классы .card/.gal из style.css), 1 в ряд на телефоне, 2–4 на компьютере */
+.hub-grid.hub-cards { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.hub-fc { border: 1px solid var(--line); box-shadow: none; }
+.hub-fc.picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.hub-fc .zk { font-weight: 700; font-size: 14px; }
+.hub-fc .title { font-size: 14px; }
+.hub-fc .addr { font-size: 13px; color: var(--muted); }
+.hub-fc .meta { font-size: 12.5px; color: var(--muted); }
+.hub-fc .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: auto; padding-top: 6px; }
+.hub-fc .actions .phone { flex: 1 1 100%; }
+.hub-fc .err { color: #c0392b; font-size: 13px; }
+@media (hover: none) { .hub-fc .gal .nav { opacity: .85; } }
+@media (max-width: 760px) { .hub-grid.hub-cards { grid-template-columns: minmax(0, 1fr); } }

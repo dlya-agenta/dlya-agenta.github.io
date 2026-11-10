@@ -102,3 +102,10 @@ body.adm2 { background: color-mix(in srgb, var(--soft) 60%, var(--bg, #f4f6fa));
 [data-icons-demo=emoji] .mi svg { display: none !important; }
 [data-icons-demo=emoji] .mi::before { content: attr(data-e) !important; }
 [data-icons-demo=emoji] .mi { margin-right: 5px !important; vertical-align: 0 !important; }
+/* v5.47 E (п. 25): цвет знака «Ключ-дом» — 8 вариантов */
+.kc-prev { max-width: 360px; margin-bottom: 12px; }
+.kc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.kc-card { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 14px 10px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fbf7ef; color: #2b2418; }
+.kc-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.kc-card .logo svg { width: 56px; height: 56px; display: block; }
+.kc-card .dz-act { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 4px 0 0; }

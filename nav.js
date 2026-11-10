@@ -210,7 +210,33 @@ window.NAV = (() => {
   // v5.31c: ссылка из бота ./#proxy (вкладка B: «прокси перестал работать») — сразу окно прокси; на главной — после входа (app.js рисует страницу), поэтому с задержкой
   const proxyHash = () => { if (location.hash === '#proxy') setTimeout(openProxy, document.querySelector('.top .who') ? 600 : 1500); };
   addEventListener('hashchange', proxyHash);
-  const start = () => { build(); wire(); dress(); proxyHash(); };
+  // v5.47 E (Алексей, п. 17): сайт открыт с главного экрана (режим приложения, iOS) — у Safari нет своих кнопок; добавляем 4 маленьких значка
+  // в шапку рядом с названием: ⟳ обновить, ‹ назад, › вперёд, ⤴ поделиться. Внизу экрана ничего не появляется — подборки, отправка и «Помощь» не перекрыты.
+  // Проверка без телефона: ?pwa=1
+  const pwa = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || /[?&]pwa=1\b/.test(location.search);
+  function appBar() {
+    const top = document.querySelector('.top');
+    if (!pwa() || !top || top.querySelector('.pwa-nav')) return;
+    const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+    const b = document.createElement('div'); b.className = 'pwa-nav'; b.setAttribute('role', 'toolbar'); b.setAttribute('aria-label', 'Навигация');
+    b.innerHTML = [['back', 'Назад', 'M14.5 5.5 8 12l6.5 6.5'], ['fwd', 'Вперёд', 'M9.5 5.5 16 12l-6.5 6.5'],
+      ['reload', 'Обновить', 'M19 12a7 7 0 1 1-2.05-4.95M19 4.5V8h-3.5'], ['share', 'Поделиться', 'M12 15V4M8 7.5 12 3.5l4 4M6.5 11H5.5v9h13v-9h-1']]
+      .map(([k, t, d]) => `<button type="button" data-pwa="${k}" title="${t}" aria-label="${t}">${svg(d)}</button>`).join('');
+    b.addEventListener('click', async e => {
+      const k = e.target.closest('[data-pwa]')?.dataset.pwa;
+      if (k === 'back') history.back();
+      if (k === 'fwd') history.forward();
+      if (k === 'reload') location.reload();
+      if (k === 'share') {
+        const url = location.href.replace(/[?&]pwa=1\b/, ''), title = document.title;
+        try { if (navigator.share) await navigator.share({ title, url }); else { await navigator.clipboard.writeText(url); window.HUB?.toast?.('Ссылка скопирована'); } } catch { /* отменили */ }
+      }
+    });
+    const brand = top.querySelector(':scope > .brand');
+    brand ? brand.after(b) : top.prepend(b);
+    document.documentElement.classList.add('pwa');
+  }
+  const start = () => { build(); wire(); dress(); proxyHash(); appBar(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   return { close, open, sync, wire, iconize, tools, groups: G, openProxy };
 })();

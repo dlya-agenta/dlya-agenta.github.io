@@ -1,6 +1,12 @@
 // «Для Агента» — поиск объектов от собственников Сочи. Вход — по логину и паролю (выдаёт администратор или регистрация
 // с одобрением) или кнопкой «Сайт» в боте (Telegram Mini App). Данные — только из функции web; здесь нет ни ключей, ни данных.
 const tg = window.Telegram?.WebApp;
+// v5.47 E: страница в рамке (objpop.js на других страницах) — показываем только окно объявления; закрыли его — рамка закрывается
+const EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+if (EMBED) {
+  document.documentElement.classList.add('embed');
+  document.addEventListener('click', e => { const a = e.target.closest('a[href]'); if (a && !a.getAttribute('href').startsWith('#') && !a.target) a.target = '_top'; }, true);
+}
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // описание (v5.17.3): разделы **жирным** по шаблону; у старых описаний — «Заголовок:» жирным, строка «Коротко:» не показывается
@@ -306,7 +312,7 @@ async function start() {
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
   FUI.help(); renderFilters(); selbar(); applyLay();
-  search();
+  if (!EMBED) search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
   if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest && window.RK) { sheetGo = 'rk'; RK.open(location.hash); }
@@ -520,8 +526,9 @@ document.querySelectorAll('[data-lay]').forEach(b => b.onclick = () => { lays = 
 function sheet(title, html, wide = false) {
   $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html;
   $('#sheet').classList.toggle('wide', wide); $('#sheet').hidden = false; tg?.BackButton.show(); tabs();
+  if (EMBED) parent.postMessage('objpop-ready', location.origin);   // своё «✕» окна объявления — у рамки своё прячем
 }
-function closeSheet() { if ($('#sheet').hidden) return; $('#sheet').hidden = true; sheetGo = null; tabs(); if ($('#viewer').hidden) tg?.BackButton.hide(); }
+function closeSheet() { if ($('#sheet').hidden) return; if (EMBED) parent.postMessage('objpop-close', location.origin); $('#sheet').hidden = true; sheetGo = null; tabs(); if ($('#viewer').hidden) tg?.BackButton.hide(); }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet' || e.target.closest('[data-close]')) closeSheet(); });
 tg?.BackButton.onClick(() => $('#viewer').hidden ? closeSheet() : closeViewer());
 const opt = (name, value, label, checked, note = '', disabled = false) =>
@@ -565,11 +572,17 @@ $('#open-areas').onclick = () => {
   $('#s-clear').onclick = () => { delete f.d; fchg(); draw(); };
 };
 $('#open-zk').onclick = () => {
-  sheet('ЖК', `<p id="zk-hint" class="zk-hint" hidden></p><input id="zk-find" type="search" placeholder="Найти ЖК"><div id="zk-list"></div>
+  // v5.47 E (Алексей, п. 8): «Готово» и сверху — рядом с поиском, полоса не уезжает при листании; ЖК, где меньше 7 предложений, — под «Показать остальные ЖК»
+  sheet('ЖК', `<div class="zk-top"><input id="zk-find" type="search" placeholder="Найти ЖК"><button class="btn primary" data-close>Готово</button></div><p id="zk-hint" class="zk-hint" hidden></p><div id="zk-list"></div>
     <div class="sheet-foot"><button class="btn ghost" id="s-clear">Сбросить</button><button class="btn primary" data-close>Готово</button></div>`);
   // v5.41: выбраны районы — сверху ЖК этих районов, ниже свёрнуто «Другие ЖК»; поиск ищет везде; у каждого ЖК серым — где он
-  let more = false;
+  let more = false, rest = false;
   const row = z => opt('zk', z.id, z.name, arr('zk').includes(z.id), z.n).replace('</span>', zkWhere(z) ? `<small class="zk-where">${esc(zkWhere(z))}</small></span>` : '</span>');
+  const ZK_FEW = 7;   // меньше 7 предложений — свёрнуто (кроме отмеченных); при поиске видно всё
+  const rows = (l, q) => { if (q) return l.map(row).join('');
+    const big = l.filter(z => (z.n ?? 0) >= ZK_FEW || arr('zk').includes(z.id)), few = l.filter(z => !big.includes(z));
+    if (!big.length) return l.map(row).join('');
+    return big.map(row).join('') + (few.length ? `<details class="zk-rest"${rest ? ' open' : ''}><summary>Показать остальные ЖК (${few.length}) — меньше ${ZK_FEW} предложений</summary>${few.map(row).join('')}</details>` : ''); };
   const draw = () => {
     const q = $('#zk-find').value.trim().toLowerCase().replace(/ё/g, 'е');
     // v5.42B: больше предложений — выше (и в «ЖК в выбранных районах», и в «Других ЖК»)
@@ -577,13 +590,15 @@ $('#open-zk').onclick = () => {
     const sel = arr('d'), split = sel.length && zkHasA();
     const hint = zkHint(); $('#zk-hint').hidden = !hint; $('#zk-hint').textContent = hint;
     if (!list.length) { $('#zk-list').innerHTML = '<p class="muted">Не нашёл такой ЖК</p>'; return; }
-    if (!split) { $('#zk-list').innerHTML = list.map(row).join(''); return; }
+    const keep = () => $('#zk-list').querySelectorAll('.zk-rest').forEach(d => d.addEventListener('toggle', e => { rest = e.target.open; }));
+    if (!split) { $('#zk-list').innerHTML = rows(list, q); keep(); return; }
     const inA = list.filter(z => zkIn(z, sel)), other = list.filter(z => !zkIn(z, sel));
     const open = more || !!q || !inA.length || other.some(z => arr('zk').includes(z.id));
     $('#zk-list').innerHTML = `<div class="zk-gh">ЖК в выбранных районах: ${esc(sel.map(areaName).join(', '))}</div>`
-      + (inA.map(row).join('') || '<p class="muted">В выбранных районах ЖК не нашёл</p>')
+      + (rows(inA, q) || '<p class="muted">В выбранных районах ЖК не нашёл</p>')
       + (other.length ? `<details class="zk-other"${open ? ' open' : ''}><summary>Другие ЖК (${other.length})</summary>${other.map(row).join('')}</details>` : '');
     $('#zk-list').querySelector('.zk-other')?.addEventListener('toggle', e => { more = e.target.open; });
+    keep();
   };
   $('#zk-find').oninput = draw; draw();
   bindChecks('zk', true);
@@ -734,7 +749,7 @@ function card(x, mini = false) {
   return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${lockHtml(x)}</div>
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : ''}
       <div class="title" data-open>${esc(what(x))}</div>
       <div class="addr">${esc(where)}</div>
@@ -743,7 +758,7 @@ function card(x, mini = false) {
       ${!mini && x.descr ? `<div class="descr" data-d><p>${descrHtml(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
       ${mini ? '' : srcHtml(x)}
       ${!mini && x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
-      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft" data-phone>${x.source === 'tg' ? '📞 Контакт' : '📞 Телефон'}</button>`}
+      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft ph-btn" data-phone>${PH_BTN} <i aria-hidden="true">▾</i></button>`}
         ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
         ${!mini ? `<a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>` : ''}</div>
@@ -754,15 +769,25 @@ function card(x, mini = false) {
 // v5.23: без названий площадок — одна ссылка «Проверить в рекламе» (первый источник), остальные — «2», «3» мелко
 const srcHtml = x => x.src?.length ? `<div class="src agent-only">${x.src.map((s, i) => `<a href="${esc(s.url)}" target="_blank" rel="noopener"${i ? ' class="src-n" title="Ещё одна ссылка на объявление"' : ''}>${i ? i + 1 : 'Проверить в рекламе'}</a>`).join('')}</div>` : '';
 // tg (v5.21) — профиль Telegram собственника (объявления из чатов ЖК): если телефона нет, контакт — «Написать в Telegram»
-function phoneBox(p, owner, tg) {
+// v5.47 E (Алексей, п. 14): номер не виден сразу — кнопка «📞 Связаться» раскрывает меню (номер, Позвонить, WhatsApp, MAX, Копировать);
+// у открытого и неоткрытого номера кнопка одинаковая, разница — только маленький замок у цены (lockHtml). open — меню сразу раскрыто (номер только что открыли)
+const PH_BTN = '📞 Связаться';
+function phoneBox(p, owner, tg, open = false) {
   const tgA = tg ? `<a class="m-tg" href="https://t.me/${encodeURIComponent(tg)}" target="_blank" rel="noopener">Написать в Telegram</a>` : '';
-  if (!p) return `<div class="phone"><div>${owner ? esc(owner) + ' · ' : ''}<small>телефона в объявлении нет — напишите собственнику</small></div><div class="msgs">${tgA}</div></div>`;
+  const dd = inner => `<div class="phone"><details class="ph-dd"${open ? ' open' : ''}><summary class="btn soft ph-btn">${PH_BTN} <i aria-hidden="true">▾</i></summary><div class="ph-menu">${inner}</div></details></div>`;
+  if (!p) return dd(`<div>${owner ? esc(owner) + ' · ' : ''}<small>телефона в объявлении нет — напишите собственнику</small></div>${tgA ? `<div class="msgs">${tgA}</div>` : ''}`);
   const d = p.replace(/\D/g, ''), t = encodeURIComponent(MSG);
-  return `<div class="phone"><div><a class="num" href="tel:${esc(p)}">${esc(p)}</a>${owner ? ` — ${esc(owner)}` : ''} <small>может быть подменный</small></div>
-    ${meta.features.messengers ? `<div class="msgs"><a class="m-call" href="tel:${esc(p)}">Позвонить</a>
-      <a class="m-wa" href="https://wa.me/${d}?text=${t}" target="_blank" rel="noopener">WhatsApp</a>
-      <a class="m-max" href="${mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}" title="MAX: номер скопируется — найдите контакт в MAX">MAX</a>
-      ${tgA}<button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>` : tgA ? `<div class="msgs">${tgA}</div>` : ''}</div>`;
+  return dd(`<div><a class="num" href="tel:${esc(p)}">${esc(p)}</a>${owner ? ` — ${esc(owner)}` : ''} <small>может быть подменный</small></div>
+    <div class="msgs"><a class="m-call" href="tel:${esc(p)}">Позвонить</a>
+      ${meta.features.messengers ? `<a class="m-wa" href="https://wa.me/${d}?text=${t}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="m-max" href="${mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}" title="MAX: номер скопируется — найдите контакт в MAX">MAX</a>` : ''}
+      ${tgA}<button class="m-copy" data-copy="${esc(p)}">Копировать</button></div>`);
+}
+// замок у цены (только агенту): 🔓 — номер уже открыт, 🔒 — ещё нет
+const lockHtml = x => `<i class="lk agent-only${x.phone || x.tg ? ' on' : ''}" title="${x.phone || x.tg ? 'Номер открыт' : 'Номер ещё не открыт'}" aria-label="${x.phone || x.tg ? 'Номер открыт' : 'Номер ещё не открыт'}">${x.phone || x.tg ? '🔓' : '🔒'}</i>`;
+function lockSync(num) {
+  const x = items.get(num); if (!x) return;
+  document.querySelectorAll(`.card[data-num="${num}"] .lk`).forEach(el => { el.outerHTML = lockHtml(x); });
 }
 
 // v5.38r: «⚖️ Проверка» — списки документов юриста; телефон собственника — тем же «phone» (по тарифу), карточка обновляется как при «📞 Телефон»
@@ -771,7 +796,7 @@ function lawReq(num, x, cardEl) {
     const p = await call('phone', { num });
     PLANS.counter(p.used);
     if (x) { x.phone = p.phone; if (p.tg) x.tg = p.tg; }
-    const b = cardEl?.querySelector('[data-phone]'); if (b && (p.phone || p.tg)) b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
+    const b = cardEl?.querySelector('[data-phone]'); if (b && (p.phone || p.tg)) { b.outerHTML = phoneBox(p.phone, p.owner, p.tg); lockSync(num); }
     return p;
   } });
 }
@@ -857,15 +882,15 @@ async function onCard(e, cardEl) {
     const p = await call('phone', { num });
     PLANS.counter(p.used);
     if (!p.phone && !p.tg) throw Object.assign(new Error(p.error || 'номер не найден'), { pending: !!p.pending });
-    b.outerHTML = phoneBox(p.phone, p.owner, p.tg);
+    b.outerHTML = phoneBox(p.phone, p.owner, p.tg, true);
     window.INVITE?.hit('phone');   // v5.25a: «Позвать коллегу» после удачного момента (invite.js)
     const y = x ?? items.get(num);   // карточка карты могла догрузиться, пока узнавали номер
-    if (y) { y.phone = p.phone; if (p.tg) y.tg = p.tg; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; }
+    if (y) { y.phone = p.phone; if (p.tg) y.tg = p.tg; y.ad_state = p.ad_state ?? y.ad_state; if (p.src?.length) y.src = p.src; lockSync(num); }
     if (p.src?.length) { cardEl.querySelector('.src')?.remove(); box.insertAdjacentHTML('beforebegin', srcHtml({ src: p.src })); }
     markSeen(cardEl, num);
   } catch (err) {
     if (err.gate) return showLogin(err.gate);
-    b.disabled = false; b.textContent = '📞 Телефон';
+    b.disabled = false; b.innerHTML = `${PH_BTN} <i aria-hidden="true">▾</i>`;
     if (err.data?.used) PLANS.counter(err.data.used);
     box.querySelectorAll('.err, .lim').forEach(e => e.remove());
     box.querySelectorAll('.pend').forEach(e => e.remove());
@@ -972,7 +997,7 @@ function itemView(x, k) {
       ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
     <div class="iv-info">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small></div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${lockHtml(x)}</div>
       ${zk ? `<div class="zk">${esc(zk)}</div>` : ''}
       <div class="iv-title">${esc(what(x))}</div>
       <div class="iv-addr">${esc(where)}</div>
@@ -980,7 +1005,7 @@ function itemView(x, k) {
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${srcHtml(x)}
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
-      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft" data-phone>${x.source === 'tg' ? '📞 Контакт' : '📞 Телефон'}</button>`}
+      <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft ph-btn" data-phone>${PH_BTN} <i aria-hidden="true">▾</i></button>`}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
         <a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a></div>
@@ -1339,7 +1364,7 @@ function hoverOpen(fn) { clearTimeout(hoverT); hoverT = setTimeout(fn, 200); }
 // под ней (не помещается сверху) и прижимается к краям; не помещается ни там, ни там — список внутри прокручивается. Сторону, выбранную
 // при открытии, держим (keep), пока окно там помещается, — окно не прыгает, когда догрузилась карточка или открылся телефон.
 // Телефон — нижняя шторка внутри карты (#map-sheet), карта под ней не двигается.
-const POPW = 264, POPM = 8, POPGAP = 14;
+const POPW = 340, POPM = 8, POPGAP = 14;   // v5.47 E: окно шире (было 264), фото крупнее — Алексей, п. 14
 const popOpts = () => ({ minWidth: POPW, maxWidth: POPW, autoPan: false, className: 'mkpop' });
 const popRO = window.ResizeObserver ? new ResizeObserver(() => { cancelAnimationFrame(popRO.f); popRO.f = requestAnimationFrame(() => { if (openPop) placePop(openPop, true); }); }) : null;
 function placePop(p, keep = false) {
@@ -1347,32 +1372,52 @@ function placePop(p, keep = false) {
   if (!map || !el || !p._map) return;
   // Leaflet: низ окна = точка + offset.y − 20 (margin-bottom под хвостик), хвостик (20 px) в высоту окна не входит
   const sz = map.getSize(), pt = map.latLngToContainerPoint(p.getLatLng());
-  const up = pt.y - 13 - POPM, down = sz.y - pt.y - POPGAP - POPM;
+  // v5.47 E: окно — в пределах видимой части карты (карта могла уехать под шапку или за низ окна браузера)
+  const vis = visBox(sz);
+  const up = pt.y - 13 - vis.t, down = vis.b - pt.y - POPGAP;
   if (box) box.style.maxHeight = '';
   const h = el.offsetHeight;
   let side = h <= up ? 'up' : h <= down ? 'down' : up >= down ? 'up' : 'down';
   if (keep && p._side && p._side !== side && h <= (p._side === 'up' ? up : down)) side = p._side;
+  // v5.47 E: окно крупнее и не помещается ни сверху, ни снизу — один раз сдвигаем карту (метка уходит вниз), чтобы окно встало целиком
+  if (!keep && !p._panned && h > up && h > down && h < vis.b - vis.t - POPGAP - 13) {
+    p._panned = true; map.panBy([0, -Math.round(Math.min(h - up + 6, vis.b - pt.y - 40))], { animate: false });
+    return placePop(p, false);
+  }
   p._side = side;
   el.classList.toggle('flip', side === 'down');
   const room = side === 'up' ? up : down;
   if (h > room && box) box.style.maxHeight = `${Math.max(110, box.offsetHeight - (h - room))}px`;
   const w = el.offsetWidth, left = pt.x - w / 2;
-  const dx = left < POPM ? POPM - left : left + w > sz.x - POPM ? sz.x - POPM - (left + w) : 0;
+  const dx = left < vis.l ? vis.l - left : left + w > vis.r ? vis.r - (left + w) : 0;
   const tip = el.querySelector('.leaflet-popup-tip-container');   // хвостик — над меткой, даже если окно прижато к краю
   if (tip) tip.style.marginLeft = `${-20 - Math.max(-w / 2 + 24, Math.min(w / 2 - 24, Math.round(dx)))}px`;
   p.options.offset = L.point(Math.round(dx), side === 'up' ? 7 : el.offsetHeight + 20 + POPGAP);
   p._updatePosition();
 }
+// видимая часть карты в её координатах: без шапки сайта сверху и того, что за краями окна браузера
+function visBox(sz) {
+  const rc = map.getContainer().getBoundingClientRect(), hdr = Math.max(0, document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0);
+  return { t: Math.max(POPM, hdr - rc.top + POPM), b: Math.min(sz.y, innerHeight - rc.top) - POPM,
+    l: Math.max(POPM, -rc.left + POPM), r: Math.min(sz.x, document.documentElement.clientWidth - rc.left) - POPM };
+}
 // открыть точку (одну или несколько в одном доме): компьютер — окно у метки, телефон — шторка снизу карты
 function openPts(latlng, ps) {
   const key = ps.map(p => p.num).join(',');
   loadItems(ps.map(p => p.num));
+  // v5.47 E (Алексей, п. 14): на телефоне объявления точки — крупными карточками сразу ПОД картой (не шторкой внутри неё):
+  // список не обрезается, не прячется под кнопкой чата, листается вместе со страницей; карта остаётся видна сверху
   if (mobile()) {
-    let s = $('#map-sheet');
-    if (!s) { s = document.createElement('div'); s.id = 'map-sheet'; s.className = 'map-sheet'; $('#map').appendChild(s); L.DomEvent.disableClickPropagation(s); L.DomEvent.disableScrollPropagation(s); }
-    s.innerHTML = `<button type="button" class="ms-x" aria-label="Закрыть">×</button>${popHtml(ps)}`;
+    let s = $('#map-pt');
+    if (!s) {
+      s = document.createElement('section'); s.id = 'map-pt'; s.className = 'map-pt'; $('#map').after(s);
+      s.addEventListener('click', e => { if (e.target.closest('.mp-x')) { s.hidden = true; return; } const c = e.target.closest('.card'); if (c) onCard(e, c); });
+    }
+    s.innerHTML = `<div class="mp-h"><b>${ps.length > 1 ? `${ps.length} объявл. здесь` : 'Объявление в этой точке'}</b><button type="button" class="mp-x" aria-label="Закрыть">×</button></div>
+      <div class="mp-items">${ps.map(ptCard).join('')}</div>`;
     s.hidden = false; s.dataset.key = key;
-    s.querySelector('.ms-x').onclick = () => { s.hidden = true; };
+    const top = s.getBoundingClientRect().top;   // начало списка — чуть ниже середины экрана: видно и низ карты, и первую карточку
+    if (top > innerHeight * .62 || top < 60) scrollBy({ top: top - innerHeight * .42, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     return;
   }
   if (openPop?._key === key && openPop._map) return;
@@ -1389,7 +1434,7 @@ const lowBy = new Map();
 const lowHtml = num => { const l = lowBy.get(num); if (!l) return '';
   const where = l.g.startsWith('z') ? 'в этом ЖК' : 'в этом доме', tip = t => `${t} среди ${l.n} таких же объектов ${where} на карте (тот же тип и комнатность)`;
   return `<div class="lowtags">${l.p ? `<span class="lowtag" title="${tip('Самая низкая цена')}">Низкая цена</span>` : ''}${l.m ? `<span class="lowtag m" title="${tip('Самая низкая цена за м²')}">Низкая за м²</span>` : ''}</div>`; };
-const withLow = (h, num) => lowBy.has(num) ? h.replace('</small></div>', `</small></div>${lowHtml(num)}`) : h;
+const withLow = (h, num) => lowBy.has(num) ? h.replace(/(<div class="price[^"]*">[\s\S]*?<\/div>)/, `$1${lowHtml(num)}`) : h;
 const ptCard = p => withLow(card(items.get(p.num) ?? p, true), p.num);
 // самая низкая цена и цена за м² среди точек карты одного ЖК (или дома), того же типа и комнатности, если таких от 2
 function lowMark(pts) {
@@ -1443,7 +1488,7 @@ async function loadMap() {
         if (hoverOk && el && !el._hv) { el._hv = 1; el.addEventListener('mouseenter', () => clearTimeout(hoverT)); el.addEventListener('mouseleave', hoverLeave); } })
       .on('popupclose', e => { popRO?.disconnect(); if (openPop === e.popup) openPop = null; })
       .on('zoomend', () => { if (openPop) placePop(openPop, true); })
-      .on('click', () => { const s = $('#map-sheet'); if (s) s.hidden = true; });
+      .on('click', () => { const s = $('#map-pt'); if (s) s.hidden = true; });
     (window.MAPBASE ? MAPBASE.add(map) : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map));   // v5.23: Яндекс по ключу из админки, иначе OpenStreetMap; источник — свёрнутым «ⓘ»
   }
   [50, 400, 1200].forEach(ms => setTimeout(() => map.invalidateSize(), ms));   // раскладка «список слева, карта справа» меняет размер после показа
@@ -1524,6 +1569,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-view]').forEach(x => { x.classList.toggle('on', x === b); x === b ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
   $('#list').hidden = view === 'map'; $('#map').hidden = view !== 'map'; $('#more').hidden = view === 'map' || offset >= total; $('#layouts').hidden = view === 'map';
   $('#maplist').hidden = view !== 'map';
+  if ($('#map-pt')) $('#map-pt').hidden = true;
   document.body.classList.toggle('mapmode', view === 'map');   // v5.15: слева объявления области в 2 столбца, справа карта, фильтр свёрнут
   view === 'map' ? loadMap() : search();
 });
@@ -1669,5 +1715,7 @@ document.addEventListener('click', async e => {
   } catch (err) { toast(err.message); } finally { b.disabled = false; }
 }, true);
 window.APPCARD = card; // v5.42A
+window.APP_OPEN_ITEM = num => openItem(num);
+window.APP_PHOTO_URLS = x => Array.from({ length: nPhotos(x) }, (_, k) => photoUrl(x, k));   // v5.47 E: фото объекта в правке подборки   // v5.47 E: «№ …» в текстах (objpop.js) — окно объявления здесь же
 
 window.APP_CARD_ACTION = onCard;

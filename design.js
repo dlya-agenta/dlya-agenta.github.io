@@ -11,26 +11,17 @@
   const SW = { sky: ['#fbf7ef', '#2f78aa', '#d6bb92'], premium: ['#0d0e11', '#d6b25e', '#f2e3bb'], lagoon: ['#f2faf8', '#0d7a72', '#9fd8cf'], sapphire: ['#f4f6fb', '#1e4db3', '#e0c27c'], classic: ['#eef2f8', '#2563eb', '#1e293b'] };
   // знак логотипа: viewBox 64×64; .lg-bg — плитка, .lg-s — линии, .lg-f — заливка, .lg-t — буквы (цвета задаёт стиль: --logo-bg, --logo-ink)
   // v5.25b (Алексей 04.11): «Премиум» — глубокий тёмный фон, золото и шампань, тонкая линия; цвета внутри знака (style), одинаковы во всех стилях и темах
+  // v5.47 E (Алексей, п. 25): из знаков остался только «Ключ-дом»; администратор выбирает его цвет из восьми (KEYC; app_settings.design.keycolor)
   const LOGOS = {
-    gold: { name: 'Дом-скважина, золото', text: 'Тонкий золотой дом с замочной скважиной на глубоком тёмном фоне, в тонкой рамке — «ключи от объекта у агента».',
-      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><path d="M13.5 31.5 32 16.5l18.5 15" style="fill:none;stroke:#f2e3bb;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round"/><path d="M19.5 28.5V48h25V28.5" style="fill:none;stroke:#e0c27c;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round"/><circle cx="32" cy="35.6" r="3.4" style="fill:#f2e3bb;stroke:none"/><path d="M30.4 37.6h3.2l1.1 6.2h-5.4z" style="fill:#f2e3bb;stroke:none"/>' },
-    goldmono: { name: 'Монограмма «ДА», золото', text: 'Буквы «Д» и «А» с засечками золотом в двойной тонкой рамке — как клеймо ювелирного дома.',
-      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><text x="32" y="41.8" text-anchor="middle" style="fill:#f2e3bb;stroke:none;font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:25px;font-weight:600;letter-spacing:-.5px">ДА</text>' },
-    goldroof: { name: 'Крыша-«А» и бриллиант', text: 'Тонкая золотая «А» — она же крыша, под перекладиной — огранённый камень: «эксклюзив», «премиум».',
-      svg: '<rect width="64" height="64" rx="15" style="fill:#11161f;stroke:none"/><rect x="1" y="1" width="62" height="62" rx="14" style="fill:none;stroke:#b8954a;stroke-width:2;opacity:.9"/><rect x="5.5" y="5.5" width="53" height="53" rx="10.5" style="fill:none;stroke:#e0c27c;stroke-width:.8;opacity:.45"/><path d="M16.5 48 32 15.5 47.5 48" style="fill:none;stroke:#f2e3bb;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round"/><path d="M24 36.5h16" style="fill:none;stroke:#e0c27c;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"/><path d="M32 39.6l3.4 3.6-3.4 4.2-3.4-4.2z" style="fill:#e0c27c;stroke:none"/><path d="M28.6 43.2h6.8" style="fill:none;stroke:#11161f;stroke-width:0.7;stroke-linecap:round;stroke-linejoin:round"/>' },
-    keyhole: { name: 'Дом-замок', text: 'Крыша и дом, вместо двери — замочная скважина: «ключи от объекта у агента».',
-      svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><path class="lg-s" d="M14.5 31.5 32 17l17.5 14.5" stroke-width="3.6"/><path class="lg-s" d="M20 28.5V47h24V28.5" stroke-width="3"/><circle class="lg-f" cx="32" cy="35" r="3.7"/><path class="lg-f" d="M30.2 37.2h3.6l1.3 6.6h-6.2z"/>' },
-    mono: { name: 'Монограмма «ДА»', text: 'Буквы «Д» и «А» с засечками в тонкой рамке — как клеймо ювелирного дома или частного банка.',
-      svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><rect class="lg-s" x="7.5" y="7.5" width="49" height="49" rx="10" stroke-width="1.3" opacity=".6"/><text class="lg-t" x="32" y="41" text-anchor="middle" font-size="24">ДА</text>' },
-    roof: { name: 'Буква «А»-крыша', text: 'Заглавная «А» — она же крыша, под перекладиной — дверь. Читается и как дом, и как «Агент».',
-      svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><path class="lg-s" d="M16 48.5 32 15l16 33.5" stroke-width="4.4"/><path class="lg-s" d="M23.3 37h17.4" stroke-width="2.4"/><path class="lg-f" d="M28.6 48.5v-7h6.8v7z"/>' },
     key: { name: 'Ключ-дом', text: 'Ключ, у которого головка — домик: «ключ к сделке». Хорошо смотрится маленьким на телефоне.',
       svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><path class="lg-s" d="M9.5 31 20.5 21l11 10v13.5h-22z" stroke-width="3.2"/><circle class="lg-f" cx="20.5" cy="34.5" r="2.8"/><path class="lg-s" d="M31.5 38h23M49 38v6.5M43.5 38v4.5" stroke-width="3.2"/>' },
   };
+  const KEYC = { gold: ['Золотой', '#b8892f'], orange: ['Оранжевый', '#e07a2e'], sky: ['Небесный', '#3b86bb'], sea: ['Морской', '#0f7c86'],
+    sapphire: ['Сапфир', '#1e4db3'], emerald: ['Изумруд', '#1f7a54'], terra: ['Терракота', '#b4532f'], graphite: ['Графит', '#2b3340'] };
   const ICONS = { lines: 'Тонкие линии', tiles: 'Линии на плитке', none: 'Без значков', emoji: 'Эмодзи (как было)' };
   const HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* приватный режим */ } } };
-  const ok = x => IDS.includes(x) ? x : null, okLogo = x => x in LOGOS ? x : null, okIcons = x => x in ICONS ? x : null;
+  const ok = x => IDS.includes(x) ? x : null, okLogo = x => x in LOGOS ? x : null, okIcons = x => x in ICONS ? x : null, okKc = x => x in KEYC ? x : null;
   // старые «Море» и «Песок» (v5.5), «Аврора» (v5.16) и «Резиденция» (v5.17) — на нынешние
   const OLD = { a: 'classic', b: 'premium', aurora: 'sky', residence: 'sky', dune: 'sky' };
   for (const k of ['design', 'design_def']) { const o = ls.get(k); if (OLD[o]) ls.set(k, OLD[o]); }
@@ -38,9 +29,11 @@
   if (ok(qs.get('design'))) ls.set('design', qs.get('design'));
   if (okLogo(qs.get('logo'))) ls.set('logo', qs.get('logo'));
   if (okIcons(qs.get('icons'))) ls.set('icons', qs.get('icons'));
+  if (okKc(qs.get('keycolor'))) ls.set('keycolor', qs.get('keycolor'));
   let def = ok(ls.get('design_def')) ?? 'sky', mine = ok(ls.get('design')), d = mine ?? def;
   let logoDef = okLogo(ls.get('logo_def')) ?? 'key', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
-  const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef;
+  let kcDef = okKc(ls.get('keycolor_def')) ?? 'sky';
+  const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef, kc = () => okKc(ls.get('keycolor')) ?? kcDef;
   document.write(`<link rel="stylesheet" id="design-css" href="design-${d}.css?v=${V}">`);
   const root = document.documentElement;
   const apply = () => { root.dataset.design = d; root.dataset.logo = logo(); root.dataset.icons = icons(); };
@@ -51,16 +44,17 @@
   // v5.31c (Алексей 05.11): знак бренда — в цветах «Небо» на всех стилях и темах (не меняется со стилем): у знаков с классами .lg-* цвета вписываются прямо в SVG
   // (style сильнее правил стилей вида `.logo rect {fill}`), плюс тонкая песочная рамка; золотые знаки (gold*) — со своими цветами, как выбрал администратор
   const BRAND = { bg: '#3b86bb', ink: '#fbf3e3', sand: '#e2c79a' };
-  const skyfy = svg => !/class="lg-/.test(svg) ? svg : svg
-    .replace(/<rect class="lg-bg"([^>]*)\/>/, `<rect$1 style="fill:${BRAND.bg};stroke:none"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" style="fill:none;stroke:${BRAND.sand};stroke-width:1.2;opacity:.75"/>`)
+  const skyfy = (svg, bg = BRAND.bg) => !/class="lg-/.test(svg) ? svg : svg
+    .replace(/<rect class="lg-bg"([^>]*)\/>/, `<rect$1 style="fill:${bg};stroke:none"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" style="fill:none;stroke:${BRAND.sand};stroke-width:1.2;opacity:.75"/>`)
     .replace(/class="lg-s"/g, `style="fill:none;stroke:${BRAND.ink};stroke-linecap:round;stroke-linejoin:round"`)
     .replace(/class="lg-f"/g, `style="fill:${BRAND.ink};stroke:none"`)
     .replace(/class="lg-t"/g, `style="fill:${BRAND.ink};stroke:none;font-family:Prata,'Playfair Display',Georgia,serif;font-weight:600;letter-spacing:-.4px"`);
-  const markSvg = (id = logo()) => `<svg viewBox="0 0 64 64" aria-hidden="true" style="background:none">${skyfy(LOGOS[id].svg)}</svg>`;
+  const markSvg = (id = logo(), c = kc()) => `<svg viewBox="0 0 64 64" aria-hidden="true" style="background:none">${skyfy((LOGOS[id] ?? LOGOS.key).svg, KEYC[c]?.[1] ?? BRAND.bg)}</svg>`;
   const brandHtml = (id, small = '5 минут — вместо тысячи часов!', fixed = false) => `<div class="gbrand"><span class="logo"${fixed ? ' data-fixed' : ''}>${markSvg(id)}</span><span class="gbrand-t"><b>Для Агента</b><small>${small}</small></span></div>`;
   function paintLogos(el = document) {
-    el.querySelectorAll('.logo:not([data-fixed])').forEach(s => { if (s.dataset.lg !== logo()) { s.innerHTML = markSvg(); s.dataset.lg = logo(); } });
-    el.querySelectorAll('[data-brand]:empty').forEach(b => { b.innerHTML = brandHtml(logo(), b.dataset.brand || undefined); b.querySelector('.logo').dataset.lg = logo(); });
+    const tag = `${logo()}:${kc()}`;
+    el.querySelectorAll('.logo:not([data-fixed])').forEach(s => { if (s.dataset.lg !== tag) { s.innerHTML = markSvg(); s.dataset.lg = tag; } });
+    el.querySelectorAll('[data-brand]:empty').forEach(b => { b.innerHTML = brandHtml(logo(), b.dataset.brand || undefined); b.querySelector('.logo').dataset.lg = tag; });
   }
   // новый файл стилей подключается рядом со старым, старый убирается, когда новый загрузился, — без вспышки «голой» страницы
   function load(x) {
@@ -74,6 +68,7 @@
   }
   function set(x, personal = true) { if (!ok(x)) return; if (personal) { mine = x; ls.set('design', x); } load(x); }
   function setLogo(x, personal = true) { if (!okLogo(x)) return; if (personal) ls.set('logo', x); else { logoDef = x; ls.set('logo_def', x); } apply(); paintLogos(); }
+  function setKeyColor(x, personal = true) { if (!okKc(x)) return; if (personal) ls.set('keycolor', x); else { kcDef = x; ls.set('keycolor_def', x); } paintLogos(); }
   function setIcons(x, personal = true) { if (!okIcons(x)) return; if (personal) ls.set('icons', x); else { iconsDef = x; ls.set('icons_def', x); } apply(); }
   function toast(t) {
     let el = document.getElementById('toast');
@@ -170,6 +165,7 @@
       ls.set('design_def', x); ls.set('design_def_at', String(Date.now())); def = x;
       if (okLogo(r.logo)) { logoDef = r.logo; ls.set('logo_def', r.logo); }
       if (okIcons(r.icons)) { iconsDef = r.icons; ls.set('icons_def', r.icons); }
+      if (okKc(r.keycolor)) { kcDef = r.keycolor; ls.set('keycolor_def', r.keycolor); }
       apply(); paintLogos();
       if (!mine) load(x);
     } catch { /* нет сети — остаёмся на кэше */ }
@@ -279,11 +275,11 @@
     headsT = requestAnimationFrame(() => document.querySelectorAll(HEADS).forEach(el => { if (!el.closest('.conn-card')) iconizeEl(el, true); }));
   }
   window.DESIGN = { get: () => d, set, def: () => def, pick, pickerHtml: () => { css(); return pickerHtml(); }, theme, setTheme, themes: THEMES, swatch, mine: () => mine, names: NAMES, ids: IDS, logos: LOGOS, icons: ICONS,
-    logo, iconsSet: icons, setLogo, setIcons, markSvg, brandHtml, paint: paintLogos, iconizeEl, sprite, heads,
+    logo, iconsSet: icons, setLogo, setIcons, keyColors: KEYC, keyColor: kc, setKeyColor, mineKc: () => okKc(ls.get('keycolor')), kcDef: () => kcDef, markSvg, brandHtml, paint: paintLogos, iconizeEl, sprite, heads,
     mineLogo: () => okLogo(ls.get('logo')), mineIcons: () => okIcons(ls.get('icons')), logoDef: () => logoDef, iconsDef: () => iconsDef,
-    reset() { mine = null; ls.set('design', null); ls.set('logo', null); ls.set('icons', null); apply(); paintLogos(); load(def); },
+    reset() { mine = null; ls.set('design', null); ls.set('logo', null); ls.set('icons', null); ls.set('keycolor', null); apply(); paintLogos(); load(def); },
     // админка: новый выбор «для всех» — сразу в кэш (у себя тоже, если нет личного)
-    setDefault(x, lg, ic) { if (ok(x)) { def = x; ls.set('design_def', x); } if (okLogo(lg)) { logoDef = lg; ls.set('logo_def', lg); } if (okIcons(ic)) { iconsDef = ic; ls.set('icons_def', ic); }
+    setDefault(x, lg, ic, kcol) { if (okKc(kcol)) { kcDef = kcol; ls.set('keycolor_def', kcol); } if (ok(x)) { def = x; ls.set('design_def', x); } if (okLogo(lg)) { logoDef = lg; ls.set('logo_def', lg); } if (okIcons(ic)) { iconsDef = ic; ls.set('icons_def', ic); }
       ls.set('design_def_at', String(Date.now())); apply(); paintLogos(); if (!mine) load(def); } };
   document.addEventListener('click', e => { if (e.target.closest('[data-style]')) { e.preventDefault(); pick(); } });
   document.addEventListener('DOMContentLoaded', () => {

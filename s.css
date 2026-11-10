@@ -257,3 +257,6 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .s-map .map-info span { background: rgba(255, 255, 255, .85); padding: 1px 6px; border-radius: 6px; }
 .s-map .map-info a { color: #1453d8; }
 .s-agent-ph { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; }   /* v5.46a: фото агента */
+/* v5.47 E: окно точки на карте подборки — с фото, длинный список листается внутри */
+.s-pop { max-width: none; max-height: min(420px, 55vh); overflow-y: auto; overscroll-behavior: contain; }
+.s-pop-im { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin: 6px 0 4px; background: #0f1218; }

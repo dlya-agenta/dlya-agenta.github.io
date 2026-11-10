@@ -270,3 +270,11 @@ body.ex-hassel .sup-fab { bottom: calc(96px + env(safe-area-inset-bottom)); }
   body.ex-hassel .sup-fab { bottom: calc(140px + env(safe-area-inset-bottom)); }
 }
 .ex-selform .hint { margin: -2px 0 12px; }
+
+/* v5.47 E (Алексей, п. 14): окно точки крупнее; на телефоне — объекты точки под картой, карта ниже */
+.ex-pop { max-height: min(560px, 70vh); }
+.ex-pop.many .ex-mini .xg { width: 140px; }
+.map-pt .ex-pop { max-height: none; overflow: visible; }
+.map-pt .ex-mini { width: auto; }
+.map-pt .ex-mb small { white-space: normal; }
+@media (max-width: 760px) { .ex-map { height: 56svh; min-height: 300px; } }

@@ -13,11 +13,43 @@
   const TIPS = ['Подбери 3 лучшие студии до 7 млн у моря и сравни с рынком', 'Проанализируй отмеченные объекты: что выгоднее и почему', 'Что у меня в очереди рекламы?',
     'Поставь задачу: показ завтра в 15:00', 'Сделай подборку из отмеченных', 'Какие документы нужны при продаже по наследству?'];
 
-  const card = x => `<label class="hub-card${picked.has(x.num) ? ' on' : ''}" data-num="${x.num}">
-    <span class="hub-ph">${photo(x) ? `<img src="${esc(photo(x))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="hub-noph">🏠</span>'}</span>
-    <input type="checkbox" data-pick="${x.num}"${picked.has(x.num) ? ' checked' : ''} aria-label="Отметить № ${x.num}">
-    ${x.archived ? '<small class="tag">Архив · требуется уточнить актуальность</small>' : ''}<b>${esc(H.mln(x.price))}</b><small>${esc(title(x))}</small><small class="muted">${esc(place(x))} · № ${x.num}</small>
-    <a class="hub-open" href="./#o=${x.num}" target="_blank" rel="noopener">Открыть</a></label>`;
+  // v5.47 E (Алексей, п. 6): карточка как в обычном поиске — фото листаются (палец, стрелки), цена, ₽/м², ЖК, полный адрес, «Выбрать»,
+  // «📞 Связаться» (номер — в меню, замок 🔒/🔓 у цены), «Открыть» — окно объявления поверх страницы (objpop.js), № — тоже ссылка
+  const nPh = x => x.web_photos || x.pics?.length || 0;
+  const phUrl = (x, k) => x.pics ? x.pics[k] : x.web_photos_v === 3 ? `${MEDIA}/${x.num}/${k}.jpg` : k < 4 ? `${PH}/${x.num}/${k}.jpg` : `${MEDIA}/${x.num}/${k}.webp`;
+  const rub = v => `${Math.round(v).toLocaleString('ru-RU')} ₽`;
+  const MSG = 'Здравствуйте! Я агент по недвижимости, у меня есть покупатель на ваш объект. Удобно обсудить показ?';
+  const lock = x => `<i class="lk${x.phone || x.tg ? ' on' : ''}" title="${x.phone || x.tg ? 'Номер открыт' : 'Номер ещё не открыт'}">${x.phone || x.tg ? '🔓' : '🔒'}</i>`;
+  const phoneHtml = (x, open = false) => {
+    const btn = '📞 Связаться <i aria-hidden="true">▾</i>';
+    if (!x.phone && !x.tg) return `<button type="button" class="btn soft ph-btn" data-hphone="${x.num}">${btn}</button>`;
+    const d = String(x.phone ?? '').replace(/\D/g, '');
+    return `<div class="phone"><details class="ph-dd"${open ? ' open' : ''}><summary class="btn soft ph-btn">${btn}</summary><div class="ph-menu">
+      ${x.phone ? `<div><a class="num" href="tel:${esc(x.phone)}">${esc(x.phone)}</a>${x.owner ? ` — ${esc(x.owner)}` : ''} <small>может быть подменный</small></div>
+      <div class="msgs"><a class="m-call" href="tel:${esc(x.phone)}">Позвонить</a><a class="m-wa" href="https://wa.me/${d}?text=${encodeURIComponent(MSG)}" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="m-max" href="${H.mobile() ? 'max://' : 'https://web.max.ru/'}" target="_blank" rel="noopener" data-max="${esc(d)}">MAX</a>
+        ${x.tg ? `<a class="m-tg" href="https://t.me/${encodeURIComponent(x.tg)}" target="_blank" rel="noopener">Telegram</a>` : ''}<button type="button" class="m-copy" data-hcopy="${esc(x.phone)}">Копировать</button></div>`
+      : `<div class="msgs"><a class="m-tg" href="https://t.me/${encodeURIComponent(x.tg)}" target="_blank" rel="noopener">Написать в Telegram</a></div>`}</div></details></div>`;
+  };
+  const card = x => {
+    const n = nPh(x), on = picked.has(x.num);
+    const where = [x.street || x.address, x.sub || x.district].filter(Boolean).join(' · ');
+    return `<article class="card hub-fc${on ? ' picked' : ''}" data-num="${x.num}">
+    <div class="gal" data-n="${n}"><div class="strip">${n ? Array.from({ length: n }, (_, k) => `<div class="ph"><img referrerpolicy="no-referrer" src="${esc(phUrl(x, k))}" alt="" loading="lazy"></div>`).join('') : '<div class="none">Фото нет</div>'}</div>
+      ${n > 1 ? `<button type="button" class="nav l" data-hnav="-1" aria-label="Назад">‹</button><button type="button" class="nav r" data-hnav="1" aria-label="Вперёд">›</button>
+      <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
+      <label class="pick" title="Отметить для помощника, подборки, рекламы"><input type="checkbox" data-pick="${x.num}"${on ? ' checked' : ''}><i class="pk-box" aria-hidden="true"></i><span class="pk-t">${on ? 'Выбрано' : 'Выбрать'}</span></label></div>
+    <div class="body">
+      <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : ''}</small>${lock(x)}</div>
+      ${x.zk || x.complex ? `<div class="zk">${esc(x.zk || x.complex)}</div>` : ''}
+      <div class="title">${esc(title(x))}</div>
+      <div class="addr">${esc(where)}</div>
+      ${x.archived ? '<div class="tags"><span class="tag">Архив · требуется уточнить актуальность</span></div>' : ''}
+      <div class="meta">№ ${x.num}</div>
+      <div class="actions">${phoneHtml(x)}<button type="button" class="btn ghost" data-obj="${x.num}">Открыть</button></div>
+    </div></article>`;
+  };
+  const items = new Map();   // объекты ответов — для телефона и перерисовки
 
   function quotaLine(q) {
     if (!q) return '';
@@ -90,7 +122,7 @@
     ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
     ${r.actions?.length ? `<p class="hub-acts" data-acts='${esc(JSON.stringify(r.actions))}'>${r.actions.map(actHtml).join('')}</p>` : ''}
     ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} ${r.alt.more ? `<b>+${r.alt.more}</b>` : ''} ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
-    ${(r.items ?? []).length ? `<div class="hub-grid">${r.items.slice(0, 30).map(card).join('')}</div>${nextHtml(r)}` : ''}
+    ${(r.items ?? []).length ? `<div class="hub-grid hub-cards">${r.items.slice(0, 30).map(x => (items.set(x.num, x), card(x))).join('')}</div>${nextHtml(r)}` : ''}
     ${offer ? `<div class="hub-offer"><b>Что дальше?</b> Отметьте объекты галочками и попросите помощника или нажмите:
       <button class="btn soft" data-owners>✉️ Написать собственникам</button>
       <button class="btn soft" data-go-rk>📣 В рекламу</button><button class="btn soft" data-go-mail>📨 Рассылка</button>
@@ -156,6 +188,10 @@
   }
   async function onClick(e) {
     const t = e.target;
+    const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
+    const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, 'Номер скопирован'); return; }
+    if (t.closest('.hub-fc .strip img')) { window.OBJPOP?.open(t.closest('.hub-fc').dataset.num); return; }
+    const hp = t.closest('[data-hphone]'); if (hp) return phone(hp);
     if (ask.busy && t.closest('[data-new],[data-dlg],[data-audience],[data-memory-save]')) return H.toast('Дождитесь завершения запроса');
     if (t.closest('[data-new]')) { cur = null; audience = null; clientId = null; clientContext = null; picked.clear(); draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
     const d = t.closest('[data-dlg]'); if (d) { cur = +d.dataset.dlg; history.replaceState(null, '', `#helper=${cur}`); draw(); loadDialog(cur); return; }
@@ -215,8 +251,24 @@
     }
     const c = e.target.closest('[data-pick]'); if (!c) return;
     const n = +c.dataset.pick; c.checked ? picked.add(n) : picked.delete(n);
-    c.closest('.hub-card').classList.toggle('on', c.checked);
+    el.querySelectorAll(`.hub-fc[data-num="${n}"]`).forEach(k => { k.classList.toggle('picked', c.checked); const i = k.querySelector('[data-pick]'); if (i) i.checked = c.checked; const t = k.querySelector('.pk-t'); if (t) t.textContent = c.checked ? 'Выбрано' : 'Выбрать'; });
   }
+  async function phone(b) {
+    const num = +b.dataset.hphone; b.disabled = true; b.textContent = 'Узнаю номер…';
+    b.parentElement.querySelectorAll('.err').forEach(x => x.remove());
+    try {
+      const p = await H.web('phone', { num });
+      if (!p.phone && !p.tg) throw new Error(p.message || p.error || 'Номер не найден');
+      const x = { ...(items.get(num) ?? { num }), phone: p.phone, tg: p.tg, owner: p.owner }; items.set(num, x);
+      el.querySelectorAll(`.hub-fc[data-num="${num}"]`).forEach(k => { k.querySelector('[data-hphone]')?.replaceWith(Object.assign(document.createElement('div'), { innerHTML: phoneHtml(x, true) }).firstElementChild); const l = k.querySelector('.lk'); if (l) l.outerHTML = lock(x); });
+    } catch (er) {
+      b.disabled = false; b.innerHTML = '📞 Связаться <i aria-hidden="true">▾</i>';
+      b.insertAdjacentHTML('afterend', `<span class="err">${esc(er.message)}</span>`);
+    }
+  }
+  // точки под фото — по прокрутке ленты (палец или стрелки)
+  document.addEventListener('scroll', e => { const s2 = e.target; if (!s2.classList?.contains('strip') || !s2.closest('.hub-fc')) return;
+    const k = Math.round(s2.scrollLeft / s2.clientWidth); s2.parentElement.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === k)); }, true);
   // «Написать собственникам»: спросить текст; телефоны открываются по тарифу (уже открытые — бесплатно)
   function owners() {
     const nums = [...picked];

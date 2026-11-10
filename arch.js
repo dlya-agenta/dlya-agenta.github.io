@@ -527,17 +527,35 @@ const ptRow = ([t, lat, lng, price, rooms, kind, area, floor, floors, street, pi
 const ptCard = p => card(byT.get(p.t) ?? p, true);
 const newest = (a, c) => String(c.created_at ?? '').localeCompare(String(a.created_at ?? '')) || a.i - c.i;   // части карты приходят вразнобой — по дате
 const popHtml = ps => `<div class="mlist${ps.length > 1 ? ' many' : ''}">${ps.length > 1 ? `<b class="ml-n">${ps.length} объявл. здесь</b>` : ''}${ps.map(ptCard).join('')}</div>`;
+// v5.47 E (Алексей, п. 14): как на главной — компьютер: окно у метки шире (340 px), с крупным фото, не выходит за край карты и под шапку;
+// телефон: объявления точки — карточками под картой (страница листается как обычно)
+function showPts(ll, ps) {
+  if (mobile()) {
+    let s = $('#map-pt');
+    if (!s) {
+      s = document.createElement('section'); s.id = 'map-pt'; s.className = 'map-pt'; $('#map').after(s);
+      s.addEventListener('click', e => { if (e.target.closest('.mp-x')) s.hidden = true; else onCard(e); });
+    }
+    s.innerHTML = `<div class="mp-h"><b>${ps.length > 1 ? `${ps.length} объявл. здесь` : 'Объявление в этой точке'}</b><button type="button" class="mp-x" aria-label="Закрыть">×</button></div><div class="mp-items">${ps.map(ptCard).join('')}</div>`;
+    s.hidden = false;
+    const top = s.getBoundingClientRect().top;
+    if (top > innerHeight * .62 || top < 60) scrollBy({ top: top - innerHeight * .42, behavior: 'smooth' });
+    return;
+  }
+  const hdr = Math.max(0, document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0) - Math.max(0, map.getContainer().getBoundingClientRect().top);
+  L.popup({ minWidth: 340, maxWidth: 340, className: 'mkpop', autoPanPaddingTopLeft: [16, Math.max(16, hdr + 16)], autoPanPaddingBottomRight: [16, 16] }).setLatLng(ll).setContent(popHtml(ps)).openOn(map);
+}
 function marker(p) {
   const m = L.marker([p.lat, p.lng], { opacity: p.gone ? 0.55 : 1 });
   m.p = p;
-  m.bindPopup(() => popHtml([p]), { minWidth: 250, maxWidth: 250 });
+  m.on('click', () => showPts(m.getLatLng(), [p]));
   return m;
 }
 async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
     map = L.map('map', { attributionControl: false }).setView([43.585, 39.723], 11);
-    map.on('moveend', () => mapList());
+    map.on('moveend', () => mapList()).on('click', () => { const s = $('#map-pt'); if (s) s.hidden = true; });
     (window.MAPBASE ? MAPBASE.add(map) : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map));   // v5.23: Яндекс по ключу из админки, иначе OpenStreetMap; источник — свёрнутым «ⓘ»
     // v5.20: подпись карты — «ⓘ», по нажатию «© OpenStreetMap» (как на главной; стиль .map-info — style.css)
     const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
@@ -556,7 +574,7 @@ async function loadMap() {
   cluster.on('clusterclick', e => {
     const b = e.layer.getBounds();
     if (map.distance(b.getNorthEast(), b.getSouthWest()) > 40 && map.getZoom() < map.getMaxZoom()) return e.layer.zoomToBounds({ padding: [30, 30] });
-    L.popup({ minWidth: 300, maxWidth: 300 }).setLatLng(e.layer.getLatLng()).setContent(popHtml(e.layer.getAllChildMarkers().map(m => m.p).sort(newest))).openOn(map);
+    showPts(e.layer.getLatLng(), e.layer.getAllChildMarkers().map(m => m.p).sort(newest));
   });
   map.addLayer(cluster);
   let info = null, done = 0, failed = 0, fitted = false;
@@ -616,6 +634,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   view = b.dataset.view;
   document.querySelectorAll('[data-view]').forEach(x => { x.classList.toggle('on', x === b); x === b ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
   $('#list').hidden = view === 'map'; $('#map').hidden = view !== 'map'; $('#maplist').hidden = view !== 'map';
+  if ($('#map-pt')) $('#map-pt').hidden = true;
   $('#more').hidden = view === 'map' || page * 24 >= total;
   if (view === 'list') mapGen++;   // ушли с карты — недогруженные части не нужны
   view === 'map' ? loadMap() : (page ? showStatus({}, `Найдено за 2 года: ${total.toLocaleString('ru-RU')}`) : search());

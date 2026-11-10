@@ -238,8 +238,9 @@
     if (window.ResizeObserver) new ResizeObserver(() => mapObj?.invalidateSize()).observe(el);
     [60, 300, 900].forEach(ms => setTimeout(() => mapObj?.invalidateSize(), ms));
     const css = getComputedStyle(document.body), acc = css.getPropertyValue('--accent').trim() || '#2f6fdf';
-    const info = x => x ? `<b>${esc(x.what)}</b><br>${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.sea_m ? ` · ≈ ${seaTxt(x.sea_m)} до моря` : ''}` : '';
+    const info = x => x ? `${x.photos?.[0] ? `<img class="s-pop-im" src="${esc(x.photos[0])}" alt="" referrerpolicy="no-referrer" loading="lazy">` : ''}<b>${esc(x.what)}</b><br>${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.sea_m ? ` · ≈ ${seaTxt(x.sea_m)} до моря` : ''}` : '';
     // объекты на одной улице — один круг со списком номеров
+    const POPO = { maxWidth: 280, minWidth: 240, autoPanPadding: [14, 14] };   // v5.47 E: окно с фото, не за краем карты
     const groups = new Map();
     for (const p of ok) { const k = p.kind === 'street' ? `${p.lat},${p.lon}` : `n${p.num}`; groups.set(k, [...(groups.get(k) ?? []), p]); }
     const layers = [];
@@ -248,12 +249,12 @@
       if (p.kind === 'street') {
         // v5.31f (Алексей 06.11): адрес скрыт — без круга и без «точный адрес — у агента»: одна отметка на улице (~200 м от дома, сервер), подпись — улица и микрорайон
         const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
-          .bindPopup(`<div class="s-pop">${p.label ? `<p class="s-pop-st">${esc(p.label)}</p>` : ''}${list}</div>`);
+          .bindPopup(`<div class="s-pop">${p.label ? `<p class="s-pop-st">${esc(p.label)}</p>` : ''}${list}</div>`, POPO);
         if (p.label) m.bindTooltip(esc(p.label), { direction: 'top' });
         layers.push(m);
       } else {
         const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
-          .bindPopup(`<div class="s-pop">${list}<br><small>${esc(p.label || '')}</small></div>`);
+          .bindPopup(`<div class="s-pop">${list}<br><small>${esc(p.label || '')}</small></div>`, POPO);
         layers.push(m);
       }
     }

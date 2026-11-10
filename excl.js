@@ -194,8 +194,23 @@
     return d; } }))();
   function popup(ll, xs) {
     xs = xs.slice().sort((a, b) => (a.price || 9e15) - (b.price || 9e15));
-    L.popup({ minWidth: 264, maxWidth: 264, className: 'mkpop ex-popw', autoPanPadding: [16, 16] }).setLatLng(ll)
-      .setContent(`<div class="ex-pop${xs.length > 1 ? ' many' : ''}">${xs.length > 1 ? `<b class="ex-poph">${xs.length} ${xs.length < 5 ? 'объекта' : 'объектов'} здесь</b>` : ''}${xs.map(x => miniHtml(x)).join('')}</div>`).openOn(map);
+    const head = xs.length > 1 ? `${xs.length} ${xs.length < 5 ? 'объекта' : 'объектов'} здесь` : '';
+    // v5.47 E (Алексей, п. 14): телефон — объекты точки карточками под картой; компьютер — окно 340 px, не под шапкой и не за краем
+    if (innerWidth <= 760) {
+      let s = document.getElementById('map-pt');
+      if (!s || !s.isConnected || s.previousElementSibling !== map.getContainer()) {
+        s?.remove(); s = document.createElement('section'); s.id = 'map-pt'; s.className = 'map-pt'; map.getContainer().after(s);
+        s.addEventListener('click', e => { if (e.target.closest('.mp-x')) s.hidden = true; else onPop(e); });
+      }
+      s.innerHTML = `<div class="mp-h"><b>${head || 'Объект в этой точке'}</b><button type="button" class="mp-x" aria-label="Закрыть">×</button></div><div class="mp-items ex-pop">${xs.map(x => miniHtml(x)).join('')}</div>`;
+      s.hidden = false;
+      const top = s.getBoundingClientRect().top;
+      if (top > innerHeight * .62 || top < 60) scrollBy({ top: top - innerHeight * .42, behavior: 'smooth' });
+      return;
+    }
+    const hdr = Math.max(0, document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0) - Math.max(0, map.getContainer().getBoundingClientRect().top);
+    L.popup({ minWidth: 340, maxWidth: 340, className: 'mkpop ex-popw', autoPanPaddingTopLeft: [16, Math.max(16, hdr + 16)], autoPanPaddingBottomRight: [16, 16] }).setLatLng(ll)
+      .setContent(`<div class="ex-pop${xs.length > 1 ? ' many' : ''}">${head ? `<b class="ex-poph">${head}</b>` : ''}${xs.map(x => miniHtml(x)).join('')}</div>`).openOn(map);
   }
   // Leaflet — только когда открыли карту (медленный CDN не задерживает ленту)
   let lp = null;

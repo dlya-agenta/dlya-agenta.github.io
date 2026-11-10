@@ -138,34 +138,34 @@
           <div class="dz-prev dz-${l.id}" aria-hidden="true"><i class="dz-top"><b></b><s></s><s></s><s></s></i><span class="dz-t"><u></u><em></em></span><span class="dz-t"><u></u><em></em></span><span class="dz-t"><u></u><em></em></span><span class="dz-btn"></span></div>
           <h4>${esc(l.name)}${tags(l.id === cur.default, D?.get() === l.id)}</h4><p class="hint">${esc(l.text)}</p>
           <p class="dz-act"><button class="btn ghost" data-try="${l.id}">Примерить у себя</button>${l.id === cur.default ? '' : `<button class="btn primary" data-def="${l.id}">Сделать для всех</button>`}</p></article>`).join('')}</div></section>
-      <section class="hub-sec"><h3>Логотип «Для Агента»</h3>
-        <p class="hint">Знак — в шапке всех страниц, на входе, в подборке клиенту. Цвета знака меняются вместе со стилем. Ниже — как он выглядит у вас сейчас (стиль «${esc(D?.names[D?.get()] ?? '')}»).</p>
-        <div class="dz-grid">${Object.entries(D?.logos ?? {}).map(([id, l]) => `<article class="dz-card lg-card${id === cur.logo ? ' on' : ''}">
-          <div class="lg-prev">${D.brandHtml(id, undefined, true)}<div class="lg-mini"><span class="logo" data-fixed>${D.markSvg(id)}</span><b>Для Агента</b></div></div>
-          <h4>${esc(l.name)}${tags(id === cur.logo, D.logo() === id)}</h4><p class="hint">${esc(l.text)}</p>
-          <p class="dz-act"><button class="btn ghost" data-try-logo="${id}">Примерить у себя</button>${id === cur.logo ? '' : `<button class="btn primary" data-def-logo="${id}">Сделать для всех</button>`}</p></article>`).join('')}</div></section>
+      <section class="hub-sec"><h3>Логотип «Для Агента» — «Ключ-дом»</h3>
+        <p class="hint">Знак один — «Ключ-дом»: в шапке всех страниц, на входе, в подборке клиенту. Выберите цвет знака (v5.47, просьба Алексея). «Примерить у себя» меняет только ваш экран.</p>
+        <div class="lg-prev kc-prev">${D.brandHtml('key', undefined, true)}</div>
+        <div class="kc-grid">${Object.entries(D?.keyColors ?? {}).map(([id, [name]], i) => `<article class="kc-card${id === (cur.keycolor ?? 'sky') ? ' on' : ''}">
+          <span class="logo" data-fixed>${D.markSvg('key', id)}</span><b>${i + 1}. ${esc(name)}</b>${tags(id === (cur.keycolor ?? 'sky'), D.keyColor() === id)}
+          <p class="dz-act"><button class="btn ghost" data-try-kc="${id}">Примерить</button>${id === (cur.keycolor ?? 'sky') ? '' : `<button class="btn primary" data-def-kc="${id}">Для всех</button>`}</p></article>`).join('')}</div></section>
       <section class="hub-sec"><h3>Значки в меню</h3>
         <p class="hint">Вместо эмодзи («смайликов») — рисованные значки в цвет текста. У «Кабинета» и «С клиентом» теперь разные значки: портфель и экран показа.</p>
         <div class="dz-grid">${Object.entries(D?.icons ?? {}).map(([id, name]) => `<article class="dz-card${id === cur.icons ? ' on' : ''}">
           <div class="ic-prev" data-icons-demo="${id}">${ICON_DEMO.map(t => `<span class="link">${t}</span>`).join('')}</div>
           <h4>${esc(name)}${tags(id === cur.icons, D.iconsSet() === id)}</h4>
           <p class="dz-act"><button class="btn ghost" data-try-icons="${id}">Примерить у себя</button>${id === cur.icons ? '' : `<button class="btn primary" data-def-icons="${id}">Сделать для всех</button>`}</p></article>`).join('')}</div>
-        ${D?.mine() || D?.mineLogo() || D?.mineIcons() ? `<p class="hint">У вас есть личный выбор (стиль, логотип или значки). <button class="btn ghost" data-mine-reset>Вернуть выбор «для всех»</button></p>` : ''}</section>`);
+        ${D?.mine() || D?.mineLogo() || D?.mineIcons() || D?.mineKc?.() ? `<p class="hint">У вас есть личный выбор (стиль, логотип или значки). <button class="btn ghost" data-mine-reset>Вернуть выбор «для всех»</button></p>` : ''}</section>`);
       // значки в образцах: те же, что в меню (nav.js), набор — свой у каждого образца
       document.querySelectorAll('.ic-prev .link').forEach(el => D?.iconizeEl(el));
     };
     draw();
     const save = async (btn, b, what) => {
       btn.disabled = true;
-      try { cur = await H.call('adm_design_set', b); D?.setDefault(cur.default, cur.logo, cur.icons); H.toast(`${what} — теперь для всех`); draw(); } catch (er) { H.toast(er.message, 5000); btn.disabled = false; }
+      try { cur = await H.call('adm_design_set', b); D?.setDefault(cur.default, cur.logo, cur.icons, cur.keycolor); H.toast(`${what} — теперь для всех`); draw(); } catch (er) { H.toast(er.message, 5000); btn.disabled = false; }
     };
     $('#adm-body').onclick = async e => {
-      const t = e.target.closest('[data-try], [data-try-logo], [data-try-icons]');
-      if (t) { if (t.dataset.try) D?.set(t.dataset.try); if (t.dataset.tryLogo) D?.setLogo(t.dataset.tryLogo); if (t.dataset.tryIcons) D?.setIcons(t.dataset.tryIcons); setTimeout(draw, 150); return; }
+      const t = e.target.closest('[data-try], [data-try-logo], [data-try-icons], [data-try-kc]');
+      if (t) { if (t.dataset.try) D?.set(t.dataset.try); if (t.dataset.tryLogo) D?.setLogo(t.dataset.tryLogo); if (t.dataset.tryIcons) D?.setIcons(t.dataset.tryIcons); if (t.dataset.tryKc) D?.setKeyColor(t.dataset.tryKc); setTimeout(draw, 150); return; }
       if (e.target.closest('[data-mine-reset]')) { D?.reset(); setTimeout(draw, 150); return; }
-      const d = e.target.closest('[data-def], [data-def-logo], [data-def-icons]');
+      const d = e.target.closest('[data-def], [data-def-logo], [data-def-icons], [data-def-kc]');
       if (d?.dataset.def) return save(d, { default: d.dataset.def }, `Стиль «${LOOKS.find(x => x.id === d.dataset.def).name}»`);
-      if (d?.dataset.defLogo) return save(d, { logo: d.dataset.defLogo }, `Логотип «${D.logos[d.dataset.defLogo].name}»`);
+      if (d?.dataset.defKc) return save(d, { keycolor: d.dataset.defKc, logo: 'key' }, `Цвет ключа «${D.keyColors[d.dataset.defKc][0]}»`);
       if (d?.dataset.defIcons) return save(d, { icons: d.dataset.defIcons }, `Значки «${D.icons[d.dataset.defIcons]}»`);
     };
   }

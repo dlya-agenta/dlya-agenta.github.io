@@ -997,3 +997,60 @@ html .iv-tools, html .iv-descr { border-color: var(--line2); }
 .ns-dot.cur { background: var(--accent); color: #fff; }
 .ns-box .ns-go { min-height: 46px; font-size: 16px; }
 .dl-obj-x { margin-left: 6px; vertical-align: middle; }
+
+/* v5.47 E (Алексей, п. 6, 14): телефон — в меню «📞 Связаться», замок у цены; карта ниже на телефоне, объявления точки — под картой; окно точки крупнее */
+.price .lk { font-style: normal; font-size: 13px; line-height: 1; opacity: .85; cursor: help; }
+.price:has(> .lk) { justify-content: flex-start; }
+.price:has(> .lk) > small { margin-left: auto; }
+.ph-btn i { font-style: normal; font-size: .8em; opacity: .7; }
+.ph-dd { width: 100%; }
+.ph-dd > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.ph-dd > summary::-webkit-details-marker { display: none; }
+.ph-dd[open] > summary i { transform: rotate(180deg); }
+.ph-menu { margin-top: 6px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); display: grid; gap: 8px; animation: phdd .16s ease-out; }
+@keyframes phdd { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ph-menu { animation: none; } }
+.ph-menu .num { font-size: 17px; }
+.mkpop .card.mc .gal { height: 210px; }
+.mkpop .mlist { max-height: min(560px, 70vh); }
+.mkpop .mlist.many .card.mc .gal { width: 140px; height: auto; }
+:is(.mkpop, .map-pt) .card.mc .addr { white-space: normal; }
+.mkpop .card.mc .ph-menu .msgs > * { padding: 5px 9px; font-size: 12.5px; }
+.map-pt { margin-top: 12px; padding-bottom: 72px; }   /* снизу место под кнопку чата */
+.map-pt[hidden] { display: none; }
+.map-pt .mp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 15px; }
+.map-pt .mp-x { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.map-pt .mp-items { display: grid; gap: 12px; }
+.map-pt .card.mc .gal { aspect-ratio: 4 / 3; height: auto; }
+@media (max-width: 760px) {
+  .map { height: 56svh; min-height: 300px; }
+}
+/* v5.47 E (п. 8): выбор ЖК — поиск и «Готово» сверху (липкая полоса), мелкие ЖК свёрнуты */
+.zk-top { position: sticky; top: -1px; z-index: 2; display: flex; gap: 8px; align-items: center; background: var(--card); padding: 2px 0 6px; }
+.zk-top #zk-find { flex: 1; min-width: 0; }
+.zk-top .btn { flex: none; }
+.zk-rest { margin-top: 8px; }
+.zk-rest > summary { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--text); font-weight: 600; font-size: 14px; cursor: pointer; list-style: none; text-align: center; }
+.zk-rest > summary::-webkit-details-marker { display: none; }
+.zk-rest[open] > summary { margin-bottom: 6px; color: var(--muted); }
+/* v5.47 E (п. 6): «№ 150017» в текстах — ссылка; окно объявления поверх страницы (objpop.js), внутри — главная в режиме embed */
+a.objlink { color: var(--link, var(--accent)); font-weight: 600; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+a.objlink:hover { text-decoration-style: solid; }
+.objpop { position: fixed; inset: 0; z-index: 3500; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.objpop .op-box { position: relative; width: min(1100px, 100%); height: min(860px, 100%); background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); }
+.objpop iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+.objpop .op-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.objpop .op-x { position: absolute; top: 8px; right: 8px; z-index: 2; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 17px; cursor: pointer; }
+html.objpop-on, html.objpop-on body { overflow: hidden; }
+@media (max-width: 760px) { .objpop { padding: 0; align-items: flex-end; } .objpop .op-box { height: calc(100% - 28px - env(safe-area-inset-top)); border-radius: 16px 16px 0 0; } }
+html.embed #app, html.embed .sup-fab { display: none !important; }
+html.embed, html.embed body { background: var(--card); }
+html.embed .sheet { background: transparent; align-items: stretch; }
+html.embed .sheet-box { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; box-shadow: none; }
+/* v5.47 E (п. 17): режим приложения (с главного экрана) — назад, вперёд, обновить, поделиться в шапке */
+.pwa-nav { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); flex: none; }
+.pwa-nav button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text); cursor: pointer; padding: 0; }
+.pwa-nav button:active { background: var(--soft, rgba(127,127,127,.15)); }
+.pwa-nav svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 760px) { html.pwa .top .brand small { display: none; } html.pwa .top .brand b { font-size: 16px; } .pwa-nav button { width: 30px; height: 30px; } }
+.objpop .op-x[hidden] { display: none; }
