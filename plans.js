@@ -100,8 +100,8 @@ window.PLANS = (() => {
   const soon = what => ui.sheet(ABOUT[what][0].replace(/^\S+\s/, ''), `<div class="locked"><b>${ABOUT[what][0]}</b><p>${ABOUT[what][1]}</p><p class="muted">Скоро: раздел подключается — сообщим, когда заработает.</p></div>`);
 
   // отказ по лимиту номеров: текст сервера и кнопка «Докупить» (у дневного и месячного лимита)
-  const limitHtml = (msg, st) => (window.OFFER?.hit('limit'), `<span class="err">${esc(msg)}</span>${st === 'day' || st === 'month' ? ` <button class="btn soft" data-pack>Докупить ${esc(packText())}</button>` : ''}`);
-  document.addEventListener('click', e => { if (e.target.closest('[data-pack]')) { e.preventDefault(); pay({ pack: 1 }); } if (e.target.closest('[data-pro-open]')) { e.preventDefault(); pro(); } });
+  const limitHtml = (msg, st) => (window.OFFER?.hit('limit'), `<span class="err">${esc(msg)}</span>${st === 'day' || st === 'month' ? ` <button class="btn soft" data-pack>Докупить ${esc(packText())}</button>` : st === 'paid' ? ' <button class="btn primary" data-paysub>Оформить подписку</button>' : ''}`);   // v5.47 C п.5: paid — номер дороже 10 млн на пробном
+  document.addEventListener('click', e => { if (e.target.closest('[data-pack]')) { e.preventDefault(); pay({ pack: 1 }); } if (e.target.closest('[data-paysub]')) { e.preventDefault(); pay({ plan: 'sub' }); } if (e.target.closest('[data-pro-open]')) { e.preventDefault(); pro(); } });
 
   // внизу выдачи у тарифа без Архива: сколько объявлений старше 6 месяцев нашлось бы
   const oldBanner = n => `<div class="pro-line"><span>Ещё ${Number(n).toLocaleString('ru-RU')} ${n % 10 === 1 && n % 100 !== 11 ? 'объявление' : 'объявлений'} старше 6 месяцев — в PRO</span><button class="btn soft" data-pro-open>Что даёт PRO</button></div>`;
