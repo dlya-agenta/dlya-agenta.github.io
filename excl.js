@@ -1,3 +1,6 @@
+// v5.48 G (Алексей 10.11, пп. 18, 24): без проверки документами; без оплаченной подписки — до 100 объектов, с подпиской — до 1000; контакт коллеги — по правилу номеров
+// (оплатившим — все, пробному — до 10 млн); видео объекта до 2 минут (сжатие vidpack.js, до 20 МБ); 30 дней, «✅ Актуально», без подтверждения — в архив, через 3 месяца
+// в архиве фото и видео удаляются. Доступ кончился, вход через Telegram — открыт только этот раздел (#exonly).
 // «Эксклюзивы» (v5.19, excl.html): вторичка от агентов-коллег — без договоров и проверки, размещать может любой вошедший агент (даже без подписки),
 // смотреть чужие — по тарифу. Лента с фильтром как на главной (те же поля и подсказки FUI), карточка с галереей, избранное, «Мои размещения»
 // (изменить, продлить на 30 дней, продано, снять, удалить), форма с фото до 15 (сжатие на странице, порядок, обложка), комиссия коллеге.
@@ -14,7 +17,7 @@
   const SEA = [['', 'Любое'], ['300', 'до 300 м'], ['500', 'до 500 м'], ['1000', 'до 1 км'], ['2000', 'до 2 км'], ['5000', 'до 5 км']];
   const EXTRA = [['comm', 'Комиссия от 3%'], ['ph', 'С фото'], ['new', 'Новые за 3 дня'], ['drop', 'Цена снижена']];
   const SORTS = [['new', 'Сначала новые'], ['price', 'Сначала дешевле'], ['price_desc', 'Сначала дороже'], ['area_desc', 'Больше площадь'], ['comm', 'Больше комиссия'], ['m2', 'Дешевле за м²']];
-  const ST = { draft: ['Черновик', 'warn'], active: ['В ленте', 'ok'], hidden: ['Снят с показа', 'muted'], sold: ['Продано', 'ok'], archived: ['В архиве', 'muted'] };
+  const ST = { draft: ['Черновик', 'warn'], active: ['В ленте', 'ok'], hidden: ['Снят с показа', 'muted'], sold: ['Продано', 'ok'], archived: ['В моём архиве', 'muted'] };
   const FN = Object.fromEntries(FIN);
   let caps = null, ref = null, items = [], canView = true, f = {}, sort = 'new', my = null, fopen = false;
   const MAXSEL = 20, MAXPDF = 10, SKEY = 'excl_sel';
@@ -83,6 +86,10 @@
     ${gal(base ? basePhotos(x) : x.photos, 'sm', base ? '<span class="ex-noph ex-nophb">Фото нет</span>' : undefined)}<span class="ex-mb"><b>${esc(money(x.price))}</b><small>${esc(base ? baseWhat(x) : what(x))}</small>
     <small class="muted">${esc(base ? x.zk || x.street || '' : place(x) || 'Сочи')}</small>${base ? '' : '<i class="ex-mtag">💎 Эксклюзив</i>'}</span></a>`;
 
+  // v5.48 G: доступ закончился, но вход через Telegram — открыт только этот раздел
+  const exonly = () => !!caps && !caps.can?.live && !caps.main && !caps.admin;
+  const exonlyHtml = () => `<div class="hub-lock ex-lock"><b>Доступ к сервису закончился</b><p>Раздел «Эксклюзивы» остаётся открытым: размещайте свои объекты (до 100), коллеги увидят их и приведут покупателя.
+    Поиск по базе собственников, контакты коллег и остальные разделы — после продления.</p><a class="btn primary" href="pay.html">Продлить доступ</a> <a class="btn soft" href="#new">＋ Разместить объект</a></div>`;
   // ---------- старт ----------
   async function start() {
     if (!H.token()) { location.href = './#login'; return; }
@@ -117,7 +124,8 @@
   }
 
   // ---------- лента ----------
-  async function load() { const r = await H.call('excl_list'); items = r.items; canView = r.can_view; }
+  let paidV = true, capV = 10e6;
+  async function load() { const r = await H.call('excl_list'); items = r.items; canView = r.can_view; paidV = r.paid !== false; capV = r.cap || 10e6; }
   async function feed(favOnly) {
     const el = $('#ex');
     el.onclick = null;
@@ -133,8 +141,10 @@
     }
     el.querySelector('.ex-feed').dataset.only = favOnly ? 1 : '';
     try { await load(); } catch (e) { $('#ex-grid').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-    $('#ex-lock').innerHTML = canView ? '' : `<div class="hub-lock ex-lock"><b>🔒 Контакты агентов — по подписке</b><p>Смотреть эксклюзивы коллег и размещать свои можно без подписки — коллеги увидят ваш объект и приведут покупателя.
-      Чтобы видеть контакты агентов и писать им, оформите подписку.</p><a class="btn primary" href="pay.html">Оформить подписку</a> <a class="btn soft" href="#new">＋ Разместить объект</a></div>`;
+    const mlnCap = (capV / 1e6).toLocaleString('ru-RU');
+    $('#ex-lock').innerHTML = exonly() ? exonlyHtml() : !canView ? `<div class="hub-lock ex-lock"><b>🔒 Контакты агентов — по подписке</b><p>Смотреть эксклюзивы коллег и размещать свои (до 100) можно без подписки — коллеги увидят ваш объект и приведут покупателя.
+      Чтобы видеть контакты агентов и писать им, оформите подписку.</p><a class="btn primary" href="pay.html">Оформить подписку</a> <a class="btn soft" href="#new">＋ Разместить объект</a></div>`
+      : !paidV ? `<p class="hint ex-lock">На пробном доступе контакты агентов видны у объектов до ${mlnCap} млн ₽, дороже — с оплаченной подпиской. <a href="pay.html">Оформить</a></p>` : '';
     draw();
   }
   function filtered() {
@@ -181,7 +191,7 @@
         ${x.area && x.price ? `<small class="muted">${esc(dots(Math.round(x.price / x.area)))} ₽/м²</small>` : ''}
         <span class="ex-what">${esc(what(x))}</span><span class="ex-place muted">${esc(place(x) || 'Сочи')}</span>
         <span class="ex-meta muted">${x.sea_m ? `🌊 ${esc(sea(x.sea_m))} · ` : ''}${x.finish ? `${esc(FN[x.finish] ?? '')} · ` : ''}${esc(ago(x.at))}</span>
-        ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : x.locked ? '<span class="ex-ag muted">🔒 Контакт агента — по подписке</span>' : ''}
+        ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : x.locked ? `<span class="ex-ag muted">🔒 Контакт агента — ${x.lock_paid ? 'с оплаченной подпиской' : 'по подписке'}</span>` : ''}
         <label class="ex-pick"><input type="checkbox" data-pick="${x.num}"${sel.has(x.num) ? ' checked' : ''}> Выбрать</label></div></article>`;
   }
 
@@ -369,6 +379,7 @@
         <p class="muted">${esc(place(x) || 'Сочи')}</p>
         ${comm(x) ? `<div class="ex-commbox"><b>🤝 Комиссия коллеге: ${esc(comm(x))}</b>${x.comm_note ? `<small>${esc(x.comm_note)}</small>` : ''}</div>` : ''}
         <table class="ex-tbl">${rows.map(([a, b]) => `<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join('')}</table>
+        ${x.video ? `<video class="ex-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
         ${x.descr ? `<div class="ex-descr">${esc(x.descr).replace(/\n/g, '<br>')}</div>` : ''}
         ${ag ? `<div class="ex-agent"><b>👤 ${esc(ag.name)}</b>${ag.company ? `<small class="muted">${esc(ag.company)}</small>` : ''}
           <div class="ex-acts">${ag.phone ? `<a class="btn primary" href="tel:+${esc(String(ag.phone).replace(/\D/g, ''))}">📞 Позвонить</a>` : ''}
@@ -376,7 +387,7 @@
           ${tgLink ? `<a class="btn soft" href="${esc(tgLink)}" target="_blank" rel="noopener">Telegram</a>` : ''}
           ${ag.phone ? `<a class="btn soft" href="https://web.max.ru/" target="_blank" rel="noopener" data-max="${esc(String(ag.phone).replace(/\D/g, ''))}">MAX</a>` : ''}</div>
           <small class="muted">WhatsApp, Telegram и MAX открываются в приложении; нет приложения — веб-версия.</small></div>`
-        : x.locked ? `<div class="ex-agent ex-agent-lock"><b>🔒 Контакт агента — по подписке</b><small class="muted">Позвонить и написать агенту, который разместил объект, — с подпиской.</small>
+        : x.locked ? `<div class="ex-agent ex-agent-lock"><b>🔒 Контакт агента — ${x.lock_paid ? `объекты дороже ${(capV / 1e6).toLocaleString('ru-RU')} млн ₽ — с оплаченной подпиской` : 'по подписке'}</b><small class="muted">Позвонить и написать агенту, который разместил объект, — с подпиской.</small>
           <div class="ex-acts"><a class="btn primary" href="pay.html">Оформить подписку</a></div></div>`
         : '<p class="muted">Агент скрыл контакт — напишите в чат подписчиков.</p>'}
         <div class="ex-acts">
@@ -566,19 +577,21 @@
     const views = xs.reduce((n, x) => n + (x.views || 0), 0), favs = xs.reduce((n, x) => n + (x.favs || 0), 0);
     el.innerHTML = `<div class="ex-stats"><div><b>${act.length}</b><small>в ленте</small></div><div><b>${xs.filter(x => x.status === 'draft').length}</b><small>черновиков</small></div>
       <div><b>${views}</b><small>просмотров коллег</small></div><div><b>${favs}</b><small>в избранном у коллег</small></div><div><b>${xs.filter(x => x.status === 'sold').length}</b><small>продано</small></div></div>
-      <p class="hint">Размещение — бесплатно и без подписки. Объект в ленте 30 дней; «Продлить» — ещё 30 дней и подъём наверх. За 3 дня до конца пришлём напоминание.</p>
+      <p class="hint">Размещение — бесплатно: без подписки до 100 объектов, с подпиской — больше (сейчас ${my.count ?? 0} из ${my.max ?? 100}). Объект в ленте 30 дней; раз в месяц подтвердите,
+        что он продаётся, — «✅ Актуально» (ещё 30 дней и подъём наверх), за 3 дня напомним. Не подтвердили — объект уходит в «Мой архив»; через 3 месяца в архиве фото и видео удаляются.</p>
       <div class="ex-my">${xs.map(x => { const st = ST[x.status] ?? [x.status, 'muted'], l = left(x.until);
         return `<div class="ex-row"><a class="ex-rph" href="${x.status === 'active' ? `#o=${x.num}` : `#edit=${x.id}`}">${x.photos[0] ? `<img src="${esc(x.photos[0])}" alt="" loading="lazy">` : '<span class="ex-noph">💎</span>'}</a>
           <div class="ex-rb"><b>${esc(title(x))} · ${esc(money(x.price))}</b><small class="muted">№ ${x.num} · ${esc(place(x) || 'район не указан')}</small>
             <span class="ex-rst"><i class="pill ${st[1]}">${st[0]}</i>${x.status === 'active' && l != null ? `<small class="${l <= 3 ? 'warn' : 'muted'}">ещё ${l} дн.</small>` : ''}
+              ${x.media_gone_at ? '<small class="warn">фото и видео удалены — загрузите заново</small>' : x.gone_at ? `<small class="muted">фото и видео удалятся ${new Date(x.gone_at).toLocaleDateString('ru-RU')}</small>` : ''}${x.video ? '<small class="muted">🎬 видео</small>' : ''}
               <small class="muted">👁 ${x.views || 0} · ★ ${x.favs || 0}${comm(x) ? ` · 🤝 ${esc(comm(x))}` : ''}</small></span></div>
-          <div class="ex-ra">${x.status === 'active' ? `<button class="btn primary sm" data-a="extend" data-id="${x.id}">↻ Продлить</button><button class="btn soft sm" data-a="sold" data-id="${x.id}">✓ Продано</button><button class="btn ghost sm" data-a="hide" data-id="${x.id}">Снять</button>`
-            : `<button class="btn primary sm" data-a="publish" data-id="${x.id}">Опубликовать</button>`}
+          <div class="ex-ra">${x.status === 'active' ? `<button class="btn primary sm" data-a="extend" data-id="${x.id}" title="Объект ещё продаётся — ещё 30 дней и подъём в ленте">✅ Актуально</button><button class="btn soft sm" data-a="sold" data-id="${x.id}">✓ Продано</button><button class="btn ghost sm" data-a="hide" data-id="${x.id}">Снять</button>`
+            : x.media_gone_at ? `<a class="btn primary sm" href="#edit=${x.id}">Загрузить фото и опубликовать</a>` : `<button class="btn primary sm" data-a="publish" data-id="${x.id}">${x.status === 'archived' ? '✅ Актуально — вернуть в ленту' : 'Опубликовать'}</button>`}
             <a class="btn soft sm" href="#edit=${x.id}">Изменить</a>${x.status !== 'active' ? `<button class="btn ghost bad sm" data-a="delete" data-id="${x.id}">Удалить</button>` : ''}</div></div>`; }).join('')
         || '<div class="ex-empty"><p>У вас пока нет размещений. Добавьте объект — коллеги увидят его с вашим контактом и комиссией.</p><a class="btn primary" href="#new">＋ Разместить объект</a></div>'}</div>`;
     el.onclick = async e => {
       const b = e.target.closest('[data-a]'); if (!b) return;
-      if (b.dataset.a === 'delete' && !confirm('Удалить объект и все фото? Вернуть будет нельзя.')) return;
+      if (b.dataset.a === 'delete' && !confirm('Удалить объект, все фото и видео? Вернуть будет нельзя.')) return;
       b.disabled = true;
       try { const r = await H.call('excl_act', { id: +b.dataset.id, do: b.dataset.a }); if (r.message) H.toast(r.message, 4000); showMy(); } catch (er) { H.toast(er.message, 5000); b.disabled = false; }
     };
@@ -605,6 +618,10 @@
       <section class="ex-fs"><h4>Фото <small class="muted">до 15, первое — обложка</small></h4>
         <div class="ex-phs" id="ex-phs"></div>
         <label class="btn soft ex-up"><input type="file" accept="image/*" multiple hidden id="ex-file">📷 Добавить фото</label> <span class="hint" id="ex-upst"></span></section>
+      <section class="ex-fs"><h4>🎬 Видео объекта <small class="muted">одно, до 2 минут — сожмём до 20 МБ сами</small></h4>
+        <div id="ex-vid"></div>
+        <label class="btn soft ex-up"><input type="file" accept="video/*" hidden id="ex-vfile">🎬 ${x.video ? 'Заменить видео' : 'Добавить видео'}</label> <span class="hint" id="ex-vst"></span>
+        <p class="hint">Видео увидят коллеги в карточке и клиент — по ссылке подборки. Пока идёт сжатие, не закрывайте и не сворачивайте страницу.</p></section>
       <section class="ex-fs"><h4>Объект</h4>
         <div class="fl">Тип</div><div class="chips" id="ex-kind">${KINDS.map(([k, t]) => `<button type="button" class="chip${x.kind === k ? ' on' : ''}" data-k="${esc(k)}">${esc(t)}</button>`).join('')}</div>
         <div class="ex-g">
@@ -678,6 +695,34 @@
         if (mv) { const i = +mv.dataset.i, j = i + +mv.dataset.mv, o = [...x.ph]; [o[i], o[j]] = [o[j], o[i]]; const r = await H.call('excl_photo', { id: x.id, order: o }); x.ph = r.ph; x.photos = r.photos; phs(); }
         if (del && confirm('Удалить это фото?')) { const r = await H.call('excl_photo', { id: x.id, del: x.ph[+del.dataset.del] }); x.ph = r.ph; x.photos = r.photos; phs(); }
       } catch (er) { H.toast(er.message, 5000); }
+    };
+    // v5.48 G: видео — сжатие в браузере (vidpack.js), ссылка загрузки от сервера (excl_video sign), файл — прямо во второй проект, затем проверка размера (done)
+    const vids = () => { $('#ex-vid').innerHTML = x.video ? `<video class="ex-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>
+      <p class="muted">${x.video_sec ? `${Math.floor(x.video_sec / 60)}:${String(x.video_sec % 60).padStart(2, '0')}` : ''}${x.video_size ? ` · ${(x.video_size / 1e6).toFixed(1).replace('.', ',')} МБ` : ''} <button type="button" class="btn ghost sm bad" data-vdel>Удалить видео</button></p>` : ''; };
+    vids();
+    $('#ex-vid').onclick = async e => {
+      if (!e.target.closest('[data-vdel]') || !confirm('Удалить видео?')) return;
+      try { const r = await H.call('excl_video', { id: x.id, step: 'del' }); x.video = null; vids(); H.toast(r.message); } catch (er) { H.toast(er.message, 5000); }
+    };
+    $('#ex-vfile').onchange = async e => {
+      const fl = e.target.files[0]; e.target.value = ''; if (!fl) return;
+      if (!window.VIDPACK) { H.toast('Модуль видео не загрузился — обновите страницу', 5000); return; }
+      try { if (!x.id) await save(false, true); } catch (er) { H.toast(er.message, 5000); return; }
+      if (!id) history.replaceState(null, '', `#edit=${x.id}`);
+      const st = $('#ex-vst'), lab = $('#ex-vfile').closest('label');
+      lab.classList.add('disabled'); $('#ex-vfile').disabled = true;
+      try {
+        st.textContent = 'Проверяем видео…';
+        const v = await VIDPACK.pack(fl, (p, t) => { st.textContent = `Сжимаем${t ? ' ещё раз' : ''}: ${Math.round(p * 100)} %`; });
+        st.textContent = `Загружаем ${(v.blob.size / 1e6).toFixed(1).replace('.', ',')} МБ…`;
+        const up = await H.call('excl_video', { id: x.id, step: 'sign', type: v.type, size: v.blob.size, sec: v.sec });
+        const r = await fetch(up.upload, { method: 'PUT', body: v.blob, headers: { 'content-type': v.type === 'webm' ? 'video/webm' : 'video/mp4' } });
+        if (!r.ok) throw new Error(`Хранилище не приняло видео (${r.status})`);
+        const d = await H.call('excl_video', { id: x.id, step: 'done', path: up.path, sec: v.sec });
+        x.video = d.video; x.video_size = d.video_size; x.video_sec = d.video_sec; vids(); my = null;
+        st.textContent = ''; H.toast(`${d.message}${v.packed ? ' (сжато)' : ''}`, 4000);
+      } catch (er) { st.textContent = ''; H.toast(er.message, 7000); }
+      finally { lab.classList.remove('disabled'); $('#ex-vfile').disabled = false; }
     };
     $('#ex-file').onchange = async e => {
       const files = [...e.target.files].slice(0, 15 - x.photos.length); e.target.value = '';

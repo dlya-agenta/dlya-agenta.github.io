@@ -260,3 +260,5 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 /* v5.47 E: окно точки на карте подборки — с фото, длинный список листается внутри */
 .s-pop { max-width: none; max-height: min(420px, 55vh); overflow-y: auto; overscroll-behavior: contain; }
 .s-pop-im { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin: 6px 0 4px; background: #0f1218; }
+/* v5.48 G: видео эксклюзива в подборке */
+.s-video { width: 100%; max-height: 420px; border-radius: 12px; background: #000; margin: 8px 0; display: block; }

@@ -114,6 +114,7 @@
         <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}${data?.kind === 'excl' ? '' : `<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button>`}</div>
         ${tags.length ? `<div class="s-tags">${tags.map(g => `<span class="tag">${esc(g)}</span>`).join('')}</div>` : ''}
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
+        ${x.video ? `<video class="s-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
         ${x.descr ? `<p class="s-descr">${descrHtml(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
         <div class="s-fb">
           <div class="s-marks" role="group" aria-label="Подходит ли объект">
@@ -474,6 +475,7 @@
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
           ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с размещения</p>' : ''}
+          ${x.video ? `<video class="s-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
           ${x.comm ? `<div class="sa-ad"><span class="tag ok">🤝 Комиссия коллеге: ${esc(x.comm)}</span>${x.comm_note ? `<small class="muted">${esc(x.comm_note)}</small>` : ''}</div>` : ''}
           ${stHtml(m)}
           ${who}

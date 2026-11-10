@@ -131,29 +131,11 @@ window.HUB = (() => {
 
   // ---------- голос: распознаёт браузер; слушает, пока человек говорит (паузы до 4 с не обрывают), стоп — повторное нажатие ----------
   // voice(input, btn, {onDone(text), lang, silence_ms}) — текст дописывается в поле; onDone — после остановки (вручную или тишина)
-  const voiceOk = () => 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  // v5.48 F: один общий код голоса — voice.js (таймер тишины — только после включения микрофона, до 1 минуты, iPhone — SpeechKit)
+  const voiceOk = () => !!window.VOICE?.ok;
   function voice(input, btn, o = {}) {
-    if (!voiceOk()) { toast('Голос не поддерживается этим браузером — откройте сайт в Chrome, Яндекс Браузере или Safari'); return null; }
-    if (btn._rec) { btn._rec.stopNow(); return null; }
-    const R = window.SpeechRecognition || window.webkitSpeechRecognition, rec = new R();
-    const base = input.value ? input.value.replace(/\s+$/, '') + ' ' : '', label = btn.innerHTML, quiet = o.silence_ms ?? 4000;
-    let finals = '', inter = '', stopped = false, t = null;
-    rec.lang = o.lang ?? 'ru-RU'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
-    const show = () => { input.value = (base + finals + inter).replace(/\s+/g, ' ').trimStart(); input.dispatchEvent(new Event('input', { bubbles: true })); };
-    const arm = () => { clearTimeout(t); t = setTimeout(() => rec.stopNow(), quiet); };
-    rec.stopNow = () => { stopped = true; clearTimeout(t); try { rec.stop(); } catch { /* уже */ } };
-    rec.onresult = e => { inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) finals += x[0].transcript + ' '; else inter += x[0].transcript; } show(); arm(); };
-    rec.onerror = e => { if (e.error === 'no-speech' || e.error === 'aborted') return; stopped = true; toast(e.error === 'not-allowed' ? 'Разрешите микрофон в настройках браузера' : 'Не расслышал — попробуйте ещё раз'); };
-    // Safari и Chrome сами завершают распознавание через ~5–60 с — продолжаем, пока человек не нажал «стоп» и не молчит 4 с
-    rec.onend = () => {
-      if (!stopped) { try { rec.start(); return; } catch { /* не вышло — завершаем */ } }
-      clearTimeout(t); btn._rec = null; btn.classList.remove('on'); btn.innerHTML = label; btn.title = 'Сказать голосом';
-      inter = ''; show(); const v = input.value.trim(); if (v && o.onDone) o.onDone(v);
-    };
-    btn._rec = rec; btn.classList.add('on'); btn.innerHTML = '⏹'; btn.title = 'Остановить запись';
-    try { rec.start(); arm(); } catch { btn._rec = null; btn.innerHTML = label; }
-    toast('Говорите — пауза 4 секунды или ⏹ закончит запись', 2500);
-    return rec;
+    if (!window.VOICE) { toast('Голос не загрузился — обновите страницу'); return null; }
+    return window.VOICE.start(input, btn, o);
   }
 
   // ---------- ответ ИИ: простая разметка (заголовки ##, **жирный**, списки «- » и «1. », таблицы — строками) → безопасный HTML ----------

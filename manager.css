@@ -105,3 +105,4 @@
   .mg-spend { display: none; }
   .mg-msg { max-width: 100%; }
 }
+.mg-idea { padding: 10px 0; border-top: 1px solid var(--line, #e3e6eb); display: grid; gap: 4px; } .mg-idea:first-of-type { border-top: 0; } .mg-site { margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: var(--soft, #eef3fd); }

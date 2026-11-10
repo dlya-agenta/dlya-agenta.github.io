@@ -22,8 +22,12 @@
     addEventListener('hashchange', route);
     route();
   }
+  // v5.48 F: hub.html?agent=1 — раздел ИИ-Агента внутри всплывающего окна (agent.js): только он, другие разделы — во всей вкладке
+  const AGENT = new URLSearchParams(location.search).has('agent') && window.parent !== window;
+  if (AGENT) document.documentElement.classList.add('agent');
   function route() {
     const [sec, arg] = (location.hash.slice(1) || 'helper').split('=');
+    if (AGENT && sec !== 'helper') { parent.postMessage({ agent: 1, type: 'go', href: new URL('hub.html' + location.hash, location.href).href }, location.origin); history.replaceState(null, '', '?agent=1#helper'); return; }
     const s = window.SEC?.[sec] ?? window.SEC.helper;
     window.NAV?.sync();   // подсветка раздела в общем меню группами (nav.js)
     document.title = `${s.title} — Для Агента`;

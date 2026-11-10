@@ -10,6 +10,32 @@
   const place = x => [x.zk || x.complex, x.sub || x.district].filter(Boolean).join(' · ');
   const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* */ } } };
   let st = null, cur = null, picked = new Set(), el = null, audience = null, clientId = null, clientContext = null, clients = [];
+  // v5.48 F (п. 21): ИИ-Агент — тот же раздел во всплывающем окне на любой странице (agent.js: рамка hub.html?agent=1#helper).
+  // В окне: переходы по ссылкам — во всей вкладке, «Открыть» объявление — окно поверх страницы, номер диалога — родителю (переход по сайту без потери).
+  const AG = new URLSearchParams(location.search).has('agent') && window.parent !== window;
+  const up = m => { if (AG) parent.postMessage({ agent: 1, ...m }, location.origin); };
+  const go = u => { if (AG) up({ type: 'go', href: new URL(u, location.href).href }); else location.href = u; };
+  let poll = null, opts = {};
+  if (AG) {
+    document.documentElement.classList.add('agent');
+    addEventListener('message', e => {
+      if (e.origin !== location.origin || !e.data?.agent) return;
+      const m = e.data;
+      if (m.type === 'ask') { opts = { mode: m.mode, page: m.page }; if (m.fresh) newDialog(); ask(m.q); }
+      if (m.type === 'page') opts.page = m.page;
+      if (m.type === 'new') newDialog();
+      if (m.type === 'fill') { const i = el?.querySelector('#h-q'); if (i) { i.value = m.q; i.focus(); } }
+    });
+    // ссылки и объявления — во всей вкладке, а не в маленьком окне
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a[href]');
+      if (!a || a.target === '_blank' || /^(#|javascript:|tel:|mailto:|https?:\/\/(?!dlya-agenta))/.test(a.getAttribute('href'))) return;
+      const ob = a.dataset.obj || /#o=(\d+)/.exec(a.getAttribute('href'))?.[1];
+      e.preventDefault(); e.stopPropagation();
+      if (ob) up({ type: 'obj', num: +ob }); else go(a.getAttribute('href'));
+    }, true);
+  }
+  const openObj = n => AG ? up({ type: 'obj', num: +n }) : window.OBJPOP?.open(n);
   const TIPS = ['Подбери 3 лучшие студии до 7 млн у моря и сравни с рынком', 'Проанализируй отмеченные объекты: что выгоднее и почему', 'Что у меня в очереди рекламы?',
     'Поставь задачу: показ завтра в 15:00', 'Сделай подборку из отмеченных', 'Какие документы нужны при продаже по наследству?'];
 
@@ -59,20 +85,22 @@
     el = ctx.el;
     st = await H.call('help_init');
     cur = arg ? +arg : null;
-    audience = null; clientId = null; clientContext = null; picked.clear();
+    audience = 'new'; clientId = null; clientContext = null; picked.clear();   // v5.48 F: выбирать не нужно — по умолчанию новый запрос
     draw();
+    up({ type: 'ready', dlg: cur });
+    if (!cur) intro();
     const q0 = store.get('helper_q', '');   // голос из строки поиска на главной
     if (q0) { localStorage.removeItem('helper_q'); cur = null; el.querySelector('#h-q').value = q0; }
     if (cur) loadDialog(cur);
   }
   function draw() {
-    const voice = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+    const voice = H.voiceOk();
     el.innerHTML = `<div class="hub-two">
       <aside class="hub-side"><button class="btn primary" data-new>＋ Новый диалог</button>
         <div class="hub-list">${st.dialogs.map(d => `<button class="hub-li${d.id === cur ? ' on' : ''}" data-dlg="${d.id}"><b>${esc(d.title || 'Новый диалог')}</b><small>${H.when(d.updated_at)}</small></button>`).join('') || '<p class="muted">Диалогов пока нет</p>'}</div>
         <a class="hint" href="help-helper.html" target="_blank">📘 Как пользоваться помощником</a></aside>
       <section class="hub-body">
-        <h2>🤖 Мой помощник</h2><div id="h-context"></div>
+        ${AG ? `<div class="ag-bar"><button type="button" class="btn soft" data-new>＋ Новый запрос</button>${st.dialogs.length ? `<select data-dlgs aria-label="Прошлые запросы"><option value="">🕘 Прошлые запросы (${st.dialogs.length})</option>${st.dialogs.map(d => `<option value="${d.id}"${d.id === cur ? ' selected' : ''}>${esc((d.title || 'Новый диалог').slice(0, 60))}</option>`).join('')}</select>` : ''}</div>` : '<h2>✨ ИИ-Агент</h2>'}<div id="h-context"></div>
         <p class="hint">${quotaLine(st.quota)}</p>
         <div class="ex-box"><p class="ex-h">💡 Примеры просьб — нажмите, чтобы вставить</p><div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
         <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
@@ -90,7 +118,7 @@
   function renderContext() {
     const box = el.querySelector('#h-context'); if (!box) return;
     const w = clientContext?.wishes ?? {};
-    box.innerHTML = `<section class="h-context"><b>Для кого подбираем?</b><div class="hub-tips">
+    box.innerHTML = `${AG ? `<details class="h-context ag-ctx"${audience === 'crm' ? ' open' : ''}><summary>👥 Для кого: <b>${audience === 'crm' ? esc(clientContext?.client?.name || 'клиент из CRM') : 'новый запрос'}</b> · изменить</summary>` : '<section class="h-context"><b>Для кого подбираем?</b>'}<div class="hub-tips">
       <button type="button" class="btn ${audience === 'new' ? 'primary' : 'soft'}" data-audience="new">Новый клиент</button>
       <button type="button" class="btn ${audience === 'crm' ? 'primary' : 'soft'}" data-audience="crm">Из CRM</button></div>
       <p class="hint">Для нового клиента учитываю только ваш запрос в этом диалоге. Для клиента из CRM использую его карточку и сохранённые пожелания, чтобы давать конкретные рекомендации. Вы можете посмотреть и изменить память.</p>
@@ -101,7 +129,7 @@
         <label class="field">Обязательно<textarea id="h-must" maxlength="1200">${esc(w.must || '')}</textarea></label>
         <label class="field">Желательно<textarea id="h-prefer" maxlength="1200">${esc(w.prefer || '')}</textarea></label>
         <label class="field">Не подходит<textarea id="h-avoid" maxlength="1200">${esc(w.avoid || '')}</textarea></label>
-        <button type="button" class="btn primary" data-memory-save>Запомнить для этого клиента</button></details>` : ''}</section>`;
+        <button type="button" class="btn primary" data-memory-save>Запомнить для этого клиента</button></details>` : ''}${AG ? '</details>' : '</section>'}`;
   }
   async function loadDialog(id) {
     const box = el.querySelector('#h-turns');
@@ -110,15 +138,70 @@
       const r = await H.call('help_hist', { dialog_id: id });
       clientContext = r.context; audience = r.context?.audience ?? 'new'; clientId = r.context?.client?.id ?? null; renderContext();
       const byNum = new Map(r.items.map(x => [x.num, x]));
-      box.innerHTML = r.turns.map(t => turnHtml({ q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.has(n)?{...byNum.get(n),archived:t.f?._archive_nums?.includes(n)}:null).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
+      box.innerHTML = r.turns.map(t => turnHtml({ id: t.id, q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.has(n)?{...byNum.get(n),archived:t.f?._archive_nums?.includes(n)}:null).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
       box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5
+      const w = r.turns.find(t => t.via === 'wait');   // v5.48 F: ответ ещё готовится (запрос был на другой странице) — ждём здесь
+      if (w && !ask.busy) resume(w);
     } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  }
+  // v5.48 F: ход в фоне — опрос help_turn каждые 2,5 с (до 3 минут); готово — ход целиком с карточками
+  async function waitTurn(id) {
+    const t0 = Date.now();
+    for (;;) {
+      await new Promise(r => { poll = setTimeout(r, 2500); });
+      const r = await H.call('help_turn', { id });
+      if (!r.wait) {
+        const byNum = new Map((r.items ?? []).map(x => [x.num, x])), t = r.turn;
+        if (t.via === 'fail') throw new Error(t.reply || 'Не получилось — попробуйте ещё раз');
+        return { q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, quota: r.quota,
+          items: (t.ids ?? []).map(n => byNum.has(n) ? { ...byNum.get(n), archived: t.f?._archive_nums?.includes(n) } : null).filter(Boolean) };
+      }
+      if (Date.now() - t0 > 180000) throw new Error('Агент отвечает дольше обычного — ответ появится в этом диалоге и придёт в бот');
+    }
+  }
+  async function resume(w) {
+    const box = el.querySelector('#h-turns'), art = [...box.querySelectorAll('.hub-turn')].find(a => a.dataset.tid === String(w.id));
+    if (!art) return;
+    ask.busy = true;
+    try {
+      const r = await waitTurn(w.id);
+      if (!art.isConnected) return;
+      art.outerHTML = turnHtml(r);
+    } catch (e) { if (art.isConnected) art.querySelector('.hint').textContent = e.message; }
+    finally { ask.busy = false; }
+  }
+  function newDialog() {
+    clearTimeout(poll); ask.busy = false;
+    cur = null; audience = 'new'; clientId = null; clientContext = null; picked.clear(); draw(); history.replaceState(null, '', location.search + '#helper');
+    up({ type: 'dlg', dlg: null }); intro();
+  }
+  // что открыто на экране (для «сравни это с рынком»): в окне — от родителя (opts.page), на странице раздела — нечего
+  const pageNow = () => null;
+  // v5.48 F (пп. 12 d, a, f): при новом запросе — 3 шага «как пользоваться» (первый раз) и сводка на сегодня
+  async function intro() {
+    const box = el?.querySelector('#h-turns'); if (!box || cur) return;
+    const tips = store.get('agent_tips', 0) ? '' : `<section class="ag-tips"><b>Как пользоваться ИИ-Агентом</b><ol>
+      <li><b>Скажите или напишите</b>, что нужно: «двушка до 15 млн в Адлере у моря», «сравни с рынком», «поставь задачу позвонить завтра в 10».</li>
+      <li><b>Агент сам ищет и делает</b>: подборку, задачу в CRM, рекламу, сообщения собственникам — по вашему тарифу.</li>
+      <li><b>Окно можно свернуть</b> и перейти на другую страницу — ответ дождётся вас здесь и придёт в бот.</li></ol>
+      <button type="button" class="btn soft" data-tips-ok>Понятно</button></section>`;
+    box.innerHTML = tips + '<div class="ag-brief-box"></div>';
+    let b = null;
+    try { const c = JSON.parse(sessionStorage.getItem('agent_brief') || 'null'); if (c && Date.now() - c.at < 30 * 60e3) b = c.v; } catch { /* */ }
+    if (!b) { try { b = await H.call('fb_brief'); sessionStorage.setItem('agent_brief', JSON.stringify({ at: Date.now(), v: b })); } catch { b = null; } }
+    const bx = el?.querySelector('.ag-brief-box'); if (!bx || cur || !b) return;
+    const parts = [];
+    if (b.tasks?.length) parts.push(`<p><b>📋 Задачи на сегодня:</b></p><ul>${b.tasks.map(t => `<li>${t.late ? '⚠️ ' : ''}${esc(t.text)}${t.due_at ? ` <small class="muted">${H.when(t.due_at)}</small>` : ''}</li>`).join('')}</ul>`);
+    if (b.replies?.length) parts.push(`<p><b>👍 Отклики клиентов за сутки:</b> ${b.replies.map(r => `«${esc(r.title)}» — подходит ${r.yes}, нет ${r.no}`).join('; ')} · <a href="./#sels=fb">Открыть</a></p>`);
+    for (const f of b.fresh ?? []) parts.push(`<p><b>🆕 ${esc(f.name)}:</b> новых за сутки по запросу «${esc(f.wish.slice(0, 60))}» — ${f.nums.length}. <button type="button" class="chip" data-ask="${esc(`Покажи новые за сутки объекты ${f.nums.join(', ')} для клиента ${f.name}: что подходит под его пожелания`)}">Показать</button></p>`);
+    bx.innerHTML = parts.length ? `<section class="ag-brief"><div class="ag-brief-h"><b>☀️ Сводка на сегодня</b><button type="button" class="ag-x" data-brief-x aria-label="Скрыть">✕</button></div>${parts.join('')}</section>`
+      : (tips ? '' : '<p class="muted">Напишите или скажите, что нужно сделать.</p>');
   }
   const actHtml = (a, i) => a.type === 'owners' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
     : a.type === 'selection' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
     : a.type === 'link' && /^(\.\/|hub\.html|mail\.html|arch\.html|pay\.html|partner\.html)/.test(a.href ?? '') ? `<a class="btn soft" href="${esc(a.href)}">${esc(a.label)}</a>` : '';
-  const turnHtml = (r, offer) => `<article class="hub-turn"><p class="hub-q">🗣 ${esc(r.q)}</p>
-    ${r.steps?.length ? `<details class="hub-steps"${r.reply ? '' : ' open'}><summary>Что сделал помощник (${r.steps.length})</summary><ul>${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
+  const turnHtml = (r, offer) => r.via === 'wait' ? `<article class="hub-turn hub-pending" data-tid="${r.id}"><p class="hub-q">🗣 ${esc(r.q)}</p><p class="hint">⏳ Агент работает над этим запросом…</p></article>` : `<article class="hub-turn"><p class="hub-q">🗣 ${esc(r.q)}</p>
+    ${r.steps?.length ? `<details class="hub-steps"${r.reply ? '' : ' open'}><summary>Что сделал агент (${r.steps.length})</summary><ul>${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
     ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
     ${r.actions?.length ? `<p class="hub-acts" data-acts='${esc(JSON.stringify(r.actions))}'>${r.actions.map(actHtml).join('')}</p>` : ''}
     ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} ${r.alt.more ? `<b>+${r.alt.more}</b>` : ''} ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
@@ -159,7 +242,8 @@
   async function ask(text) {
     const inp = el.querySelector('#h-q'), q = (text ?? inp.value).trim();
     if (!q) return inp.focus();
-    if (!audience || (audience === 'crm' && !clientId)) return H.toast('Сначала выберите: новый клиент или клиент из CRM');
+    if (!audience) audience = 'new';
+    if (audience === 'crm' && !clientId) return H.toast('Выберите клиента из CRM или нажмите «Новый клиент»');
     if (ask.busy) return H.toast('Помощник ещё работает над прошлой просьбой');
     ask.busy = true;
     const wait = el.querySelector('#h-wait'), go = el.querySelector('#h-go');
@@ -172,10 +256,15 @@
       box0.insertAdjacentHTML('beforeend', `<article class="hub-turn hub-pending"><p class="hub-q">🗣 ${esc(q)}</p><p class="hint">⏳ Работаю…</p></article>`);
       box0.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
       el.querySelector('#h-q').value = '';
-      const r = await H.call('help_ask', { dialog_id: cur, q, picked: [...picked] });
+      up({ type: 'dlg', dlg: cur });
+      const o = opts; opts = {};
+      if (o.mode === 'think') H.call('fb_event', { kind: 'think', data: { text: q } }).catch(() => {});
+      let r = await H.call('help_ask', { dialog_id: cur, q, picked: [...picked], bg: true, mode: o.mode, page: o.page ?? pageNow() });
+      if (r.pending) r = await waitTurn(r.pending);   // v5.48 F: ИИ работает в фоне — окно можно свернуть или уйти на другую страницу
       st.quota = r.quota;
       const box = el.querySelector('#h-turns');
       box.querySelector('.hub-pending')?.remove();
+      if (!el.isConnected || box !== el.querySelector('#h-turns')) return;
       box.insertAdjacentHTML('beforeend', turnHtml({ ...r, q }, r.offer));
       box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => el.querySelector('#h-q')?.focus({ preventScroll: true }), 400);   // v5.42A п. 5: уточнить сразу, поле внизу
@@ -190,10 +279,14 @@
     const t = e.target;
     const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
     const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, 'Номер скопирован'); return; }
-    if (t.closest('.hub-fc .strip img')) { window.OBJPOP?.open(t.closest('.hub-fc').dataset.num); return; }
+    if (t.closest('.hub-fc .strip img')) { openObj(t.closest('.hub-fc').dataset.num); return; }
+    const ob = t.closest('button[data-obj]'); if (ob && AG) { openObj(ob.dataset.obj); return; }
+    if (t.closest('[data-tips-ok]')) { store.set('agent_tips', 1); t.closest('.ag-tips')?.remove(); return; }
+    if (t.closest('[data-brief-x]')) { t.closest('.ag-brief')?.remove(); return; }
+    const dsel = t.closest('[data-dlgs]'); if (dsel) return;
     const hp = t.closest('[data-hphone]'); if (hp) return phone(hp);
     if (ask.busy && t.closest('[data-new],[data-dlg],[data-audience],[data-memory-save]')) return H.toast('Дождитесь завершения запроса');
-    if (t.closest('[data-new]')) { cur = null; audience = null; clientId = null; clientContext = null; picked.clear(); draw(); history.replaceState(null, '', '#helper'); el.querySelector('#h-turns').innerHTML = '<p class="muted">Напишите или скажите, что нужно сделать.</p>'; el.querySelector('#h-q').focus(); return; }
+    if (t.closest('[data-new]')) { newDialog(); el.querySelector('#h-q').focus(); return; }
     const d = t.closest('[data-dlg]'); if (d) { cur = +d.dataset.dlg; history.replaceState(null, '', `#helper=${cur}`); draw(); loadDialog(cur); return; }
     const rf = t.closest('[data-refine]');
     if (rf) {
@@ -226,19 +319,24 @@
     const ab = t.closest('[data-act]');
     if (ab) {
       const a = JSON.parse(ab.closest('[data-acts]').dataset.acts)[+ab.dataset.act];
-      if (a.type === 'selection') { store.set('sel', a.nums); store.set('sel_arch',a.arch_nums||[]); if (a.cm) store.set('sel_cm', a.cm); location.href = './#selmake'; return; }
+      if (a.type === 'selection') { store.set('sel', a.nums); store.set('sel_arch',a.arch_nums||[]); if (a.cm) store.set('sel_cm', a.cm); go('./#selmake'); return; }
       if (a.type === 'owners') { ownersOut(a.items, a.text); return; }
     }
     const nums = [...picked];
-    if (t.closest('[data-go-rk]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); store.set('sel', nums); location.href = './#rk'; return; }
-    if (t.closest('[data-go-video]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); location.hash = `video=${nums.join(',')}`; return; }
+    if (t.closest('[data-go-rk]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); store.set('sel', nums); go('./#rk'); return; }
+    if (t.closest('[data-go-video]')) { if (!nums.length) return H.toast('Отметьте объекты галочками'); go(`hub.html#video=${nums.join(',')}`); return; }
     if (t.closest('[data-go-mail]')) {   // рассылка берёт объекты из «Избранного»
       if (!nums.length) return H.toast('Отметьте объекты галочками');
       const r=await fetch(window.API.replace(/\/web$/,'/auto'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mail_list_add',auth:{token:store.get('token',null)},nums})});const d=await r.json();if(!r.ok||d.error)return H.toast(d.message||'Не удалось добавить в рассылку');
-      H.toast('Объекты добавлены в список рассылки');location.href='mail.html';return;
+      H.toast('Объекты добавлены в список рассылки');go('mail.html');return;
     }
   }
   async function onChange(e) {
+    if (e.target.matches?.('[data-dlgs]')) {
+      const id = +e.target.value; if (!id) return;
+      if (ask.busy) { e.target.value = String(cur || ''); return H.toast('Дождитесь завершения запроса'); }
+      cur = id; up({ type: 'dlg', dlg: cur }); draw(); loadDialog(cur); return;
+    }
     if (e.target.id === 'h-client') {
       if (ask.busy) { e.target.value = clientId || ''; return H.toast('Дождитесь завершения запроса'); }
       const id = Number(e.target.value); cur = null; picked.clear(); clientId = id || null; clientContext = null;
@@ -300,5 +398,5 @@
     d.onclick = e => { if (e.target === d || e.target.closest('[data-x]')) d.remove(); };
   }
   window.SEC = window.SEC || {};
-  window.SEC.helper = { title: 'Мой помощник', open };
+  window.SEC.helper = { title: 'ИИ-Агент', open };
 })();

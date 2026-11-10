@@ -128,13 +128,24 @@
       <small class="muted">${when(a.created_at)}${a.decided_at ? ` · решено ${when(a.decided_at)}` : ''}</small></article>`;
   }
 
+  // v5.48 F: идеи пользователей из опроса раз в 14 дней (тему назвали ≥ 3 человек) → открытое голосование
+  function ideasHtml() {
+    const L = S?.ideas ?? [];
+    if (!L.length) return '';
+    const ST = { new: 'Новая — ждёт решения', voting: '🗳 Идёт голосование', closed: 'Голосование закрыто' };
+    return `<article class="mg-card"><h3>💡 Идеи пользователей</h3>${L.map(x => `<div class="mg-idea"><b>${esc(x.title)}</b>${x.summary ? `<div class="muted">${esc(x.summary)}</div>` : ''}
+      <small class="muted">Назвали: ${+x.people} · ${esc(ST[x.status] || x.status)}${x.status !== 'new' ? ` · 👍 ${+x.yes} · 👎 ${+x.no}` : ''}</small>
+      <div class="mg-acts">${x.status === 'new' ? `<button type="button" class="btn primary" data-idea="${x.id}" data-ist="voting">Вынести на голосование</button><button type="button" class="btn ghost" data-idea="${x.id}" data-ist="rejected">Отклонить</button>`
+        : x.status === 'voting' ? `<button type="button" class="btn soft" data-idea="${x.id}" data-ist="closed">Закрыть голосование</button>` : ''}</div></div>`).join('')}</article>`;
+  }
+
   function rightPane() {
     const a = S?.approvals ?? [], mem = S?.memory ?? [];
     const open = a.filter(x => ['pending', 'applying'].includes(x.status)), done = a.filter(x => !['pending', 'applying'].includes(x.status));
     const tab = (k, t) => `<button type="button" class="chip${rightTab === k ? ' on' : ''}" data-rt="${k}">${t}</button>`;
     let body = '';
     if (rightTab === 'approve') {
-      body = (S?.lessons ?? []).map(x=>`<article class="mg-card"><h3>Уроки недели · ${esc(x.week)}</h3><div style="white-space:pre-wrap">${esc(x.review || x.error || 'Готовится')}</div><p>${esc({pending:'Проверено Управляющим, ждёт вашего решения',approved:'Одобрено',rejected:'Отклонено',failed:'Не удалось подготовить',building:'Подготовка'}[x.status] || x.status)}</p>${x.status === 'pending' ? `<button class="btn primary" data-lesson="${x.id}" data-decision="approved">Одобрить уроки</button> <button class="btn ghost" data-lesson="${x.id}" data-decision="rejected">Отклонить</button>` : ''}</article>`).join('') + (open.length ? open.map(card).join('') : '<p class="muted">Сейчас ничего не ждёт вашего решения.</p>')
+      body = (S?.lessons ?? []).map(x=>`<article class="mg-card"><h3>Уроки недели · ${esc(x.week)}</h3><div style="white-space:pre-wrap">${esc(x.review || x.error || 'Готовится')}</div>${x.site ? `<details class="mg-site" open><summary><b>💡 Предложения по сайту и обучению ИИ-Агента</b></summary><div style="white-space:pre-wrap">${esc(x.site)}</div><p class="muted">Ничего не применяется само — чтобы сделать, напишите Управляющему.</p></details>` : ''}<p>${esc({pending:'Проверено Управляющим, ждёт вашего решения',approved:'Одобрено',rejected:'Отклонено',failed:'Не удалось подготовить',building:'Подготовка'}[x.status] || x.status)}</p>${x.status === 'pending' ? `<button class="btn primary" data-lesson="${x.id}" data-decision="approved">Одобрить уроки</button> <button class="btn ghost" data-lesson="${x.id}" data-decision="rejected">Отклонить</button>` : ''}</article>`).join('') + ideasHtml() + (open.length ? open.map(card).join('') : '<p class="muted">Сейчас ничего не ждёт вашего решения.</p>')
         + (done.length ? `<details><summary>Решённые (${done.length})</summary>${done.slice(0, 10).map(card).join('')}</details>` : '');
     } else if (rightTab === 'log') {
       body = msgs.filter(m => m.role !== 'owner').slice(-30).reverse().map(m => `<div class="mg-log">
@@ -238,6 +249,9 @@
 
   // кнопки шапки и правой колонки перерисовываются при обновлении — вешаем заново каждый раз
   function bindRight() {
+    document.querySelectorAll('[data-idea]').forEach(b => b.onclick = async () => {
+      b.disabled = true; try { merge(await call('idea_decide', { id: +b.dataset.idea, status: b.dataset.ist, after: last(), thread })); render(); toast('Решение сохранено'); } catch (e) { b.disabled = false; toast(e.message); }
+    });
     document.querySelectorAll('[data-lesson]').forEach(b=>b.onclick=async()=>{
       b.disabled=true;try{merge(await call('lesson_decide',{id:+b.dataset.lesson,status:b.dataset.decision,after:last(),thread}));render();toast('Решение сохранено');}catch(e){b.disabled=false;toast(e.message);}
     });

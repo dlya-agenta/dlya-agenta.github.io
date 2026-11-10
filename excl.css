@@ -278,3 +278,6 @@ body.ex-hassel .sup-fab { bottom: calc(96px + env(safe-area-inset-bottom)); }
 .map-pt .ex-mini { width: auto; }
 .map-pt .ex-mb small { white-space: normal; }
 @media (max-width: 760px) { .ex-map { height: 56svh; min-height: 300px; } }
+/* v5.48 G: видео объекта (до 2 минут) */
+.ex-video { width: 100%; max-height: 420px; border-radius: 12px; background: #000; margin: 8px 0; display: block; }
+.ex-up.disabled { opacity: .5; pointer-events: none; }

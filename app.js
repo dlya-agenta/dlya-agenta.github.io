@@ -248,6 +248,7 @@ async function start() {
     return $('#again').onclick = () => start();
   }
   me = meta.me;
+  if (me.exonly) { location.replace('excl.html#exonly'); return; }   // v5.48 G: доступ кончился, вход через Telegram — открыт только раздел «Эксклюзивы»
   // v5.26f (iPhone, приложение с экрана «Домой»: «этап: init ok», а сайт не открывался — один из модулей падал, и запуск обрывался):
   // каждый модуль подключается отдельно — сбой одного не держит сайт на «Загрузка…», ошибка уходит в отчёт (tg.js → window.__diag)
   const safe = (name, fn) => { window.__stage = name; try { fn(); } catch (e) { (window.__errs ??= []).push(`${name}: ${e?.message ?? e}`); console.error(name, e); } };
@@ -373,6 +374,7 @@ function renderFilters() {
   // объявления собственников, взятые напрямую с площадок: галочка снята — таких не показывать (база собственников — всегда)
   // «Дополнительный поиск с рекламных источников»: одна галочка, по умолчанию снята (названия площадок не показываем)
   $('#f-ext').checked = !!f.ext;
+  if ($('#f-ex')) { $('#f-ex').checked = !!f.ex; $('#f-ex').onchange = () => { f.ex = $('#f-ex').checked || undefined; fchg(); }; }   // v5.48 G: эксклюзивы коллег в выдаче и на карте
   $('#f-ext').onchange = () => { f.ext = $('#f-ext').checked || undefined; fchg(); };
   // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
@@ -431,9 +433,10 @@ for (const k of ['pmin', 'pmax']) {
 for (const k of ['amin', 'amax', 'fmin', 'fmax', 'pmin', 'pmax']) $('#' + k).addEventListener('input', () => { readInputs(); later(); });
 for (const k of ['nf', 'nl', 'nold', 'sea']) $('#' + k).addEventListener('change', () => { readInputs(); fchg(); });
 // 🎤 в строке поиска (v5.15, v5.16): голос → «Мой помощник». Слушает, пока человек говорит (паузы до 4 с не обрывают; HUB.voice), стоп — повторное нажатие
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+// v5.48 F: голос в строке поиска — сразу в окно ИИ-Агента на этой же странице (без перехода); нет окна — как раньше, в раздел Помощника
+if (window.VOICE?.ok) {
   $('#q-mic').hidden = false;
-  $('#q-mic').onclick = e => window.HUB?.voice($('#q'), e.currentTarget, { onDone: t => { store.set('helper_q', t); location.href = 'hub.html#helper'; } });
+  $('#q-mic').onclick = e => window.VOICE.start($('#q'), e.currentTarget, { onDone: t => { if (window.AGENT) { $('#q').value = ''; window.AGENT.ask(t); } else { store.set('helper_q', t); location.href = 'hub.html#helper'; } } });
 }
 $('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
@@ -483,7 +486,7 @@ function fchg() { renderFilters(); later(); }
 const flush = () => { if (later.t) changed(); };
 $('#f-close').onclick = () => { readInputs(); flush(); openF(false); if (!mobile()) { fclosed = true; savePrefs(); } };   // «⟨» на компьютере — скрыть влево и запомнить
 $('#apply').onclick = () => { readInputs(); flush(); openF(false); };
-$('#reset').onclick = () => { f = {}; text = ''; $('#q').value = ''; leaveFav(); renderFilters(); changed(); };
+$('#reset').onclick = () => { if (favMode === 'deals') f = { deal: true }; else { f = {}; leaveFav(); } text = ''; $('#q').value = ''; renderFilters(); changed(); };   // v5.48 G: в «Контакте» сброс — фильтров внутри него
 // «Ничего не нашлось»: «Сбросить его» — фильтр, который больше всего мешает; «Сбросить все» — все фильтры (текст запроса остаётся)
 document.addEventListener('click', e => {
   const one = e.target.closest('[data-drop]'), all = e.target.closest('[data-drop-all]');
@@ -497,7 +500,7 @@ $('#qform').addEventListener('submit', e => { e.preventDefault(); readInputs(); 
 $('#q').addEventListener('input', () => { if (!$('#q').value.trim() && text) changed(); });
 // подсказки: улица и дом — фильтр «a» (точная улица в любом написании), ЖК — фильтр ЖК, район — как в дереве районов; текст запроса очищается
 SUGG.attach($('#q'), { load: (q, signal) => call('suggest', { q }, signal).then(r => r.items), pick: x => {
-  if (favMode) { ({ f } = beforeFav); leaveFav(); }
+  if (favMode && favMode !== 'deals') { ({ f } = beforeFav); leaveFav(); }   // v5.48 G: в «Контакте» подсказка сужает сам «Контакт»
   delete f.a; delete f.al; delete f.zk; delete f.d;
   const i = x.key.indexOf(':'), kind = x.key.slice(0, i), v = x.key.slice(i + 1);
   if (kind === 'st' || kind === 'h') { f.a = x.key; f.al = x.name; }
@@ -654,6 +657,11 @@ function what(x) {
 const photoUrl = (x, k) => x.pics ? x.pics[k] : typeof x.ph === 'string' ? x.ph : x.web_photos_v === 3 || x.ph === 3 ? `${meta.media}/${x.num}/${k}.jpg`
   : k < 4 || !meta.media ? `${meta.photos}/${x.num}/${k}.jpg` : `${meta.media}/${x.num}/${k}.webp`;
 const nPhotos = x => x.web_photos || x.pics?.length || 0;
+// v5.48 G: «моя правка» — убранные агентом фото не показываем ему (all_pics — все, для окна правки)
+function myNorm(x) {
+  if (x?.my_hide?.length && !x.all_pics) { const all = Array.from({ length: nPhotos(x) }, (_, k) => photoUrl(x, k)); x.all_pics = all; x.pics = all.filter(u => !x.my_hide.includes(u)); x.web_photos = 0; }
+  return x;
+}
 
 // новый поиск отменяет запрос в пути: выдача не мигает (прежняя видна бледной до ответа) и не подменяется устаревшим ответом
 let sctl = null;
@@ -669,11 +677,13 @@ async function search(more = false) {
     const r = await call('search', { f: FUI.clean(f), text, offset: more ? offset : 0, sort, cm: cmOn() }, ctl.signal);
     if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; oldShown = false; }
     total = r.count;
-    r.items.forEach(x => items.set(x.num, x));
+    if (!more) window.AGENT?.searched({ text, f: FUI.clean(f), count: total, understood: r.understood || '' });   // v5.48 F: «ищет одно и то же» → подбор с ИИ
+    r.items.forEach(x => items.set(x.num, myNorm(x)));
     // объявления старше 6 месяцев — после актуальных, перед первым из них разделитель (один на всю выдачу)
     $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const d = x.old && !oldShown; if (d) oldShown = true; return (d ? FUI.oldLine() : '') + card(x); }).join(''));
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
+    if (favMode === 'deals' && window.MINE) $('#status').insertAdjacentHTML('beforeend', ' · <button type="button" class="lnk" data-myrmlist>🗑 Убранные у меня</button>');   // v5.48 G
     if (favMode === 'hidden') $('#status').insertAdjacentHTML('afterbegin', `<span class="hidtg">${[['hide', '🙈 Скрытые'], ['del', '🗑 Удалённые']]
       .map(([k, t]) => `<button type="button" class="seg${f.hid === k ? ' on' : ''}" data-hid="${k}">${t}</button>`).join('')}</span> `);
     if (!more) noneBox(total ? null : r);
@@ -698,6 +708,7 @@ function noneBox(r) {
   $('#f-drop').innerHTML = own ? '' : html; $('#f-drop').hidden = !html || own;
 }
 $('#more').addEventListener('click', () => search(true));
+$('#status').addEventListener('click', e => { if (e.target.closest('[data-myrmlist]')) return window.MINE?.removed(call, () => search()); });
 $('#status').addEventListener('click', e => { const b = e.target.closest('[data-hid]'); if (b && favMode === 'hidden') { f = { hid: b.dataset.hid }; search(); } });
 
 function gallery(x) {
@@ -708,7 +719,7 @@ function gallery(x) {
     ${n > 1 ? `<button class="nav l" data-nav="-1" aria-label="Назад">‹</button><button class="nav r" data-nav="1" aria-label="Вперёд">›</button>
       <div class="dots">${Array.from({ length: n }, (_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     ${meta.features.selections ? pickHtml(x) : ''}
-    ${meta.features.favorites ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
+    ${meta.features.favorites && !x.excl ? `<button class="fav${x.fav ? ' on' : ''}" data-fav aria-label="В избранное">${x.fav ? '★' : '☆'}</button>` : ''}
     ${x.seen ? '<span class="seenmark">Просмотрено</span>' : ''}
     ${(me?.role === 'admin' || me?.main) && x.hidden_kind ? `<span class="hidmark">${x.hidden_kind === 'del' ? '🗑 Удалено' : '🙈 Скрыто'}</span>` : ''}
   </div>`;
@@ -746,14 +757,15 @@ function card(x, mini = false) {
   const zk = x.zk ?? zkName(x.complex);   // заголовок — название ЖК, если известно (по объявлению или по адресу дома)
   const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
   const date = x.lite ? '…' : x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
-  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}" data-num="${x.num}">
+  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}${x.excl ? ' xcard' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${lockHtml(x)}</div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
+      ${xLine(x)}
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : ''}
       <div class="title" data-open>${esc(what(x))}</div>
       <div class="addr">${esc(where)}</div>
-      <div class="tags">${tags(x)}</div>
+      <div class="tags">${tags(x)}${ansTag(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${!mini && x.descr ? `<div class="descr" data-d><p>${descrHtml(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
       ${mini ? '' : srcHtml(x)}
@@ -761,10 +773,16 @@ function card(x, mini = false) {
       <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft ph-btn" data-phone>${PH_BTN} <i aria-hidden="true">▾</i></button>`}
         ${!mini && meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${!mini && meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
-        ${!mini ? `<a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>` : ''}</div>
+        ${!mini && !x.excl ? `<a class="btn ghost" href="hub.html#deal=new:${x.num}" title="Отправить объект в сделку">📑 В сделку</a>` : ''}
+        ${x.video ? '<button class="btn ghost" data-video>🎬 Видео</button>' : ''}</div>
     </div>
   </article>`;
 }
+// v5.48 G: эксклюзив коллеги — пометка «💎 Коллега» (только агенту), комиссия коллеге; «моя правка» — ✏️ у цены; ответ собственника на рассылку
+const xLine = x => x.excl ? `<div class="xline agent-only"><span class="xbadge">💎 Коллега</span>${x.agent ? ` ${esc([x.agent.name, x.agent.company].filter(Boolean).join(' · '))}` : ''}${x.comm_pct ? ` · комиссия ${String(x.comm_pct).replace('.', ',')}%` : x.comm_rub ? ` · комиссия ${rub(x.comm_rub)}` : ''}</div>` : '';
+const myMark = x => x.my_edit ? `<span class="mymark agent-only" title="Ваша правка — видна только вам и вашим клиентам${x.price_src ? `. В объявлении: ${rub(priceOf(x.price_src))}` : ''}">✏️ отредактировано</span>` : '';
+const ANS = { yes: ['ok', 'Собственник: актуально'], no: ['', 'Собственник: не продаёт'], sold: ['', 'Собственник: продано'] };
+const ansTag = x => x.ans && ANS[x.ans] ? `<span class="tag ${ANS[x.ans][0]} agent-only">${ANS[x.ans][1]}</span>` : '';
 // источник объявления ссылкой (Авито, Циан, ДомКлик…) — только агенту: в режиме «С клиентом» скрыт
 // v5.23: без названий площадок — одна ссылка «Проверить в рекламе» (первый источник), остальные — «2», «3» мелко
 const srcHtml = x => x.src?.length ? `<div class="src agent-only">${x.src.map((s, i) => `<a href="${esc(s.url)}" target="_blank" rel="noopener"${i ? ' class="src-n" title="Ещё одна ссылка на объявление"' : ''}>${i ? i + 1 : 'Проверить в рекламе'}</a>`).join('')}</div>` : '';
@@ -848,6 +866,14 @@ async function onCard(e, cardEl) {
     return;
   }
   if (t.closest('[data-cmp]')) { complainForm(cardEl, num, t.closest('[data-cmp]')); return; }   // v5.24a: «⚠ Пожаловаться»
+  if (t.closest('[data-video]')) { window.MINE?.video(x?.video); return; }   // v5.48 G: видео эксклюзива
+  if (t.closest('[data-myedit]')) { window.MINE?.edit(num, x, call, async () => { items.delete(num); if (cardEl.classList.contains('itemv')) await openItem(num); search(); }); return; }
+  if (t.closest('[data-myrm]')) {
+    if (!confirm(`Убрать № ${num} у себя? Объявление пропадёт только у вас (поиск, карта, «Контакт»). Вернуть — «🗑 Убранные у меня» в разделе «Контакт».`)) return;
+    call('my_edit', { num, do: 'remove' }).then(r => { toast(r.message, 5000); if (cardEl.classList.contains('itemv')) closeSheet();
+      document.querySelectorAll(`#list .card[data-num="${num}"], #ml-items .card[data-num="${num}"]`).forEach(el => { el.classList.add('gone-out'); setTimeout(() => el.remove(), 250); }); }).catch(err => toast(err.message));
+    return;
+  }
   // фото в карточке — объявление целиком, как на Авито: большое фото, лента миниатюр, рядом цена и описание
   if (t.matches('.strip img')) { openItem(num, +t.dataset.k); markSeen(cardEl, num); return; }
   if (t.closest('[data-open]')) { openItem(num); return; }
@@ -932,7 +958,7 @@ async function openItem(num, k = 0) {
   let x = items.get(num);
   if (!x?.descr) {   // с карты объявления может не быть в списке
     if (!x) sheet(`№ ${num}`, '<p class="muted">Загрузка…</p>', true);
-    try { const r = await call('item', { num }); x = r.item; items.set(num, x); } catch (e) { if (e.gate) return showLogin(e.gate); if (!x) return toast(e.message); }
+    try { const r = await call('item', { num }); x = myNorm(r.item); items.set(num, x); } catch (e) { if (e.gate) return showLogin(e.gate); if (!x) return toast(e.message); }
   }
   sheet(`№ ${num}`, itemView(x, k), true);
   const el = $('#sheet-body .itemv');
@@ -997,18 +1023,20 @@ function itemView(x, k) {
       ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
     <div class="iv-info">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${lockHtml(x)}</div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
+      ${xLine(x)}
       ${zk ? `<div class="zk">${esc(zk)}</div>` : ''}
       <div class="iv-title">${esc(what(x))}</div>
       <div class="iv-addr">${esc(where)}</div>
-      <div class="tags">${tags(x)}</div>
+      <div class="tags">${tags(x)}${ansTag(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
+      ${x.video ? `<video class="iv-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
       ${srcHtml(x)}
       ${x.note ? `<div class="note agent-only">📝 ${esc(x.note)}</div>` : ''}
       <div class="actions agent-only">${x.phone || x.tg ? phoneBox(x.phone, null, x.tg) : `<button class="btn soft ph-btn" data-phone>${PH_BTN} <i aria-hidden="true">▾</i></button>`}
         ${meta.features.notes ? '<button class="btn ghost" data-note>📝 Заметка</button>' : ''}
         ${meta.features.crm ? '<button class="btn ghost" data-client>👥 Клиенту</button>' : ''}
-        <a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a></div>
+        ${x.excl ? '' : `<a class="btn ghost" href="hub.html#deal=new:${x.num}">📑 В сделку</a>`}</div>
       ${ivTools(x)}
       ${x.descr ? `<div class="iv-descr"><div class="iv-h">Описание</div><p>${descrHtml(x.descr)}</p></div>` : ''}
     </div>
@@ -1018,10 +1046,13 @@ function itemView(x, k) {
 const dealTxt = on => on ? '✓ В «Контакте» · <u>убрать</u>' : '🤝 В контакт';
 function ivTools(x) {
   const adm = me?.role === 'admin' || !!me?.main, agent = me && !me.guest;   // v5.37a: «Модерация» в объявлении — и группе Main
-  const row = [meta.features.deals && agent ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
-    meta.features.mail && agent ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
-    agent && window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lawreq title="Юрист подготовит списки документов для задатка и для сделки — отправите сами или запросите у собственника">⚖️ Проверка</button>' : '',   // v5.38r
-    agent && !adm ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : ''].filter(Boolean).join('');
+  const row = [meta.features.deals && agent && !x.excl ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
+    meta.features.mail && agent && !x.mine ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
+    agent && window.LAWREQ && !x.excl ? '<button type="button" class="btn ghost sm" data-lawreq title="Юрист подготовит списки документов для задатка и для сделки — отправите сами или запросите у собственника">⚖️ Проверка</button>' : '',   // v5.38r
+    agent && !adm && !x.excl ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : '',
+    // v5.48 G: «моя правка» и «убрать у себя» — только этому агенту и его клиентам, объявление в базе не меняется
+    agent && window.MINE && !x.mine ? `<button type="button" class="btn ghost sm" data-myedit title="Цена, описание, фото — только у вас и в ваших подборках клиентам">✏️ Моя правка${x.my_edit ? ' ✓' : ''}</button>` : '',
+    agent && window.MINE && !x.mine ? '<button type="button" class="btn ghost sm" data-myrm title="Пропадёт только у вас: в поиске, на карте и в «Контакте»">🗑 Убрать у себя</button>' : ''].filter(Boolean).join('');
   const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${window.EDITMAIN && !x.hidden_kind ? `<button type="button" class="btn ghost sm" data-edit title="Цена, описание, фото — правка видна всем">✏️ Править</button>${x.edited ? '<span class="muted">изменено Main</span>' : ''}` : ''}${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
     : '<button type="button" class="btn ghost sm" data-adm="hide" title="Пропадёт у всех, будет в «🙈 Скрытые»">🙈 Скрыть</button><button type="button" class="btn ghost sm bad" data-adm="del" title="Пропадёт у всех, ночная загрузка не вернёт">🗑 Удалить</button>'}</div>` : '';
   return row || mod ? `<div class="iv-tools agent-only">${row ? `<div class="iv-row">${row}</div>` : ''}<div class="iv-lk" data-ivlk="${x.num}"></div><div class="iv-cmpf" hidden></div>${mod}</div>` : '';
@@ -1143,6 +1174,15 @@ $('#sel-mail').onclick = async () => {
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
+  // v5.48 G: эксклюзивы коллег — своя подборка (страница «Эксклюзивы»: ссылка клиенту, PDF, «Написать всем» агентам); смешанный выбор — разделить
+  const xs = [...sel].filter(n => n >= 900001), os = [...sel].filter(n => n < 900001);
+  if (xs.length && !os.length) { location.href = `excl.html#sel=${xs.join(',')}`; return; }
+  if (xs.length && !$('#s-split-ok')) {
+    sheet('Подборка', `<p>Выбраны эксклюзивы коллег (${xs.length}) и объявления собственников (${os.length}). Их собирают разными подборками: у эксклюзивов — контакты агентов и «Написать всем» агентам.</p>
+      <div class="sheet-foot"><a class="btn ghost" href="excl.html#sel=${xs.join(',')}">💎 Подборка эксклюзивов</a><button class="btn primary" id="s-split-ok">Подборка собственников (${os.length})</button></div>`);
+    $('#s-split-ok').onclick = () => { xs.forEach(n => sel.delete(n)); store.set('sel', [...sel]); selbar(); xs.forEach(pickSync); $('#sel-make').onclick(); };
+    return;
+  }
   let selectionDraft = {edits:{},intro:''};
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   const n = Math.min(sel.size, MAXSEL);
@@ -1195,6 +1235,7 @@ $('#sel-make').onclick = () => {
         ${r.photos_none?.length ? `<p class="hint"><b>Без фото и в самом объявлении: № ${r.photos_none.map(n => esc(n)).join(', ')}</b> — клиент увидит заглушку «Фото нет». Можно убрать их и собрать подборку заново.</p>` : ''}
         <p><button type="button" class="btn soft agent-only" id="s-edit-ready">✎ Править подборку</button></p><p class="hint">Все подборки, ссылки и отклики клиентов — в разделе <a href="#sels=all" data-close>«Мои подборки»</a>.</p>`;
       SHARE.bind($('#sheet-body'), toast);
+      if (r.id) setTimeout(() => window.AGENT?.rate(r.id), 1500);   // v5.48 F: оценить подборку 1–5 (не чаще 2 раз в неделю — решает сервер)
       // первая подборка ссылкой — предложить «На экран Домой» (один раз), но после того, как агент закроет окно: раньше оно сразу закрывало ссылку клиенту и агенту
       if (r.link) { const sh = $('#sheet'), mo = new MutationObserver(() => { if (sh.hidden) { mo.disconnect(); setTimeout(() => NOTIFY.offerInstall('sel'), 400); } }); mo.observe(sh, { attributes: true, attributeFilter: ['hidden'] }); }
       if (tg?.openLink) $('#sheet-body').onclick = ev => { const a = ev.target.closest('[data-url]'); if (a) { ev.preventDefault(); tg.openLink(a.dataset.url); } };
@@ -1523,11 +1564,11 @@ async function loadMap() {
       openPts(e.layer.getLatLng(), ps);
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old, g], i) =>
-      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true, g: g ?? (addr ? `a${addr}` : '') }));
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old, g, xx], i) =>
+      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true, g: g ?? (addr ? `a${addr}` : ''), ...(xx === 'x' ? { excl: true, pics: ph ? [ph] : [] } : {}) }));   // v5.48 G: эксклюзив коллеги
     lowMark(mapPts);   // v5.24a: ключ ЖК/дома с сервера (g), из старого кэша — по адресу точки
     const marks = mapPts.map(p => {
-      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `mk-p${p.low ? ' low' : ''}`, html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }), zIndexOffset: p.low ? 500 : 0 });
+      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `mk-p${p.low ? ' low' : ''}${p.excl ? ' mk-x' : ''}`, html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }), zIndexOffset: p.low ? 500 : 0 });
       m.p = p;
       m.on('click', () => { clearTimeout(hoverT); openPts(m.getLatLng(), [p]); });
       if (hoverOk) m.on('mouseover', () => hoverOpen(() => openPts(m.getLatLng(), [p]))).on('mouseout', hoverLeave);
@@ -1577,7 +1618,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 // ---------- меню ----------
 // «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
 const LISTS = { favs: ['fav', 'Показано избранное — к поиску вернёт «Все объявления» или повторное нажатие на «★ Избранное»'],
-  deals: ['deal', 'Показаны объекты из раздела «Контакт» — к поиску вернёт «Все объявления» или повторное нажатие на раздел'],
+  deals: ['deal', '«Контакт»: собственники, ответившие на рассылку, и отмеченные вами. Фильтр слева работает внутри «Контакта»; к поиску вернёт «Все объявления»'],
   // v5.22: только админ — скрытые (👁) и удалённые (🗑) объявления; «Вернуть» на карточке, переключатель «Скрытые / Удалённые» над списком
   hidden: ['hid', 'Скрытые и удалённые объявления — видите только вы. «Вернуть» на карточке возвращает объявление в поиск'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
@@ -1716,6 +1757,8 @@ document.addEventListener('click', async e => {
 }, true);
 window.APPCARD = card; // v5.42A
 window.APP_OPEN_ITEM = num => openItem(num);
+// v5.48 F (п. 12 b): голосовая команда ИИ-Агента «добавь 150017 в подборку» — в ту же корзину подборки, что и галочка
+window.APP_SEL_ADD = num => { num = +num; if (!num) return 0; if (sel.size >= MAXSEL && !sel.has(num)) return -1; sel.add(num); store.set('sel', [...sel]); selbar(); pickSync(num); return sel.size; };
 window.APP_PHOTO_URLS = x => Array.from({ length: nPhotos(x) }, (_, k) => photoUrl(x, k));   // v5.47 E: фото объекта в правке подборки   // v5.47 E: «№ …» в текстах (objpop.js) — окно объявления здесь же
 
 window.APP_CARD_ACTION = onCard;

@@ -510,7 +510,7 @@
       if (el.querySelector('#v-save').checked) H.call('vid_profile', contact()).then(() => { prep.agent = contact(); }).catch(er => H.toast('Профиль не сохранён: ' + er.message, 5000));
       post();
       const frame = await build(), DUR = frame.DUR, cv = el.querySelector('#v-out canvas') ?? (() => { el.querySelector('#v-out').innerHTML = `<canvas id="v-cv" width="${W}" height="${HH}" class="vid-cv"></canvas>`; return el.querySelector('#v-cv'); })();
-      const ctx = cv.getContext('2d'), type = mime(), bps = Math.round(Math.min(6e6, Math.max(2e6, 44e6 * 8 / DUR)));   // файл ≤ ~45 МБ (длинный ролик — чуть ниже качество)
+      const ctx = cv.getContext('2d'), type = mime(), bps = Math.round(Math.min(6e6, Math.max(8e5, 17e6 * 8 / DUR)));   // v5.48 G: файл ≤ 20 МБ (общее правило видео; длинный ролик — чуть ниже качество)
       frame(ctx, 0);
       const stream = cv.captureStream(FPS), rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: bps } : { videoBitsPerSecond: bps }), parts = [];
       rec.ondataavailable = e => e.data.size && parts.push(e.data);

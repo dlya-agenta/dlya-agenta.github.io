@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://telegram.org https://api-maps.yandex.ru https://yastatic.net https://*.maps.yandex.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://arojogajdamsyrrpcmso.supabase.co https://zpkqduhbymvadtwgcyhp.supabase.co https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://cdnjs.cloudflare.com https://*.ru https://*.maps.yandex.net https://api-maps.yandex.ru https://yandex.ru https://yastatic.net; connect-src 'self' https://arojogajdamsyrrpcmso.supabase.co/functions/v1/ https://api-maps.yandex.ru https://*.maps.yandex.net https://yandex.ru; frame-src tg:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://telegram.org https://api-maps.yandex.ru https://yastatic.net https://*.maps.yandex.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://arojogajdamsyrrpcmso.supabase.co https://zpkqduhbymvadtwgcyhp.supabase.co https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://cdnjs.cloudflare.com https://*.ru https://*.maps.yandex.net https://api-maps.yandex.ru https://yandex.ru https://yastatic.net; media-src 'self' blob: https://zpkqduhbymvadtwgcyhp.supabase.co; connect-src 'self' https://arojogajdamsyrrpcmso.supabase.co/functions/v1/ https://api-maps.yandex.ru https://*.maps.yandex.net https://yandex.ru; frame-src 'self' tg:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Объекты от собственников Сочи</title>
@@ -23,13 +23,15 @@
 <link rel="stylesheet" href="crm.css?v=5.42">
 <link rel="stylesheet" href="links.css?v=5.24a1">
 <link rel="stylesheet" href="map.css?v=5.24a1">
+<link rel="stylesheet" href="mine.css?v=5.48g">
 <link rel="stylesheet" href="plc/plc.css?v=5.26f">
 <link rel="stylesheet" href="support.css?v=5.23">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
 <script src="tg.js?v=5.26g"></script>
 <script src="scrolllock.js?v=5.26" defer></script>
-<link rel="stylesheet" href="voice.css?v=5.42a"><script src="voice.js?v=5.42a" defer></script>
+<link rel="stylesheet" href="voice.css?v=5.48f"><script src="voice.js?v=5.48f" defer></script>
+<link rel="stylesheet" href="agent.css?v=5.48f">
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -125,6 +127,7 @@
         <div class="fcell w2"><div class="fl" data-h="floor">Этаж</div>
             <div class="pair half"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label><label data-h="nold"><input type="checkbox" id="nold"> не старый фонд</label></div></div>
+        <div class="fcell w2 agent-only"><div class="fl" data-h="ex">Эксклюзивы</div><div class="checks"><label><input type="checkbox" id="f-ex"> 💎 Показывать эксклюзивы коллег вместе с остальными</label></div></div>
         <details class="fmore w2" id="f-more"><summary>Ещё фильтры <b id="f-more-n" class="fmore-n" hidden></b></summary><div class="fgrid">
         <div class="fcell w2"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
         <div class="fcell w2"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
@@ -217,14 +220,16 @@
 <script src="links.js?v=5.44" defer></script>
 <script src="sec/lawreq.js?v=5.39" defer></script>
 <script src="plc/plc.js?v=5.26f" defer></script>
-<script src="hub.js?v=5.23" defer></script>
+<script src="hub.js?v=5.48f" defer></script>
 <script src="complaints.admin.js?v=5.44" defer></script>
-<script src="msgapp.js?v=5.46b" defer></script>
+<script src="msgapp.js?v=5.48f" defer></script>
 <script src="objpop.js?v=5.47" defer></script>
 <script src="nav.js?v=5.47" defer></script>
 <script src="edit.main.js?v=5.46" defer></script>
-<script src="app.js?v=5.47" defer></script>
+<script src="mine.js?v=5.48g" defer></script>
+<script src="app.js?v=5.48fg" defer></script>
 <script src="selai.js?v=5.43.1" defer></script>
+<script src="agent.js?v=5.48f" defer></script>
 <script src="support.js?v=5.23" defer></script>
 </body>
 </html>

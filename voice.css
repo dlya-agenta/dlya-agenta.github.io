@@ -1,11 +1,32 @@
-/* v5.42A п. 8: 🎤 в полях окон (voice.js) */
+/* Голос (v5.42A п. 8; v5.48 F п. 20): стильная кнопка микрофона и полоска «Слушаю 0:12 из 1:00» */
 .vwrap{position:relative;display:inline-block;width:100%;vertical-align:top}
-.vwrap>input{padding-right:44px;box-sizing:border-box;width:100%}
-.vwrap.vta{display:block}.vwrap.vta>textarea{padding-right:46px;box-sizing:border-box;width:100%}
-.vmic{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:0;background:transparent;font-size:18px;line-height:1;cursor:pointer;opacity:.75}
-.vwrap.vta .vmic{top:auto;bottom:6px;transform:none}
-.vmic:hover,.vmic:focus-visible{opacity:1;background:color-mix(in srgb,currentColor 10%,transparent)}
-.vmic.on{opacity:1;background:#e5484d;color:#fff;animation:vpulse 1.2s infinite}
-@keyframes vpulse{50%{box-shadow:0 0 0 6px rgba(229,72,77,.25)}}
-@media (prefers-reduced-motion:reduce){.vmic.on{animation:none}}
+.vwrap>input{padding-right:48px;box-sizing:border-box;width:100%}
+.vwrap.vta{display:block}.vwrap.vta>textarea{padding-right:52px;box-sizing:border-box;width:100%}
+.vico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
+.vico rect{fill:currentColor;stroke:none}
+.vmic,.vbtn,.btn.vbtn{--vc:#e5484d;display:inline-grid;place-items:center;width:42px;height:42px;min-width:42px;padding:0!important;border-radius:50%!important;border:0!important;cursor:pointer;
+  color:#fff!important;background:linear-gradient(145deg,#ff6b6f,var(--vc))!important;box-shadow:0 2px 8px rgba(229,72,77,.35),inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform .15s ease,box-shadow .15s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.vmic{width:36px;height:36px;min-width:36px;position:absolute;right:5px;top:50%;transform:translateY(-50%)}
+.vwrap.vta .vmic{top:auto;bottom:7px;transform:none}
+.vmic:hover,.vbtn:hover{box-shadow:0 4px 14px rgba(229,72,77,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.vbtn:hover{transform:scale(1.06)}
+.vmic:focus-visible,.vbtn:focus-visible{outline:3px solid color-mix(in srgb,var(--vc) 45%,transparent);outline-offset:2px}
+.vmic.on,.vbtn.on{animation:vpulse 1.3s ease-out infinite}
+@keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.55)}70%{box-shadow:0 0 0 12px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+/* полоска записи */
+.v-live{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:99998;display:flex;align-items:center;gap:10px;
+  max-width:calc(100vw - 24px);padding:8px 8px 8px 14px;border-radius:999px;background:#17151f;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:14px}
+.v-live.v-in{position:static;transform:none;margin:6px 0;max-width:none;width:100%;box-sizing:border-box;box-shadow:none}
+.v-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-bars{display:inline-flex;align-items:center;gap:3px;height:22px}
+.v-bars i{display:block;width:4px;height:22px;border-radius:2px;background:#ff6b6f;transform:scaleY(.25);transition:transform .08s linear}
+.v-live.warm .v-bars i{animation:vwait 1s ease-in-out infinite;background:#8b8a99}
+.v-live.on:not(.lv) .v-bars i{animation:vtalk .9s ease-in-out infinite}
+.v-bars i:nth-child(2){animation-delay:.12s}.v-bars i:nth-child(3){animation-delay:.24s}.v-bars i:nth-child(4){animation-delay:.36s}.v-bars i:nth-child(5){animation-delay:.48s}
+@keyframes vtalk{50%{transform:scaleY(1)}}
+@keyframes vwait{50%{transform:scaleY(.55)}}
+.v-stop{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:7px 12px;background:#e5484d;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.v-stop .vico{width:16px;height:16px}
+@media (prefers-reduced-motion:reduce){.vmic.on,.vbtn.on,.v-bars i{animation:none!important}}
 #v-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;z-index:99999;max-width:90vw}
