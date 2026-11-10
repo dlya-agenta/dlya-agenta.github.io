@@ -81,10 +81,15 @@ window.CONN = (() => {
 
     (async () => {
       try { await call('conn_start', { svc }); } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; d.querySelector('#cn-wait').hidden = true; return; }
+      let got = false;
       while (alive) {
         try {
           const f = await call('conn_frame', { svc, seq });
-          if (f.img) { seq = f.seq; w = f.w || w; h = f.h || h; img.src = `data:image/jpeg;base64,${f.img}`; d.querySelector('#cn-wait').hidden = true; }
+          if (f.img) { got = true; seq = f.seq; w = f.w || w; h = f.h || h; img.src = `data:image/jpeg;base64,${f.img}`; d.querySelector('#cn-wait').hidden = true; }
+          // v5.49 (п. 3): сервер входа так и не прислал экран за 75 с — не висеть на «Выходим…/Запускаю», а честно сказать, что делать
+          if (!got && f.status !== 'ok' && Date.now() - started > 75000) { done = true; d.querySelector('#cn-wait').hidden = true;
+            msg.innerHTML = `<span class="err">Сервер входа не запустился.</span> Скорее всего, он временно недоступен (сервер мессенджеров работает через GitHub — там сейчас перерыв). Попробуйте позже, а пока пишите собственникам кнопками WhatsApp / Telegram / MAX у каждого объекта. <button class="btn soft" data-again>Попробовать ещё раз</button>`;
+            d.querySelector('[data-again]')?.addEventListener('click', () => { close(); open(svc, o); }); return; }
           if (f.message) msg.textContent = f.message;
           if (f.status === 'ok') { done = true; msg.innerHTML = '✅ Подключено! Сессия сохранена на нашем сервере в зашифрованном виде.'; scr.classList.add('ok'); o.onOk?.(); setTimeout(() => { if (alive) close(); }, 2500); return; }
           if (['error', 'need', 'none'].includes(f.status) && Date.now() - started > 4000) { done = true; msg.innerHTML = `<span class="err">${esc(f.message || 'Вход не удался')}</span> <button class="btn soft" data-again>Начать заново</button>`;

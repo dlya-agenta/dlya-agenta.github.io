@@ -560,7 +560,7 @@
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels">← Мои подборки</a>
           <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь телефоны собственников и переписка с ними. Клиенту — «Ссылка для клиента» или проверенная подборка.</div>
-          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}
+          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}${data.editable ? ` <button type="button" class="btn soft" data-client-link>🔗 Ссылка для клиента</button>` : ''}
           <p class="muted">Собственники подборки · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · телефон открыт у ${wp} · цены собственника</p>
         </header>
         <section class="sa-box">

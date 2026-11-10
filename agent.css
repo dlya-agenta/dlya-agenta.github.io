@@ -8,19 +8,20 @@ body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(130px + env(safe-area-in
 .ag-open { background: linear-gradient(135deg, #8b7bff, #5a43d6); box-shadow: 0 6px 20px rgba(90, 67, 214, .38); }
 .ag-mic { background: linear-gradient(145deg, #ff6b6f, #e5484d); box-shadow: 0 6px 20px rgba(229, 72, 77, .35); }
 .ag-mic.on { animation: vpulse 1.3s ease-out infinite; }
-.ag-fab .vico, .ag-ico { width: 22px; height: 22px; display: block; }
+.ag-fab .vico, .ag-ico { width: 22px; height: 22px; display: block; flex: none; }
+.ag-mic { width: 50px; padding: 0; justify-content: center; }   /* v5.49 (п. 5): без «Сказать» — круглая кнопка */
 .ag-ico { fill: currentColor; }
 .ag-dot { position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: #ffcf33; border: 2px solid #fff; }
 /* телефон: одна компактная кнопка из двух половинок [🎤|✦] в один ряд с «Помощь» — не стопка над карточками */
 @media (max-width: 760px) {
   #ag-fabs { flex-direction: row; gap: 0; right: 66px; bottom: calc(12px + env(safe-area-inset-bottom)); border-radius: 999px; box-shadow: 0 4px 14px rgba(40, 30, 90, .28); }
   body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(76px + env(safe-area-inset-bottom)); }
-  .ag-fab { width: 46px; height: 44px; padding: 0; justify-content: center; box-shadow: none; }
+  /* v5.49 (п. 4): две отдельные круглые кнопки 48 px, значок ровно по центру круга (раньше половинки пилюли со сдвигом 4 px) */
+  #ag-fabs { gap: 10px; box-shadow: none; border-radius: 0; }
+  .ag-fab { width: 48px; height: 48px; padding: 0; justify-content: center; border-radius: 50%; }
   .ag-fab:hover { transform: none; }
-  .ag-mic { border-radius: 999px 0 0 999px; padding-left: 4px; }
-  .ag-open { border-radius: 0 999px 999px 0; padding-right: 4px; }
   .ag-fab b { display: none; }
-  .ag-fab .vico, .ag-ico { width: 20px; height: 20px; }
+  .ag-fab .vico, .ag-ico { width: 22px; height: 22px; margin: 0; }
 }
 html.ag-on #ag-fabs .ag-open { display: none; }
 
@@ -69,3 +70,9 @@ html.ag-on #ag-fabs { right: 458px; }
 /* не мешать вводу: страница Помощника (своё поле с 🎤), открыто «Помощь»; на телефоне — пока печатают в поле */
 html.ag-here #ag-fabs, html.sup-on #ag-fabs { display: none; }
 @media (max-width: 760px) { html.ag-typing #ag-fabs { display: none; } #ag-fabs { transition: transform .25s ease; } html.ag-down #ag-fabs, html.ag-down .sup-fab { transform: translateX(170px); } .sup-fab { transition: transform .25s ease; } }
+
+/* v5.49 (п. 4): карточка голосового запроса — «работает… / Готово · Посмотреть» над кнопками, окно не раскрывается */
+.ag-note { left: auto; right: 16px; bottom: calc(132px + env(safe-area-inset-bottom)); z-index: 3450; }
+.ag-note > b .ag-spin { width: 14px; height: 14px; border-width: 2px; }
+.ag-note p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 760px) { .ag-note { left: 12px; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); } }

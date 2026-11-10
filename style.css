@@ -1052,5 +1052,11 @@ html.embed .sheet-box { width: 100%; max-width: none; max-height: none; height: 
 .pwa-nav button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text); cursor: pointer; padding: 0; }
 .pwa-nav button:active { background: var(--soft, rgba(127,127,127,.15)); }
 .pwa-nav svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 760px) { html.pwa .top .brand small { display: none; } html.pwa .top .brand b { font-size: 16px; } .pwa-nav button { width: 30px; height: 30px; } }
+/* v5.49 (п. 1): телефон в режиме приложения — кнопки ‹ › ⟳ ⤴ отдельной строкой над шапкой (не закрывают «Для Агента»), крупные — 44×40 */
+@media (max-width: 760px) {
+  html.pwa .top .brand small { display: none; }
+  html.pwa .top > .pwa-nav { order: -1; grid-column: 1 / -1; flex: 1 0 100%; width: 100%; box-sizing: border-box; justify-content: space-between; gap: 6px; padding: 2px 6px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: -2px 0 2px; }
+  html.pwa .top > .pwa-nav button { flex: 1; max-width: 80px; width: auto; height: 40px; border-radius: 12px; }
+  html.pwa .top > .pwa-nav svg { width: 22px; height: 22px; }
+}
 .objpop .op-x[hidden] { display: none; }

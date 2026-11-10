@@ -36,7 +36,7 @@ const OLD_AREAS = { c: 'd:Центральный', h: 'd:Хостинский', 
 // «С клиентом»: цены с комиссией агента сверху (как в PDF клиенту — до 10 000 ₽), без источников, заметок, телефонов и «Контакт»
 let client = store.get('client', { on: false, cm: 3 });
 const cmOn = () => client.on ? +client.cm || 0 : 0;
-const priceOf = v => cmOn() ? Math.round(v * (1 + cmOn() / 100) / 10000) * 10000 : v;
+const priceOf = v => cmOn() ? Math.round(v * (1 + cmOn() / 100) / 50000 + 1e-9) * 50000 : v;
 
 let token = store.get('token', null);
 let auth = token ? { token } : null;   // Mini App: initData меняется на токен своей сессии (tg_login) — Telegram считается устройством
@@ -155,7 +155,7 @@ function showLogin(reason, tab = 'login') {
     btn.disabled = true; $('#gerr').textContent = '';
     try {
       const r = await call('register', Object.fromEntries(['code', 'name', 'phone', 'telegram', 'email', 'company', 'login', 'password'].map(k => [k, fm[k].value]).concat([['agree', fm.agree.checked]])));
-      if (r.token) { token = r.token; store.set('token', token); auth = { token }; return botStep(); }   // по коду партнёра — сразу вход, затем бот
+      if (r.token) { token = r.token; store.set('token', token); store.set('tour_due', 1); auth = { token }; return botStep(); }   // v5.49 п. 6: после регистрации — краткий курс   // по коду партнёра — сразу вход, затем бот
       gate(`<h2>Заявка отправлена</h2><p>${esc(r.message)}</p><p class="hint">После одобрения подключите бот: имя вверху → «Профиль» → «Привязать Telegram».</p><button class="btn ghost" id="back">Ко входу</button>`);
       $('#back').onclick = () => showLogin();
     } catch (err) { $('#gerr').textContent = err.message; btn.disabled = false; }
@@ -320,14 +320,10 @@ async function start() {
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
   if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest && window.RK) { sheetGo = 'rk'; RK.open(location.hash); }
   // «📄 Сформировать подборку» из «Моего помощника» (v5.16): объекты уже в store 'sel', комиссия — 'sel_cm'
-  if (location.hash === '#selmake' && sel.size && !me.guest) {
-    history.replaceState(null, '', location.pathname + location.search);
-    selStart([...sel], '', null);
-    const cm = store.get('sel_cm', null); store.set('sel_cm', null);
-    if (cm != null && $('#s-mk')) { $('#s-mk').value = cm; $('#s-mk').dispatchEvent(new Event('input', { bubbles: true })); }
-  }   // «Реклама»: …/#rk, #rk=daily
+  selMake();   // «Реклама»: …/#rk, #rk=daily
   if (/^#sels=(all|own|fb|ex|pick|main)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
   if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
+  window.TOUR?.auto(me);   // v5.49 (п. 6): краткий курс — после регистрации сам, остальным один раз предложить
   HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
 }
@@ -1196,7 +1192,7 @@ $('#sel-make').onclick = () => {
     <p class="hint">Помощник не предложит варианты дороже этого предела. Пустое поле — бюджет пока не задан.</p>
     ${SHARE.formatHtml(n)}
     <label class="field agent-only">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
-    <div class="hint agent-only">Цены для клиента будут увеличены на этот процент (округление до 10 000 ₽). 0% — цены собственника.</div>
+    <div class="hint agent-only">Цены для клиента будут увеличены на этот процент (округление до 50 000 ₽: 12 225 000 → 12 250 000, 12 120 000 → 12 100 000). 0% — цены собственника.</div>
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
@@ -1399,6 +1395,18 @@ function selUndo(id, s) {
 }
 // пункт меню «Мои подборки» открывает раздел (обработчик [data-go] выше); другой пункт меню — уйти из раздела
 document.addEventListener('click', e => { const g = e.target.closest('.top [data-go]'); if (g && selTab && g.dataset.go !== 'sels' && g.dataset.go !== 'client') leaveSelections(); }, true);
+// v5.49 (п. 7): «📄 Сформировать подборку» из ИИ-Агента, когда главная уже открыта (окно Агента поверх неё): меняется только #selmake,
+// страница не перезагружается — раньше нажатие ничего не делало. Объекты — заново из store 'sel' (Агент их туда положил).
+function selMake() {
+  if (location.hash !== '#selmake' || !me || me.guest) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  sel = new Set(store.get('sel', []).slice(0, MAXSEL)); selbar();
+  if (!sel.size) return toast('Отметьте объекты галочками');
+  selStart([...sel], '', null);
+  const cm = store.get('sel_cm', null); store.set('sel_cm', null);
+  if (cm != null && $('#s-mk')) { $('#s-mk').value = cm; $('#s-mk').dispatchEvent(new Event('input', { bubbles: true })); }
+}
+addEventListener('hashchange', selMake);
 addEventListener('hashchange', () => { const h = /^#sels(?:=(\w+))?$/.exec(location.hash); if (h && me && !me.guest) showSelections(h[1] ?? 'all'); else if (!h) leaveSelections(); });
 addEventListener('popstate', () => { if (!/^#sels/.test(location.hash)) leaveSelections(); });
 // режим «С клиентом» (экран показывают клиенту) — раздел агента закрыть: там ответы собственников, ссылка агенту, PDF агенту
@@ -1823,7 +1831,7 @@ function clientSheet() {
   sheet('Показ клиенту', `
     <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «Контакт» скрыты: экран можно показывать клиенту. «Мой помощник», «Ипотечный брокер» и «Налоги при продаже» остаются в меню «Помощник» — посчитать ипотеку или налог при клиенте.</p>
     <label class="field">Комиссия сверху цены: <b id="c-cm-v">${client.cm}%</b><input id="c-cm" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>
-    <div class="hint">Цена округляется до 10 000 ₽, как в PDF клиенту. Фильтр цены тоже с комиссией: «до 15 млн» — до 15 млн вместе с ней.</div>
+    <div class="hint">Цена округляется до 50 000 ₽, как в PDF клиенту. Фильтр цены тоже с комиссией: «до 15 млн» — до 15 млн вместе с ней.</div>
     <div class="sheet-foot">${client.on ? '<button class="btn ghost" id="c-off">Выключить</button>' : '<button class="btn ghost" data-close>Отмена</button>'}
       <button class="btn primary" id="c-on">${client.on ? 'Сохранить' : 'Включить'}</button></div>`);
   $('#c-cm').oninput = () => $('#c-cm-v').textContent = `${$('#c-cm').value}%`;

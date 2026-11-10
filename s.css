@@ -135,7 +135,7 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .sa-owner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 14.5px; }
 .sa-ph { font-weight: 700; color: var(--text); text-decoration: none; white-space: nowrap; }
 .sa-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.sa-btns .btn { text-align: center; justify-content: center; padding-left: 6px; padding-right: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sa-btns .btn { display: flex; align-items: center; text-align: center; justify-content: center; padding-left: 6px; padding-right: 6px; min-width: 0; white-space: normal; line-height: 1.25; min-height: 44px; }   /* v5.49 (п. 2): подпись переносится, а не обрезается «…» */
 .sa-btns .sa-wide { grid-column: 1 / -1; }
 .sa-btns .sa-note-b:last-child { grid-column: 1 / -1; }
 .sa-note-b { position: relative; }

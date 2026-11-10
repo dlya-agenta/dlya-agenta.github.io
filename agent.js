@@ -27,7 +27,7 @@
   function shell() {
     if (fabs) return;
     fabs = document.createElement('div'); fabs.id = 'ag-fabs'; fabs.className = 'agent-only';
-    fabs.innerHTML = `<button type="button" class="ag-fab ag-mic" aria-label="Сказать ИИ-Агенту голосом" title="Сказать голосом — Агент сразу слушает">${MIC}<b>Сказать</b></button>
+    fabs.innerHTML = `<button type="button" class="ag-fab ag-mic" aria-label="Спросить ИИ-Агента голосом" title="Голосом — Агент слушает, окно не открывается; ответ — карточкой «Посмотреть»">${MIC}</button>
       <button type="button" class="ag-fab ag-open" aria-label="ИИ-Агент" title="ИИ-Агент: напишите или скажите, что сделать">${SPARK}<b>ИИ-Агент</b><i class="ag-dot" hidden></i></button>`;
     document.body.appendChild(fabs);
     mic = fabs.querySelector('.ag-mic');
@@ -52,6 +52,7 @@
       const b = e.target.closest('[data-ag]'); if (!b) return;
       if (b.dataset.ag === 'min') minimize();
       if (b.dataset.ag === 'new') send({ type: 'new' });
+      if (b.dataset.ag === 'reload') { const w = box.querySelector('.ag-wait'); if (w) w.innerHTML = '<span class="ag-spin"></span>Открываю ИИ-Агента…'; frame.src = frame.src; }
       if (b.dataset.ag === 'full') { e.preventDefault(); const d = S.get().dlg; S.set({ open: false }); location.href = `hub.html#helper${d ? '=' + d : ''}`; }
     });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden && matchMedia('(min-width: 761px)').matches) minimize(); });
@@ -63,9 +64,12 @@
     frame.title = 'ИИ-Агент'; frame.setAttribute('allow', 'microphone; clipboard-write');
     frame.src = `hub.html?agent=1#helper${d ? '=' + d : ''}`;
     box.appendChild(frame);
+    // v5.49: рамка не загрузилась за 20 с (слабая связь) — честно сказать и дать «Ещё раз», а не висеть
+    setTimeout(() => { const w = box.querySelector('.ag-wait'); if (!ready && w) w.innerHTML = 'ИИ-Агент не загрузился — слабая связь. <button type="button" class="btn soft" data-ag="reload">Ещё раз</button> <button type="button" class="btn ghost" data-ag="min">Закрыть</button>'; }, 20000);
   }
   function open(o = {}) {
     shell(); panel(); load();
+    document.getElementById('ag-note')?.remove();
     box.hidden = false; document.documentElement.classList.add('ag-on');
     fabs.querySelector('.ag-dot').hidden = true;
     S.set({ open: true });
@@ -88,13 +92,37 @@
     if (command(q)) return;
     send({ type: 'ask', q, mode: o.mode, page: page(), fresh: !!o.fresh });
   }
-  // 🎤 — окно открывается и сразу слушает; пауза 4 с или «Готово» — запрос уходит Агенту
+  // 🎤 (v5.49, п. 4): окно НЕ раскрывается — полоска «Слушаю…» внизу, запрос уходит Агенту в фоне (окно грузится скрыто),
+  // ответ — карточкой «✨ Готово · Посмотреть» (нажали — открылось окно с ответом). Окно уже открыто — слушает в нём.
+  // Раньше на телефоне окно сразу закрывало весь экран; если рамка долго грузилась, казалось, что сайт завис (нельзя даже «Обновить»).
   function listen() {
-    shell(); panel();
+    shell(); panel(); load();
     if (mic._rec) { window.VOICE.start(scratch, mic); return; }   // второе нажатие — закончить
-    open({ focus: false });
+    const inBox = !box.hidden;
     scratch.value = '';
-    window.VOICE?.start(scratch, mic, { live, onDone: t => { scratch.value = ''; ask(t); } });
+    window.VOICE?.start(scratch, mic, { live: inBox ? live : undefined, onDone: t => { scratch.value = ''; inBox || !box.hidden ? ask(t) : bg(t); } });
+  }
+  let pend = null;
+  function bg(q) {
+    if (command(q)) return;
+    pend = q; card('wait', q);
+    send({ type: 'ask', q, page: page() });
+    clearTimeout(bg._t); bg._t = setTimeout(() => { if (pend) card('err', 'ИИ-Агент долго не отвечает — откройте окно, ответ придёт туда'); }, 150e3);
+  }
+  // карточка над кнопками: ждём / готово / ошибка — не закрывает страницу, ничего не блокирует
+  function card(kind, text, n) {
+    let d = document.getElementById('ag-note');
+    if (!d) { d = document.createElement('div'); d.id = 'ag-note'; d.className = 'ag-card ag-note agent-only'; d.setAttribute('role', 'status'); d.setAttribute('aria-live', 'polite'); document.body.appendChild(d); }
+    d.dataset.k = kind;
+    d.innerHTML = `<button type="button" class="ag-x" aria-label="Закрыть">✕</button>`
+      + (kind === 'wait' ? `<b><span class="ag-spin"></span> ИИ-Агент работает…</b><p>«${esc(text.slice(0, 120))}»</p><div class="ag-row"><button type="button" class="btn ghost" data-look>Открыть окно</button></div>`
+        : kind === 'ok' ? `<b>${SPARK} Готово${n ? ` · объектов: ${n}` : ''}</b><p>${esc(text || 'Ответ готов')}${text?.length >= 180 ? '…' : ''}</p><div class="ag-row"><button type="button" class="btn primary" data-look>Посмотреть</button></div>`
+          : `<b>⚠️ ИИ-Агент</b><p>${esc(text)}</p><div class="ag-row"><button type="button" class="btn primary" data-look>Открыть окно</button></div>`);
+    d.onclick = e => {
+      if (e.target.closest('[data-look]')) { d.remove(); pend = null; open(); }
+      else if (e.target.closest('.ag-x')) { d.remove(); if (kind !== 'wait') pend = null; }
+    };
+    if (kind === 'ok') { fabs.querySelector('.ag-dot').hidden = false; }
   }
 
   // ---------- голосовые команды без ИИ (п. 12 b) ----------
@@ -123,8 +151,20 @@
     const m = e.data;
     if (m.type === 'ready') { ready = true; box.querySelector('.ag-wait')?.remove(); const q2 = queue; queue = []; q2.forEach(send); }
     if (m.type === 'dlg') S.set({ dlg: m.dlg || null });
-    if (m.type === 'go') { if (/^https?:/.test(m.href) && new URL(m.href).origin === location.origin) { if (matchMedia('(max-width: 760px)').matches) S.set({ open: false }); location.href = m.href; } }
+    if (m.type === 'go') { if (/^https?:/.test(m.href) && new URL(m.href).origin === location.origin) { const u = new URL(m.href), same = u.pathname === location.pathname && u.search === location.search;
+      if (same) minimize(); else if (matchMedia('(max-width: 760px)').matches) S.set({ open: false });
+      // та же страница, другой хвост (#rk, #crm, #task=…): страница читает его только при загрузке — перезагрузить (#selmake, #sels, #o= — понимает сразу)
+      const reload = same && !!u.hash && !/^#(selmake|sels|o=)/.test(u.hash);
+      location.href = m.href;
+      if (reload) location.reload();
+    } }   // v5.49: та же страница (#selmake, #crm) — окно сворачивается, иначе закрывает результат
     if (m.type === 'obj') openObj(m.num);
+    if (m.type === 'answer') {
+      clearTimeout(bg._t);
+      if (box.hidden && (pend || document.getElementById('ag-note'))) card(m.err ? 'err' : 'ok', m.err || m.text, m.n);
+      else document.getElementById('ag-note')?.remove();
+      pend = null;
+    }
   });
 
   // ---------- «ищет одно и то же» → подбор с размышлением (п. 20) ----------

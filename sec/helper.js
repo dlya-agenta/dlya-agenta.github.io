@@ -198,7 +198,9 @@
       : (tips ? '' : '<p class="muted">Напишите или скажите, что нужно сделать.</p>');
   }
   const actHtml = (a, i) => a.type === 'owners' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
-    : a.type === 'selection' ? `<button class="btn primary" data-act="${i}">${esc(a.label)}</button>`
+    : a.type === 'selection' ? `<button class="btn soft" data-act="${i}">${esc(a.label)}</button>`
+    // v5.49 (п. 12): подборку-ссылку помощник создаёт сам — открыть, скопировать (без ожидания сети: на iPhone копирование после await запрещено), страница агента
+    : a.type === 'sel_link' && /^https:\/\/dlya-agenta\.github\.io\//.test(a.href ?? '') ? `<a class="btn primary" href="${esc(a.href)}" target="_blank" rel="noopener">${esc(a.label)}</a> <button type="button" class="btn soft" data-hcopy="${esc(a.href)}" data-hcopy-t="Ссылка для клиента скопирована">📋 Скопировать</button>${a.agent ? ` <a class="btn ghost" href="${esc(a.agent)}" target="_blank" rel="noopener">🔒 Моя страница подборки</a>` : ''}`
     : a.type === 'link' && /^(\.\/|hub\.html|mail\.html|arch\.html|pay\.html|partner\.html)/.test(a.href ?? '') ? `<a class="btn soft" href="${esc(a.href)}">${esc(a.label)}</a>` : '';
   const turnHtml = (r, offer) => r.via === 'wait' ? `<article class="hub-turn hub-pending" data-tid="${r.id}"><p class="hub-q">🗣 ${esc(r.q)}</p><p class="hint">⏳ Агент работает над этим запросом…</p></article>` : `<article class="hub-turn"><p class="hub-q">🗣 ${esc(r.q)}</p>
     ${r.steps?.length ? `<details class="hub-steps"${r.reply ? '' : ' open'}><summary>Что сделал агент (${r.steps.length})</summary><ul>${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
@@ -244,7 +246,7 @@
     if (!q) return inp.focus();
     if (!audience) audience = 'new';
     if (audience === 'crm' && !clientId) return H.toast('Выберите клиента из CRM или нажмите «Новый клиент»');
-    if (ask.busy) return H.toast('Помощник ещё работает над прошлой просьбой');
+    if (ask.busy) { up({ type: 'answer', err: 'ИИ-Агент ещё работает над прошлой просьбой' }); return H.toast('Помощник ещё работает над прошлой просьбой'); }
     ask.busy = true;
     const wait = el.querySelector('#h-wait'), go = el.querySelector('#h-go');
     let sec = 0; const tick = setInterval(() => { const s2 = el.querySelector('#h-sec'); if (s2) s2.textContent = ++sec; }, 1000);
@@ -269,7 +271,10 @@
       box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => el.querySelector('#h-q')?.focus({ preventScroll: true }), 400);   // v5.42A п. 5: уточнить сразу, поле внизу
       el.querySelector('.hub-body .hint').innerHTML = quotaLine(st.quota);
+      // v5.49 (п. 4): окно могло быть свёрнуто (запрос голосом) — родителю короткий ответ для карточки «Готово · Посмотреть»
+      up({ type: 'answer', text: String(r.reply || (r.understood ? `${r.understood} — найдено ${r.count ?? 0}` : `Найдено ${r.count ?? 0}`)).replace(/[*_#`>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 180), n: (r.items || r.objects || []).length });
     } catch (e) {
+      up({ type: 'answer', err: e.message });
       el.querySelector('.hub-pending')?.remove();
       if (!el.querySelector('#h-q').value) el.querySelector('#h-q').value = q;
       H.toast(e.message, 6000); if (e.code === 'limit') el.querySelector('.hub-body .hint').innerHTML = `${esc(e.message)} <a href="pay.html?plan=pro">Оформить PRO</a>`;
@@ -278,7 +283,7 @@
   async function onClick(e) {
     const t = e.target;
     const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
-    const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, 'Номер скопирован'); return; }
+    const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, cp.dataset.hcopyT || 'Номер скопирован'); return; }
     if (t.closest('.hub-fc .strip img')) { openObj(t.closest('.hub-fc').dataset.num); return; }
     const ob = t.closest('button[data-obj]'); if (ob && AG) { openObj(ob.dataset.obj); return; }
     if (t.closest('[data-tips-ok]')) { store.set('agent_tips', 1); t.closest('.ag-tips')?.remove(); return; }

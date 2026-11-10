@@ -16,7 +16,7 @@ window.NAV = (() => {
       ['hub.html#chat', '💬 Чат подписчиков'], ['hub.html#taxes', '🧾 Налоги при продаже'], ['help-helper.html', '📘 Как пользоваться помощником']]],
     ['promo', '📣 Продвижение', [['hub.html#msg', '🔗 Мессенджеры и соцсети'], ['./#rk', '📣 Реклама'], ['mail.html', '✉️ Рассылки'], ['hub.html#video', '🎬 Видеомонтаж-СММ']]],
     ['excl', '💎 Эксклюзивы', 'excl.html'],
-    ['cab', '💼 Кабинет', [['hub.html#balance', '💰 Баланс'], ['partner.html', '🤝 Партнёрская программа'], ['pay.html', '💳 Оплата и тарифы'], ['support.html', '💬 Помощь']]],
+    ['cab', '💼 Кабинет', [['hub.html#balance', '💰 Баланс'], ['partner.html', '🤝 Партнёрская программа'], ['pay.html', '💳 Оплата и тарифы'], ['support.html', '💬 Помощь'], ['./#tour', '🎓 Краткий курс (1 мин)']]],
   ];
   let iconTimer = 0;
   function iconize() {
