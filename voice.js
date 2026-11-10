@@ -38,7 +38,7 @@
     const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
     return {
       warm() { box.classList.add('warm'); },
-      listen(sec, max) { box.classList.remove('warm'); box.classList.add('on'); txt.textContent = `Слушаю ${mmss(sec)} из ${mmss(max)} — пауза 4 с закончит`; },
+      listen(sec, max) { box.classList.remove('warm'); box.classList.add('on'); txt.textContent = `Слушаю ${mmss(sec)} из ${mmss(max)} — ${(o.silence_ms ?? 4000) <= 10000 ? `пауза ${Math.round((o.silence_ms ?? 4000) / 1000)} с закончит` : '«Готово» — закончить'}`; },
       level(v) { box.classList.add('lv'); bars.forEach((b, i) => { b.style.transform = `scaleY(${Math.max(0.18, Math.min(1, v * (1.4 - Math.abs(i - 2) * 0.25)))})`; }); },
       busy(t) { box.classList.remove('on'); box.classList.add('warm'); txt.textContent = t; },
       close() { box.remove(); },
@@ -150,7 +150,34 @@
     return ctl;
   }
 
-  window.VOICE = { ok: !!R || MD, start, engine, MIC, ios: IOS };
+  // ---------- v5.49 (п. 10): запись звонка файлом → текст (SpeechKit, куски 29 с, тот же hub sp_rec и лимит минут) ----------
+  // file — аудио с телефона (m4a запись iPhone, mp3/ogg/opus/aac Android, wav); onStep(i, n) — прогресс. Нет ключа — ошибка code 'nokey'.
+  async function file(f, onStep) {
+    if (!f) throw new Error('Нет файла');
+    if (f.size > 120e6) throw new Error('Файл больше 120 МБ — обрежьте запись или сохраните в m4a/mp3');
+    const AC = window.AudioContext || window.webkitAudioContext, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!AC || !OAC) throw new Error('Этот браузер не читает аудио — откройте сайт в Chrome или Safari');
+    const ac = new AC(), ab = await f.arrayBuffer(); let buf;
+    try { buf = await new Promise((ok, no) => { const p = ac.decodeAudioData(ab, ok, no); if (p?.then) p.then(ok, no); }); }   // старый Safari — только с колбэками
+    catch { ac.close?.(); throw new Error('Не удалось прочитать запись — сохраните её как m4a, mp3 или wav'); }
+    ac.close?.();
+    const RATE = 16000, sec = buf.duration;
+    if (sec > 3600) throw new Error('Запись длиннее часа — разделите её на части');
+    const off = new OAC(1, Math.ceil(sec * RATE), RATE), src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+    const mono = (await off.startRendering()).getChannelData(0), step = RATE * 29, n = Math.ceil(mono.length / step);
+    let text = '';
+    for (let i = 0; i < n; i++) {
+      onStep?.(i + 1, n);
+      const part = mono.subarray(i * step, Math.min(mono.length, (i + 1) * step)), pcm = new Int16Array(part.length);
+      for (let k = 0; k < part.length; k++) pcm[k] = Math.max(-1, Math.min(1, part[k])) * 0x7fff;
+      const bytes = new Uint8Array(pcm.buffer); let bin = '';
+      for (let k = 0; k < bytes.length; k += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + 0x8000));
+      const r = await hub('sp_rec', { pcm: btoa(bin) });
+      if (r.text) text += r.text + ' ';
+    }
+    return { text: text.trim(), sec: Math.round(sec) };
+  }
+  window.VOICE = { ok: !!R || MD, start, engine, MIC, ios: IOS, file };
 
   // ---------- 🎤 к полям: запросы, поиск, длинные поля (п. 20) ----------
   const NO = /phone|tel|тел|price|цен|sum|сумм|amount|пароль|pass|code|код|inn|инн|snils|паспорт|passport|email|почт|mail|url|ссылк|login|логин|card|txid|wallet|кош|кадастр|date|дата/i;

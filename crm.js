@@ -166,7 +166,7 @@ window.CRM = (() => {
         ${c.note ? `<p class="crm-note">${esc(c.note)}</p>` : ''}
       </section>
       ${window.HUB ? `<section class="crm-sec crm-talk"><div class="crm-h"><b>🎧 Разговор с клиентом</b></div><p class="hint">Вставьте текст разговора или переписки, выгрузку чата WhatsApp/Telegram или скриншоты — помощник перескажет, что хочет клиент, предложит план, 3–5 объектов из базы и готовый текст клиенту. Итог запишется в журнал.</p>
-        <p><button type="button" class="btn soft" data-talk>🎧 Разобрать разговор</button></p></section>` : ''}
+        <p><button type="button" class="btn soft" data-talk>🎧 Разобрать разговор или запись звонка</button></p></section>` : ''}
       <section class="crm-sec crm-journal"><div class="crm-h"><b>Журнал касаний</b><span class="muted">${(C.notes ?? []).length || ''}</span></div>
         <div class="crm-nk" role="radiogroup" aria-label="Что было">${Object.entries(C.note_kinds ?? NOTE).map(([k, v]) => `<button type="button" class="chip${NK === k ? ' on' : ''}" data-nk="${k}" role="radio" aria-checked="${NK === k}">${esc(v)}</button>`).join('')}</div>
         <div class="crm-nadd"><textarea id="crm-nt" rows="2" maxlength="2000" placeholder="О чём договорились: перезвонит в пятницу, ищет 2к до 15 млн…"></textarea><button type="button" class="btn primary" data-note-add>Записать</button></div>
@@ -594,7 +594,10 @@ window.CRM = (() => {
         <label class="field">Текст разговора или переписки<textarea id="tk-text" rows="8" maxlength="30000" placeholder="Например: Клиент — Ирина, ищет 2-комнатную в Адлере до 15 млн, обязательно у моря, сроки — до весны, ипотека одобрена в Сбере…">${esc(TK.text)}</textarea></label>
         <div class="tk-files"><label class="btn soft tk-up">📄 Файл чата (.txt)<input type="file" accept=".txt,text/plain" data-tk-txt hidden></label>
           <label class="btn soft tk-up">🖼 Скриншоты переписки<input type="file" accept="image/*" multiple data-tk-img hidden></label>
-          <span class="btn ghost tk-up" aria-disabled="true" title="${st?.audio ? '' : 'Нужен ключ распознавания речи — скоро'}">🎙 Аудио — ${st?.audio ? 'загрузить' : 'скоро'}</span></div>
+          <label class="btn soft tk-up">🎙 Запись звонка${st?.audio ? '' : ' (скоро)'}<input type="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.opus,.aac,video/mp4" data-tk-audio hidden></label>
+          ${window.VOICE?.ok ? `<button type="button" class="btn soft tk-up" data-tk-live>🎧 Слушать разговор</button>` : ''}</div>
+        <div id="tk-live"></div>
+        <p class="hint">📞 <b>Звонок:</b> запишите его на телефоне (iPhone — кнопка записи во время звонка, запись появится в «Заметках»: «Поделиться» → «Сохранить в Файлы»; Android — запись звонков в «Телефоне») и загрузите «🎙 Запись звонка» — текст появится в поле, затем «Разобрать». Во время звонка — включите громкую связь и нажмите «🎧 Слушать разговор» на компьютере или втором телефоне (до 30 минут).${st?.audio ? '' : ' Пока распознавание записей не подключено — если у записи в «Заметках» есть расшифровка, скопируйте её и вставьте в поле.'}</p>
         ${TK.imgs.length ? `<div class="tk-imgs">${TK.imgs.map((x, i) => `<span class="tk-img"><img src="data:${x.mime};base64,${x.b64}" alt=""><button type="button" class="x" data-tk-rm="${i}" aria-label="Убрать скриншот">✕</button></span>`).join('')}</div>` : ''}
         <p class="hint">Выгрузка чата: WhatsApp — в чате «⋮ → Ещё → Экспорт чата → Без файлов»; Telegram (на компьютере) — «⋮ → Экспорт истории чата», формат «Текст». Скриншотов — до 4.</p>
         <p><button type="button" class="btn primary crm-big" data-tk-go>🤖 Разобрать</button></p>
@@ -631,6 +634,9 @@ window.CRM = (() => {
       }
       if (t.closest('[data-tk-copy]')) { const v = body().querySelector('#tk-msg').value; try { await navigator.clipboard.writeText(v); ui.toast('Скопировано'); } catch { ui.toast('Не удалось скопировать — выделите текст вручную'); } return; }
       const wa = t.closest('[data-tk-wa]'); if (wa) { wa.href = `${wa.href.split('?')[0]}?text=${encodeURIComponent(body().querySelector('#tk-msg').value)}`; return; }
+      // v5.49 (п. 10): «🎧 Слушать разговор» — громкая связь, до 30 минут, пауза не останавливает; второе нажатие — стоп
+      const lv = t.closest('[data-tk-live]');
+      if (lv) { const ta = body().querySelector('#tk-text'); window.VOICE.start(ta, lv, { silence_ms: 10 * 60e3, max_ms: 30 * 60e3, live: body().querySelector('#tk-live'), onDone: v => { TK.text = v; ui.toast('Разговор записан текстом — нажмите «🤖 Разобрать»', 5000); } }); return; }
       const go = t.closest('[data-tk-go]');
       if (go) {
         TK.text = body().querySelector('#tk-text').value.trim();
@@ -645,6 +651,21 @@ window.CRM = (() => {
     });
     body().onchange = async e => {
       const t = e.target;
+      // v5.49 (п. 10): запись звонка → текст (VOICE.file: куски по 29 с через SpeechKit, минуты — по тарифу)
+      if (t.matches('[data-tk-audio]') && t.files?.[0]) {
+        const f = t.files[0]; t.value = '';
+        if (!st?.audio) return ui.toast('Распознавание записей подключится после ключа SpeechKit в админке. Пока вставьте расшифровку текстом (iPhone: «Заметки» → запись звонка → расшифровка)', 8000);
+        const lab = t.closest('label'), old = lab.firstChild.textContent;
+        TK.text = body().querySelector('#tk-text').value;
+        try {
+          const r = await window.VOICE.file(f, (i, n) => { lab.firstChild.textContent = `⏳ Распознаю ${i} из ${n}… `; });
+          if (!r.text) { ui.toast('В записи не нашлось речи — проверьте файл', 5000); return; }
+          const m = Math.floor(r.sec / 60), sx = String(r.sec % 60).padStart(2, '0');
+          TK.text = `${TK.text ? TK.text + '\n\n' : ''}[Запись звонка ${m}:${sx}]\n${r.text}`.slice(-30000);
+          draw(body().querySelector('#tk-res')?.innerHTML); ui.toast('Текст звонка готов — нажмите «🤖 Разобрать»', 5000);
+        } catch (er) { ui.toast(er.message, 7000); } finally { if (lab.isConnected) lab.firstChild.textContent = old; }
+        return;
+      }
       if (t.matches('[data-tk-txt]') && t.files?.[0]) { const f = t.files[0]; if (f.size > 3e6) return ui.toast('Файл больше 3 МБ — выгрузите чат без файлов или за последние месяцы', 5000);
         const txt = await f.text(); TK.text = (body().querySelector('#tk-text').value + '\n' + txt.slice(-30000 + 200)).trim().slice(-30000); draw(body().querySelector('#tk-res')?.innerHTML); ui.toast('Чат добавлен в поле'); }
       if (t.matches('[data-tk-img]') && t.files?.length) { TK.text = body().querySelector('#tk-text').value;
