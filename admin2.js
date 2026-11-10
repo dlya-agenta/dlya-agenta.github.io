@@ -203,9 +203,10 @@
         <label class="field">Шаблон по умолчанию<select id="vid-tpl"><option value="motion"${r.video?.tpl !== 'classic' ? ' selected' : ''}>«Мотион» — динамичный (v5.26)</option><option value="classic"${r.video?.tpl === 'classic' ? ' selected' : ''}>«Классика» — плавный (как раньше)</option></select></label>
         <p><button class="btn primary" data-save-video>Сохранить</button></p></section>
       <section class="hub-sec adm-lawpaid" id="law-paid"><h3>⚖️ Сервис проверки для юриста — api-assist</h3><p class="muted">Загрузка…</p></section>
+      <section class="hub-sec adm-night" id="night-sec"><h3>🌙 Ночная работа — выгрузка, номера, фото ИИ</h3><p class="muted">Загрузка…</p></section>
       <section class="hub-sec"><h3>Ключи сервисов и API</h3><p class="hint">Меняются здесь, без программиста. Значения не показываются — только «задан» или нет. Остальные секреты (вход в источник, токен бота, CryptoBot) — в своих разделах: бот — «Участники и настройки», CryptoBot — «Продажи и оплаты».</p>
         ${r.secrets.filter(x => !x.name.startsWith('ai_key') && x.name !== 'law_paid_key').map(x => `<div class="adm-key"><b>${esc(x.label)}</b><small class="muted">${esc(x.used_by)}</small><span class="${x.set ? 'tag ok' : 'tag'}">${x.set ? 'задан ••••' : x.env ? 'из настроек функции' : 'не задан'}</span>
-          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button>${x.name === 'yandex_speech_key' ? `<button class="btn ghost" data-speech-test>Проверить</button>
+          <input type="password" data-key="${esc(x.name)}" placeholder="Новое значение" autocomplete="off"><button class="btn soft" data-save-key="${esc(x.name)}">Сохранить</button>${x.name === 'photo_ai_key' ? '<button class="btn ghost" data-photo-test>Проверить</button>' : ''}${x.name === 'yandex_speech_key' ? `<button class="btn ghost" data-speech-test>Проверить</button>
           <details class="tip"><summary>Где взять ключ (5 минут)</summary><p class="hint">1. console.yandex.cloud → войти через Яндекс ID → создать платёжный аккаунт (карта, оплата по факту, ~0,6 ₽ за минуту; новым — стартовый грант).<br>
           2. «Сервисные аккаунты» → «Создать» → роль <b>ai.speechkit-stt.user</b>.<br>3. Открыть аккаунт → «Создать новый ключ» → «API-ключ» → скопировать секрет и вставить сюда → «Сохранить» → «Проверить».<br>
           После этого голосовые до 30 секунд в боте (режим «🤖 Помощник») превращаются в текст и уходят Помощнику. Расход видно в «Расходе ИИ» строкой speech.</p></details>` : ''}</div>`).join('')}</section>`
@@ -217,7 +218,7 @@
         const d = await r.json(); if (!r.ok || d.error) throw new Error(d.message || d.error); H.toast(v ? 'Ключ сохранён — карты станут Яндекса (обновите страницу)' : 'Карты — снова OpenStreetMap');
       } catch (er) { H.toast(er.message, 6000); } };
     fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public' }) }).then(r => r.json()).then(d => { if (d.map?.yandex) $('#ymap-key').value = d.map.yandex; }).catch(() => {});
-    lawPaid();
+    lawPaid(); night();
     $('#ymap-save').onclick = () => ymap($('#ymap-key').value.trim());
     $('#ymap-off').onclick = () => { $('#ymap-key').value = ''; ymap(''); };
     $('#adm-body').onclick = async e => {
@@ -225,6 +226,10 @@
       if (sk) { const k = sk.dataset.saveKey, v = $(`[data-key="${k}"]`).value.trim(); if (!v && !confirm('Пустое значение удалит ключ. Удалить?')) return;
         try { await H.call('adm_secret_set', { name: k, value: v }); H.toast(v ? 'Ключ сохранён' : 'Ключ удалён'); ai(); } catch (er) { H.toast(er.message, 5000); } return; }
       if (e.target.closest('[data-lp-test]')) { lawPaid(true); return; }
+      if (e.target.closest('[data-photo-test]')) { try { const x = await H.call('adm_photo_test'); H.toast(x.ok ? `Ключ BetterToken «${x.name}» работает · всего списано ${x.used_rub} ₽` : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.50
+      if (e.target.closest('[data-night-save]')) { const v = id => document.getElementById(id);
+        try { await H.call('adm_night_set', { photo_ai: { on: v('na-on').checked, kinds: [...document.querySelectorAll('[data-na-kind]:checked')].map(x => x.dataset.naKind), days: v('na-days').value, max_rub: v('na-rub').value, parallel: v('na-par').value, min_sim: v('na-sim').value, check_marks: v('na-marks').checked },
+          phones: { on: v('np-on').checked, target: v('np-target').value, max: v('np-max').value, until: v('np-until').value } }); H.toast('Настройки ночи сохранены — действуют со следующей ночи'); night(); } catch (er) { H.toast(er.message, 6000); } return; }
       if (e.target.closest('[data-speech-test]')) { try { const x = await H.call('adm_speech_test'); H.toast(x.ok ? 'Ключ SpeechKit принят — голосовые в боте работают' : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.46a
       const lpOn = e.target.closest('[data-lp-on]');
       if (lpOn) { try { await H.call('adm_law_paid_set', { on: lpOn.dataset.lpOn === '1' }); H.toast(lpOn.dataset.lpOn === '1' ? 'Сервис включён — проверки юриста идут через него' : 'Сервис выключен — проверки без него'); lawPaid(); } catch (er) { H.toast(er.message, 5000); } return; }
@@ -242,6 +247,43 @@
     };
   }
   // v5.36: блок «Сервис проверки для юриста» — ключ, вкл/выкл, расход лимита, адреса и инструкция (раскрывающийся список)
+  // v5.50: «🌙 Ночная работа» — правила, настройки, итоги последних ночей (hub adm_night / adm_night_set)
+  async function night() {
+    const box = document.getElementById('night-sec');
+    if (!box) return;
+    let x;
+    try { x = await H.call('adm_night'); } catch (er) { box.innerHTML = `<h3>🌙 Ночная работа</h3><p class="hint">${esc(er.message)}</p>`; return; }
+    const p = x.photo_ai, f = x.phones, m = x.month;
+    const when = t => new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const logs = x.log.map(l => { const d = l.detail ?? {};
+      const t = l.action === 'photo_ai' ? `фото ИИ: улучшено ${d.done ?? 0} из ${d.tried ?? 0}, со знаками ${d.marks ?? 0}, не прошли сверку ${d.rejected ?? 0}, ошибок ${d.errors ?? 0} · ${d.rub ?? 0} ₽`
+        : l.action === 'fresh' ? `номера (${esc(l.target)}): новых ${d.new_phone ?? 0}/${d.new ?? 0}, старых ${d.old_phone ?? 0}/${d.old ?? 0}${d.stop ? ` · стоп: ${esc(d.stop)}` : ''}`
+        : `ночь: ${esc(d.steps ?? '')}`;
+      return `<li><small class="muted">${when(l.at)}</small> ${t}</li>`; }).join('');
+    box.innerHTML = `<h3>🌙 Ночная работа — выгрузка, номера, фото ИИ</h3>
+      <p class="hint">Каждую ночь в ${esc(x.start)} работу запускает Mac (пока GitHub Actions не оплачен). Ключ BetterToken для фото — в «Ключах сервисов» ниже («BetterToken — улучшение фото»): <span class="${x.key_set ? 'tag ok' : 'tag warn'}">${x.key_set ? 'задан ••••' : 'не задан'}</span> <button class="btn ghost" data-photo-test>Проверить ключ</button></p>
+      <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0">
+        <label class="hub-chk"><input type="checkbox" id="na-on"${p.on !== false ? ' checked' : ''}> Улучшать фото ИИ (gpt-image-2.5-flare, 1K, ~0,86 ₽ за фото)</label>
+        <span style="display:flex;flex-wrap:wrap;gap:4px 16px">Какие объекты: ${x.kinds.map(k => `<label class="hub-chk"><input type="checkbox" data-na-kind="${esc(k)}"${(p.kinds ?? []).includes(k) ? ' checked' : ''}> ${esc(k)}</label>`).join('')}</span>
+        <label class="hub-chk"><input type="checkbox" id="na-marks"${p.check_marks !== false ? ' checked' : ''}> Фото с водяными знаками и логотипами не править</label>
+      </div>
+      <div class="hub-form">
+        <label class="field">Новые — за последние, дней<input type="number" id="na-days" value="${esc(p.days ?? 3)}" min="1" max="14"></label>
+        <label class="field">Не больше ₽ за ночь<input type="number" id="na-rub" value="${esc(p.max_rub ?? 600)}" min="0" max="10000"></label>
+        <label class="field">Фото одновременно<input type="number" id="na-par" value="${esc(p.parallel ?? 4)}" min="1" max="8"></label>
+        <label class="field">Порог похожести (0,5–0,95)<input id="na-sim" value="${esc(p.min_sim ?? 0.7)}"></label>
+      </div>
+      <div style="margin:14px 0 6px"><label class="hub-chk"><input type="checkbox" id="np-on"${f.on !== false ? ' checked' : ''}> Открывать номера старых объявлений ночью</label></div>
+      <div class="hub-form">
+        <label class="field">Цель за ночь<input type="number" id="np-target" value="${esc(f.target ?? 450)}" min="0" max="1000"></label>
+        <label class="field">Максимум за ночь<input type="number" id="np-max" value="${esc(f.max ?? 500)}" min="0" max="1500"></label>
+        <label class="field">Заканчивать до<input id="np-until" value="${esc(f.until ?? '07:30')}" placeholder="07:30"></label>
+      </div>
+      <p><button class="btn primary" data-night-save>Сохранить настройки ночи</button></p>
+      <p class="hint">За 30 дней: улучшено ИИ ${m.used} фото из ${m.photos} отправленных (${m.objects} объектов), потрачено ${m.rub} ₽${m.errors ? `, ошибок ${m.errors}` : ''}. Номеров без проверки в очереди (кв., апарт., дома): ${x.phones_left}.</p>
+      <details class="tip" open><summary>Правила ночи</summary><ol class="hint" style="overflow-wrap:anywhere">${x.rules.map(r => `<li>${esc(r)}</li>`).join('')}</ol></details>
+      <details class="tip"><summary>Последние итоги</summary><ul class="hint">${logs || '<li>Пока нет</li>'}</ul></details>`;
+  }
   async function lawPaid(toast) {
     const box = document.getElementById('law-paid');
     if (!box) return;
