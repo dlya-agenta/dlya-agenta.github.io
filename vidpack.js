@@ -11,7 +11,9 @@
     return new Promise((ok, no) => {
       const v = document.createElement('video');
       v.preload = 'metadata'; v.playsInline = true; v.muted = true; v.src = url;
-      v.onloadedmetadata = () => ok(v);
+      // у записей с экрана и из браузера длительность бывает неизвестна (Infinity) — узнаём перемоткой в конец
+      v.onloadedmetadata = () => { if (Number.isFinite(v.duration)) return ok(v);
+        v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; ok(v); }; v.currentTime = 1e9; };
       v.onerror = () => no(new Error('Это видео браузер открыть не может — сохраните его на телефоне как MP4 и попробуйте снова'));
     });
   }
@@ -24,15 +26,16 @@
     let ac = null;
     try {   // звук: в запись, но не в динамики
       ac = new (window.AudioContext || window.webkitAudioContext)();
-      const src = ac.createMediaElementSource(v), dst = ac.createMediaStreamDestination();
-      src.connect(dst); dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-      await ac.resume?.();
+      await Promise.race([ac.resume?.(), new Promise(r => setTimeout(r, 800))]);
+      // звук не запустился (браузер не дал) — пишем без звука: иначе запись ждёт звук и обрывается на первой секунде
+      if (ac.state === 'running') { const src = ac.createMediaElementSource(v), dst = ac.createMediaStreamDestination();
+        src.connect(dst); dst.stream.getAudioTracks().forEach(t => stream.addTrack(t)); } else { ac.close?.(); ac = null; v.muted = true; }
     } catch { /* без звука */ }
     const type = mime();
     if (!type) fail('Этот браузер не умеет сжимать видео — откройте сайт в Chrome или Safari');
     const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: kbps * 1000, audioBitsPerSecond: 96_000 }), parts = [];
     rec.ondataavailable = e => { if (e.data.size) parts.push(e.data); };
-    v.muted = false; v.volume = 1; v.currentTime = 0;
+    if (ac) { v.muted = false; v.volume = 1; } v.currentTime = 0;
     await new Promise(r => { if (v.readyState >= 2) r(); else v.oncanplay = r; });
     rec.start(1000);
     const draw = () => { g.drawImage(v, 0, 0, c.width, c.height); onProgress?.(Math.min(1, v.currentTime / sec)); };

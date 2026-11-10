@@ -1,6 +1,7 @@
 /* v5.48 G: эксклюзивы коллег в выдаче главной, «моя правка», видео (site/mine.js) */
-.card.xcard { border: 2px solid #c9a24a; background: color-mix(in srgb, #f2e3bb 22%, var(--card)); }
-.card.xcard.picked { border-color: var(--accent); }
+.card.xcard { outline: 3px solid #c9a24a !important; outline-offset: -3px; }
+.card.xcard .body { background: color-mix(in srgb, #c9a24a 12%, transparent); }
+.card.xcard.picked { outline-color: var(--accent) !important; }
 .xline { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
 .xbadge { display: inline-block; background: #c9a24a; color: #fff; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
 .mymark { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; color: #a05a00; background: color-mix(in srgb, #ffb547 22%, transparent); padding: 1px 7px; border-radius: 999px; vertical-align: middle; }
