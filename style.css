@@ -645,6 +645,7 @@ button.who:hover, button.who.on { background: var(--soft); }
   .top .brand { grid-column: 1; grid-row: 1; }
   .top button.who { grid-column: 3; grid-row: 1; }
   .top .menu { grid-column: 1 / -1; grid-row: 2; margin: 0 -8px; justify-content: flex-start; }
+  .top .menu { min-width: 0; }
   .top .menu .link { padding: 9px 10px; border-radius: 8px 8px 0 0; }
   .top .menu #logout { margin-left: auto; }
 }

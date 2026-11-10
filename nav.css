@@ -55,7 +55,7 @@ nav[data-nav] { align-items: center; }
   .whomg .mg-p { left: auto; right: 0; min-width: 190px; }
   .whomg .mg-p .link { display: flex; align-items: center; width: 100%; background: none; border: 0; font: inherit; font-size: 14.5px; color: var(--text); cursor: pointer; margin: 0 !important; }
   .whomg .mg-p .link[hidden] { display: none; }
-  .top .menu { flex-wrap: nowrap; min-width: 0; white-space: nowrap; }
+  .top .menu { flex-wrap: wrap; row-gap: 0; min-width: 0; white-space: nowrap; }   /* v5.49: пунктов больше, чем ширина (Клиент выбирает сам, С клиентом, Продлить) — вторая строка, а не прокрутка вбок */
   .top .menu .mg-b, .top .menu > .link { white-space: nowrap; }
 }
 @media (min-width: 761px) and (max-width: 1099px) {
