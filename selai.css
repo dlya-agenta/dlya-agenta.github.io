@@ -105,3 +105,8 @@
   .sai-pr { font-size: 15px; }
   .sai-act .sai-btn { flex: 1 1 100%; }
 }
+/* v5.48 H2: ссылка «Клиент выбирает сам» — альтернативы вне рамки агента и уже добавленные клиенту */
+.sai-badge.out { background: #b45309; color: #fff; top: 36px; }
+.sai-card.out { border-style: dashed; }
+.sai-card.added { opacity: 1 !important; }
+.sai-card.added .sai-num::after { content: ' · добавлено'; color: var(--sai-acc); font-weight: 700; }

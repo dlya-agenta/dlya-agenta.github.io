@@ -140,16 +140,17 @@ window.SHARE = (() => {
   }
   // v5.48 H9: ссылка «Клиент выбирает сам» — срок, сколько открывали, что выбрал, вопросы без ответа; страница ссылки (…&a=1) — всё остальное
   const pkMsg = s => window.PICK ? window.PICK.sendText(s.link_until, s.link) : s.link;
-  function cardPick(s) {
+  function cardPick(s, tag) {
     const st = s.live ? `<span class="sp-b">🔗 активна до ${when(s.link_until)}</span>` : `<span class="sp-b off">${s.closed_reason ? 'закрыта автоматически' : 'закрыта'}</span>`;
     const line = [`👁 ${s.views ? `открывали ${s.views} ${plural(s.views, 'раз', 'раза', 'раз')}` : 'клиент ещё не открывал'}`, `устройств: ${s.devices ?? 0} из 2`,
       s.chosen ? `<b class="ok">⭐ выбрал: ${s.chosen}</b>` : 'пока ничего не выбрал', s.open_q ? `<b class="bad">❓ вопросов без ответа: ${s.open_q}</b>` : ''].filter(Boolean).join(' · ');
-    return `<article class="sp-card sp-pick" data-sid="${s.id}"><div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${st}</div>
+    return `<article class="sp-card sp-pick" data-sid="${s.id}"><div class="sp-top"><b class="sp-t">${esc(s.title)}</b>${tag ? '<span class="sp-b ex">Клиент выбирает</span>' : ''}${st}</div>
       <div class="sp-meta muted">${[when(s.created_at), s.markup ? `+${s.markup}% клиенту` : 'цены собственника', s.query && esc(s.query)].filter(Boolean).join(' · ')}</div>
       ${s.client ? `<div class="sp-rel">Клиент: <a href="./#client=${+s.client.id}" data-client-open="${+s.client.id}">${esc(s.client.name)}</a></div>` : ''}
       <div class="sp-st"><span>${line}</span></div>
       <div class="sp-acts"><a class="btn primary" href="${esc(agentLink(s))}"${ablank()} title="Что выбрал клиент, вопросы, ответы собственников, продление">Открыть</a>
         ${s.live && s.link ? `<button class="btn soft" data-pk-copy="${esc(pkMsg(s))}" title="Текст со ссылкой для клиента">Скопировать</button>` : ''}
+        ${s.chosen || s.open_q || (s.fb ?? []).length ? `<button class="btn soft" data-selai="${s.id}" data-t="${esc(s.token ?? (s.link ? String(s.link).split('#')[1] : ''))}" data-pick="1" title="Помощник по выбору клиента: что понял и что ещё предложить">🤖 Позвать ИИ</button>` : ''}
         <button class="btn ghost" data-pext="${s.id}" title="Ссылка будет действовать ещё сутки от нажатия">Продлить на сутки</button>
         <button class="btn ghost sp-del" data-del="${s.id}">🗑 Удалить</button></div></article>`;
   }
@@ -187,11 +188,12 @@ window.SHARE = (() => {
     const marks = d.marks ?? null, items = d.items ?? [];
     const pk = items.filter(isPk), rest = items.filter(s => !isPk(s)), base = rest.filter(s => !isEx(s)), ex = rest.filter(isEx);
     const own = marks ? base.filter(s => ownSum(s, marks)) : [], fb = rest.filter(s => s.link && (s.views || s.fb?.length));
-    const list = tab === 'own' ? own : tab === 'fb' ? fb : tab === 'ex' ? ex : tab === 'pick' ? pk : base, n = { all: base.length, own: own.length, fb: fb.length, ex: ex.length, pick: pk.length };
+    const allList = [...base, ...pk].sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));   // v5.48 H2: «Все подборки» — и ссылки «Клиент выбирает» (карточка cardPick с пометкой)
+    const list = tab === 'own' ? own : tab === 'fb' ? fb : tab === 'ex' ? ex : tab === 'pick' ? pk : allList, n = { all: allList.length, own: own.length, fb: fb.length, ex: ex.length, pick: pk.length };
     return `<div class="sp-head"><h1>Мои подборки</h1><p class="muted">${HOW}</p></div>
       <nav class="sp-tabs" role="tablist" aria-label="Мои подборки">${(d.main ? [...TABS, MAIN] : TABS).map(([k, t, sh]) => `<a href="#sels=${k}" role="tab" class="sp-tab${tab === k ? ' on' : ''}"${tab === k ? ' aria-selected="true"' : ''} title="${t}"><span class="sp-l">${t}</span><span class="sp-s">${sh}</span>${n[k] ? ` <b>${n[k]}</b>` : ''}</a>`).join('')}</nav>
       ${tab === 'ex' ? '<p class="hint sp-exh">💎 Подборки из «Эксклюзивов» коллег: ссылка клиенту и PDF — как у собственников, на «Ссылке агенту» — агенты, разместившие объекты, и «Написать всем».</p>' : ''}
-      ${list.length ? `<div class="sp-list">${list.map(s => tab === 'pick' ? cardPick(s) : tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${tab === 'own' && d.pending ? 'Загружаю ответы собственников…' : EMPTY[tab]}</p>`}`;
+      ${list.length ? `<div class="sp-list">${list.map(s => isPk(s) ? cardPick(s, tab === 'all') : tab === 'own' ? cardOwn(s, marks) : tab === 'fb' ? cardFb(s) : cardAll(s, marks)).join('')}</div>` : `<p class="muted sp-empty">${tab === 'own' && d.pending ? 'Загружаю ответы собственников…' : EMPTY[tab]}</p>`}`;
   }
 
   style();   // стили раздела, окна подборки и «Проверить в рекламе» — сразу (share.js подключён только на главной)

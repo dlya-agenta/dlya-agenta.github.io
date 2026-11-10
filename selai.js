@@ -3,7 +3,7 @@
 // Сервер — hub sel_ai {sel_id} (что понял, альтернативы, текст клиенту; ai: true — переписал ИИ, false — по правилам) и sel_ai_make {sel_id, nums, text} → новая подборка ссылкой.
 (() => {
   if (window.SELAI) return;
-  const V = '5.31b1', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  const V = '5.48k4', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   if (!document.querySelector('link[data-selai]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `selai.css?v=${V}`; l.dataset.selai = '1'; document.head.appendChild(l); }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
@@ -66,9 +66,10 @@
   const fbLi = (x, icon) => `<li><span class="sai-n">${icon} № ${x.num}</span> ${esc(x.why)}</li>`;
   const fbList = (xs, icon) => !xs.length ? '<p class="sai-mut">нет</p>' : `<ul class="sai-fb">${xs.slice(0, 4).map(x => fbLi(x, icon)).join('')}</ul>${xs.length > 4
     ? `<details class="sai-det"><summary>ещё ${xs.length - 4}</summary><ul class="sai-fb">${xs.slice(4, 30).map(x => fbLi(x, icon)).join('')}</ul></details>` : ''}`;
-  function card(a, i) {
-    return `<label class="sai-card${a.modern ? ' mod' : ''}"><input type="checkbox" data-num="${a.num}"${i < 6 ? ' checked' : ''}>
-      <span class="sai-ph">${a.photo ? `<img src="${esc(a.photo)}" alt="" loading="lazy">` : ''}<em>${a.photos ? `📷 ${a.photos}` : 'фото нет'}</em>${a.modern ? '<b class="sai-badge">современный ремонт</b>' : ''}</span>
+  // v5.48 H2: pick — «вне рамки» у альтернатив за рамкой агента; галочками заранее отмечены только объекты в рамке (первые 6)
+  function card(a, i, pk) {
+    return `<label class="sai-card${a.modern ? ' mod' : ''}${pk && a.outside_frame ? ' out' : ''}"><input type="checkbox" data-num="${a.num}"${i < 6 && !(pk && a.outside_frame) ? ' checked' : ''}>
+      <span class="sai-ph">${a.photo ? `<img src="${esc(a.photo)}" alt="" loading="lazy">` : ''}<em>${a.photos ? `📷 ${a.photos}` : 'фото нет'}</em>${a.modern ? '<b class="sai-badge">современный ремонт</b>' : ''}${pk && a.outside_frame ? '<b class="sai-badge out">вне рамки</b>' : ''}</span>
       <span class="sai-ci"><span class="sai-pr">${esc(mln(a.price_client || a.price))}${a.price_client && a.price && a.price_client !== a.price ? ` <small>собств. ${esc(mln(a.price))}</small>` : ''}</span>
         <span class="sai-pa">${esc([a.rooms === 0 ? 'студия' : a.rooms != null ? `${a.rooms}к` : '', a.area ? `${n1(a.area)} м²` : '', a.floor ? `${a.floor} эт.` : ''].filter(Boolean).join(' · '))}</span>
         <span class="sai-pl">${esc([a.zk, a.sub, sea(a.sea_m)].filter(Boolean).join(' · '))}</span>
@@ -77,7 +78,7 @@
   }
   function render(b, r, o) {
     state = { r, o };
-    const q = r.quota, alts = r.alts || [];
+    const q = r.quota, alts = r.alts || [], pk = !!o.pick;
     b.innerHTML = `
       <section class="sai-s"><h3>Что понял помощник ${r.ai ? '<span class="sai-tag ai">ИИ</span>' : '<span class="sai-tag">по правилам</span>'}</h3>
         ${!r.ai ? `<p class="sai-note">${r.ai_error ? 'ИИ сейчас не отвечает — ' : ''}разбор сделан по правилам: бюджет, районы, ремонт и вопросы клиента. </p>` : ''}
@@ -89,22 +90,38 @@
           <a class="sai-btn" href="${esc(agentLink(o, 'q'))}">✉️ Спросить собственников</a>` : ''}
       </section>
       <section class="sai-s"><h3>Предлагаю посмотреть <span class="sai-mut">(${alts.length})</span></h3>
-        ${alts.length ? `<p class="sai-mut">Сначала — с современным ремонтом, затем ближе к бюджету. Отмечены первые 6 — снимите или добавьте галочки.</p><div class="sai-grid">${alts.map(card).join('')}</div>`
+        ${alts.length ? `<p class="sai-mut">Сначала — с современным ремонтом, затем ближе к бюджету. Отмечены первые 6 — снимите или добавьте галочки.</p><div class="sai-grid">${alts.map((a, i) => card(a, i, pk)).join('')}</div>`
           : '<p class="sai-note">Похожих вариантов в базе сейчас нет. Попробуйте позже или расширьте район в новой подборке.</p>'}
       </section>
       <section class="sai-s"><h3>Текст клиенту</h3>
         <textarea class="sai-ta" rows="10" spellcheck="true">${esc(r.text_client)}</textarea>
-        <div class="sai-row sai-act">${alts.length ? '<button class="sai-btn pri" type="button" data-make>📄 Собрать доп. подборку <span data-cnt></span></button>' : ''}
+        <div class="sai-row sai-act">${alts.length && pk ? '<button class="sai-btn pri" type="button" data-add>➕ Добавить клиенту <span data-cnt></span></button>' : ''}
+          ${alts.length ? `<button class="sai-btn${pk ? '' : ' pri'}" type="button" data-make>📄 Собрать доп. подборку${pk ? '' : ' <span data-cnt></span>'}</button>` : ''}
           <button class="sai-btn" type="button" data-copy>📋 Скопировать текст</button></div>
         <div class="sai-done" hidden></div>
         ${q ? `<p class="sai-mut sai-q2">Разборов в этом месяце: ${q.used} из ${q.lim >= 9999 ? '∞' : q.lim}</p>` : ''}
       </section>`;
-    const cnt = () => { const n = b.querySelectorAll('.sai-card input:checked').length; const c = b.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`; const mk = b.querySelector('[data-make]'); if (mk) mk.disabled = !n; };
+    const cnt = () => { const n = b.querySelectorAll('.sai-card input:checked:not(:disabled)').length; const c = b.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`; const mk = b.querySelector('[data-make]'); if (mk) mk.disabled = !n; const ad = b.querySelector('[data-add]'); if (ad) ad.disabled = !n; };
     b.querySelectorAll('.sai-card input').forEach(i => i.onchange = cnt); cnt();
     b.querySelectorAll('.sai-ph img').forEach(im => im.addEventListener('error', () => im.remove(), { once: true }));   // без onerror в разметке — его режет CSP сайта
     b.querySelector('[data-fresh]')?.addEventListener('click', () => run(o, true));
     b.querySelector('[data-copy]').onclick = () => copy(b.querySelector('.sai-ta').value);
     b.querySelector('[data-make]')?.addEventListener('click', () => make(b, o));
+    b.querySelector('[data-add]')?.addEventListener('click', () => addToClient(b, o));
+  }
+  // v5.48 H2: ссылка «Клиент выбирает сам» — выбранные альтернативы в «Советует агент» (hub sel_ai_add); страница агента перечитывается по событию selai:added
+  async function addToClient(b, o) {
+    const boxes = [...b.querySelectorAll('.sai-card input:checked:not(:disabled)')], nums = boxes.map(i => +i.dataset.num), btn = b.querySelector('[data-add]');
+    if (!nums.length) return toast('Отметьте варианты');
+    btn.disabled = true;
+    try {
+      const r = await hub('sel_ai_add', { sel_id: o.sel_id, nums });
+      boxes.forEach(i => { i.disabled = true; i.closest('.sai-card').classList.add('added'); });
+      toast(r.added ? `Добавлено в «Советует агент»: ${r.added}` : 'Уже в «Советует агент»');
+      document.dispatchEvent(new CustomEvent('selai:added', { detail: { sel_id: o.sel_id, added: r.added ?? 0 } }));
+    } catch (e) { toast(e.message); }
+    const n = b.querySelectorAll('.sai-card input:checked:not(:disabled)').length; btn.disabled = !n;
+    const c = btn.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`;
   }
   async function copy(t) {
     try { await navigator.clipboard.writeText(t); toast('Скопировано'); }
@@ -144,7 +161,7 @@
       const sel_id = Number(o.sel_id) || 0;
       if (!sel_id) { toast('Нет номера подборки'); return; }
       shell(o.title || '');
-      run({ sel_id, t: o.t ? String(o.t) : '', title: o.title || '' });
+      run({ sel_id, t: o.t ? String(o.t) : '', title: o.title || '', pick: !!o.pick });
     },
     close,
   };

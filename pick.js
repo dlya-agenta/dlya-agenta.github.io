@@ -72,6 +72,7 @@
           </form>
         </details>
         <p class="p-count muted" id="p-count" aria-live="polite"></p>
+        <button type="button" class="btn soft s-allmap p-mapbtn" id="p-mapbtn" data-pk-map hidden>🗺 На карте</button>
         <div class="s-list" id="p-list"></div>
         <div class="p-more"><button type="button" class="btn soft" id="p-more" hidden>Показать ещё</button></div>
       </section>
@@ -83,7 +84,7 @@
     const fit = () => requestAnimationFrame(S().fit);
     const nChosen = () => all.filter(isChosen).length;
     const counts = () => { const el = $('#p-nc'); if (el) el.textContent = nChosen(); };
-    const mapBtn = '<button type="button" class="btn soft s-allmap" data-map="all">🗺 Объекты на карте</button>';
+    const mapBtn = '<button type="button" class="btn soft s-allmap" data-map="all">🗺 На карте</button>';
     function drawChosen() {
       const l = all.filter(isChosen);
       $('#p-c').innerHTML = l.length ? `${mapBtn}<div class="s-list">${cardsHtml(l)}</div>` : '<div class="p-empty"><p>Пока ничего не отмечено.</p><p class="muted">Нажмите «⭐ Хочу посмотреть» или «❓ Вопрос» у объекта во вкладке «Подбор» — он появится здесь, а агент увидит ваш выбор.</p></div>';
@@ -124,7 +125,7 @@
     async function search(more) {
       if (busy) return; lock(true);
       const cnt = $('#p-count'), btn = $('#p-more');
-      if (!more) { off = 0; shownList = []; $('#p-list').innerHTML = '<div class="s-load"><div class="spinner"></div></div>'; cnt.textContent = 'Ищу…'; btn.hidden = true; }
+      if (!more) { off = 0; shownList = []; if ($('#p-mapbtn')) $('#p-mapbtn').hidden = true; $('#p-list').innerHTML = '<div class="s-load"><div class="spinner"></div></div>'; cnt.textContent = 'Ищу…'; btn.hidden = true; }
       try {
         const r = await call('pick_search', { f: filter(), offset: off, sort: fm().elements.sort.value });
         const items = r.items.map(put); shownList.push(...items); off += r.page || 12;
@@ -133,6 +134,7 @@
         cnt.textContent = !r.count ? '' : r.count > r.shown ? `Показано ${r.shown} из ${r.count} — сузьте фильтр или спросите агента` : `Найдено: ${r.count}`;
         if (!r.count) list.innerHTML = '<div class="p-empty"><p>Ничего не найдено.</p><p class="muted">Измените фильтр или спросите агента.</p></div>';
         btn.hidden = shownList.length >= r.shown; counts();
+        const mb = $('#p-mapbtn'); if (mb) { mb.hidden = !shownList.length; mb.textContent = shownList.length > 24 ? '🗺 На карте (первые 24)' : '🗺 На карте'; }
       } catch (e) { if (!more && $('#p-list')) { $('#p-list').innerHTML = ''; cnt.textContent = ''; } fail(e); }
       finally { lock(false); }
     }
@@ -174,6 +176,7 @@
     root.addEventListener('click', e => {
       const c0 = e.target.closest('.s-card[data-num]'); if (c0 && e.target.closest('.s-ph img, [data-nav], .s-more, [data-map], [data-pm]')) touch(c0);
       const tb = e.target.closest('[data-tab]'); if (tb) return tab(tb.dataset.tab);
+      if (e.target.closest('[data-pk-map]')) return S().openMap(shownList.slice(0, 24).map(x => x.num));   // v5.48 H2: найденное в «Подборе» — точки по одному (улица, адрес скрыт всегда)
       const m = e.target.closest('[data-pm]');
       if (m) {
         const c = m.closest('.s-card'), x = store.get(+c.dataset.num);
@@ -246,6 +249,7 @@
     const byNum = new Map();
     const index = () => { byNum.clear(); (d.items ?? []).forEach(x => byNum.set(x.num, x)); };
     index();
+    S().setData(d);   // v5.48 H2: s.js рисует карту агента (sel_map_agent) по d.id и d.items
     const hasQ = x => !!x.ccomment && x.cmark !== 'no';
     const lists = () => {
       const chosen = d.chosen ?? [], rejected = (d.items ?? []).filter(x => x.cmark === 'no');
@@ -317,6 +321,8 @@
             ${live() ? '<button type="button" class="btn soft" data-pk="close">Закрыть сейчас</button>' : ''}
             ${nq ? `<button type="button" class="btn soft" data-pk="ask">Передать вопросы собственникам (${nq})</button>` : ''}
             ${L.chosen.length ? '<button type="button" class="btn soft" data-pk="sel">Сделать подборку из выбранного</button>' : ''}
+            ${L.chosen.length || L.rejected.length ? '<button type="button" class="btn soft" data-pk="ai">🤖 Позвать ИИ</button>' : ''}
+            ${(d.items ?? []).length ? '<button type="button" class="btn soft" data-pk="map">🗺 Все на карте</button>' : ''}
           </div>
           ${live() ? `<div class="pk-sendbox"><span class="pk-lab">Отправить клиенту</span>${sendHtml(clientLink(), d.until)}</div>` : '<p class="muted">Ссылка закрыта — клиент видит «срок закончился». Продлите её, чтобы отправить клиенту снова.</p>'}
           <details class="pk-more"><summary>Ещё действия</summary><div class="pk-acts2">
@@ -340,7 +346,16 @@
     }
 
     // ---------- данные
-    async function reload() { const r = await call('sel_agent'); Object.assign(d, r); soft(); loadMarks(); }
+    async function reload() { const r = await call('sel_agent'); Object.assign(d, r); S().mapReset(); soft(); loadMarks(); }
+    // v5.48 H2: «🤖 Позвать ИИ» — окно помощника (selai.js); добавленное в «Советует агент» → страница перечитывается
+    async function aiOpen() {
+      const arg = { sel_id: d.id, t, pick: true };
+      if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+      if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
+    }
+    if (window.__pkAdded) document.removeEventListener('selai:added', window.__pkAdded);   // один обработчик на страницу
+    window.__pkAdded = e => { if (e.detail?.sel_id === d.id) reload().catch(() => {}); };
+    document.addEventListener('selai:added', window.__pkAdded);
     async function loadMarks() {
       const nums = (d.chosen ?? []).filter(hasQ).map(x => x.num); if (!nums.length) return;
       try { const r = await call('own_marks', { _fn: 'auto', nums }); marks = r.marks ?? {}; soft(); } catch { /* ответы собственников — без них страница работает */ }
@@ -524,6 +539,8 @@
         }
       }
       else if (k === 'ask') ask();
+      else if (k === 'ai') aiOpen();
+      else if (k === 'map') S().openMap(null);
       else if (k === 'edit') edit();
       else if (k === 'client') clientLinkDlg();
       else if (k === 'add') addDlg();

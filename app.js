@@ -1367,8 +1367,8 @@ async function onSelPage(e) {
   const del = e.target.closest('[data-del]'); if (del) { if (dots) dots.open = false; return selDelAsk(+del.dataset.del); }
   const ai = e.target.closest('[data-selai]');
   if (ai) {
-    const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null };
-    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.43.1'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null, ...(ai.dataset.pick ? { pick: true } : {}) };
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
     if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
   }
 }

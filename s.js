@@ -220,10 +220,18 @@
     if (!window.MAPBASE) await loadJs('mapbase.js?v=5.31e1');
   }
   function mapClose() { const m = $('#s-map'); if (!m) return; mapObj?.remove(); mapObj = null; m.remove(); document.body.classList.remove('s-lock'); }
-  async function mapOpen(num) {
+  // v5.48 H2: sel — номер объекта, список номеров (ссылка pick: «Подбор» — найденное клиентом) или null (все). Свои точки у sel_map только для выбранных/советов,
+  // найденное в поиске сервер отдаёт по одному num (лимит 24, по 4 запроса сразу); ответ со списком не кэшируем
+  const PK_COLORS = { yes: ['#d99a00', '⭐ хочет посмотреть'], q: ['#2f6fdf', '❓ вопрос'], no: ['#c0392b', '✗ не подходит'], adv: ['#7b3fe4', '🔗 советует агент'], none: ['#8a97a3', 'без отметки'] };
+  const pkKind = p => p.mark === 'yes' ? 'yes' : p.mark === 'no' ? 'no' : p.q ? 'q' : p.advised ? 'adv' : 'none';
+  let mapSeq = 0;
+  async function mapOpen(sel) {
+    const my = ++mapSeq;
+    if (Array.isArray(sel) && sel.length === 1) sel = sel[0];
+    const list = Array.isArray(sel) ? [...new Set(sel)].slice(0, 24) : null, num = list ? null : sel;
     mapClose();
     document.body.insertAdjacentHTML('beforeend', `<div class="s-map" id="s-map" role="dialog" aria-modal="true" aria-label="Карта"><div class="s-map-box">
-      <div class="s-map-head"><b>${num ? `📍 № ${num} на карте` : '🗺 Объекты подборки на карте'}</b><button type="button" class="s-x2" data-mapx aria-label="Закрыть карту">✕</button></div>
+      <div class="s-map-head"><b>${num ? `📍 № ${num} на карте` : list ? `🗺 Найденные объекты на карте (${list.length})` : '🗺 Объекты подборки на карте'}</b><button type="button" class="s-x2" data-mapx aria-label="Закрыть карту">✕</button></div>
       <div class="s-map-el" id="s-map-el"><p class="muted s-map-wait">Загружаю карту…</p></div><p class="s-map-note muted" id="s-map-note" aria-live="polite"></p></div></div>`);
     document.body.classList.add('s-lock');
     // телефон: закрыть свайпом вниз по шапке окна
@@ -233,15 +241,23 @@
     try {
       // v5.48 H (M2): ссылка pick — объект из поиска клиента (ещё не в ответе sel_map) просим отдельно с num; такой ответ не кэшируем — «все на карте» остаются выбранными
       const pickNum = data?.kind === 'pick' && !agentMode && num && !(mapData?.points.some(p => p.num === num));
-      const [, md] = await Promise.all([leaflet(), !pickNum && mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call(agentMode?'sel_map_agent':'sel_map',agentMode?{id:data.id}:pickNum?{num}:{})]);
-      if (!pickNum) mapData = md;
+      const [, md] = await Promise.all([leaflet(), list && data?.kind === 'pick' && !agentMode ? { points: [] } : !pickNum && mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call(agentMode?'sel_map_agent':'sel_map',agentMode?{id:data.id}:pickNum?{num}:{})]);
+      if (my !== mapSeq) return;
+      if (!pickNum && !list) mapData = md;
       if (!$('#s-map')) return;
-      drawMap(num, md);
+      let draw = md;
+      if (list && data?.kind === 'pick' && !agentMode) {   // одним запросом: сервер оставит только разрешённые номера, улицы без адреса
+        const r = await call('sel_map', { nums: list }).catch(() => null);
+        if (my !== mapSeq || !$('#s-map')) return;
+        draw = r ? { ...r, partial: list.some(n => !(r.points ?? []).some(p => p.num === n)) } : { points: [], partial: true };
+      }
+      drawMap(list ?? num, draw);
     } catch (e) { const el = $('#s-map-el'); if (el) el.innerHTML = `<p class="muted s-map-wait">${esc(e.message || 'Карта не загрузилась')}</p>`; }
   }
-  function drawMap(num, md = mapData) {
+  function drawMap(sel, md = mapData) {
     const el = $('#s-map-el'); el.innerHTML = '';
-    const byNum = new Map(data.items.map(x => [x.num, x])), pts = md.points.filter(p => !num || p.num === num);
+    const list = Array.isArray(sel) ? sel : null, num = list ? null : sel, pk = data?.kind === 'pick' && agentMode;
+    const byNum = new Map(data.items.map(x => [x.num, x])), pts = md.points.filter(p => list ? list.includes(p.num) : !num || p.num === num);
     const ok = pts.filter(p => p.lat != null);
     mapObj = L.map(el, { zoomControl: true, attributionControl: false, maxZoom: 19 }).setView([43.585, 39.723], 11);   // центр сразу: круги и точки без него не рисуются
     // v5.31e: источник карты — свёрнутый «ⓘ», как на главной (MAPBASE сам подставит «Яндекс Карты», если подложка Яндекса)
@@ -266,16 +282,16 @@
     for (const p of ok) { const k = p.kind === 'street' ? `${p.lat},${p.lon}` : `n${p.num}`; groups.set(k, [...(groups.get(k) ?? []), p]); }
     const layers = [];
     for (const g of groups.values()) {
-      const p = g[0], list = g.map(q => `№ ${q.num} — ${info(byNum.get(q.num))}`).join('<br>');
+      const p = g[0], lines = g.map(q => `№ ${q.num}${pk ? ` ${PK_COLORS[pkKind(q)][1]}` : ''} — ${info(byNum.get(q.num))}`).join('<br>');
       if (p.kind === 'street') {
         // v5.31f (Алексей 06.11): адрес скрыт — без круга и без «точный адрес — у агента»: одна отметка на улице (~200 м от дома, сервер), подпись — улица и микрорайон
-        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
-          .bindPopup(`<div class="s-pop">${p.label ? `<p class="s-pop-st">${esc(p.label)}</p>` : ''}${list}</div>`, POPO);
+        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: pk ? PK_COLORS[pkKind(p)][0] : acc, fillOpacity: 1 }).addTo(mapObj)
+          .bindPopup(`<div class="s-pop">${p.label ? `<p class="s-pop-st">${esc(p.label)}</p>` : ''}${lines}</div>`, POPO);
         if (p.label) m.bindTooltip(esc(p.label), { direction: 'top' });
         layers.push(m);
       } else {
-        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: acc, fillOpacity: 1 }).addTo(mapObj)
-          .bindPopup(`<div class="s-pop">${list}<br><small>${esc(p.label || '')}</small></div>`, POPO);
+        const m = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 2, fillColor: pk ? PK_COLORS[pkKind(p)][0] : acc, fillOpacity: 1 }).addTo(mapObj)
+          .bindPopup(`<div class="s-pop">${lines}<br><small>${esc(p.label || '')}</small></div>`, POPO);
         layers.push(m);
       }
     }
@@ -284,10 +300,15 @@
       if (layers.length === 1) mapObj.setView(b.getCenter(), 16); else mapObj.fitBounds(b.pad(.15), { maxZoom: 15 });
       if (num && layers.length === 1) layers[0].openPopup();
     }
-    if (data?.kind === 'pick' && num && !pts.length) pts.push({ num, kind: 'none' });   // v5.48 H: объект из поиска ещё не в ответе sel_map — «уточните у агента»
+    if (data?.kind === 'pick' && !agentMode) for (const n of list ?? (num ? [num] : [])) if (!pts.some(p => p.num === n)) pts.push({ num: n, kind: 'none' });   // v5.48 H: объект из поиска ещё не в ответе sel_map — «уточните у агента»
     const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
+    if (pk && ok.length) {   // v5.48 H2: агенту — легенда цветов по отметкам клиента
+      const used = new Set(ok.map(pkKind));
+      $('#s-map-el').insertAdjacentHTML('afterend', `<ul class="s-map-leg" aria-label="Цвета точек">${Object.entries(PK_COLORS).filter(([k]) => used.has(k)).map(([k, v]) => `<li><i style="background:${v[0]}"></i>${v[1]}</li>`).join('')}</ul>`);
+    }
     $('#s-map-note').textContent = [   // v5.31e3: надпись «Агент скрыл точные адреса» убрана (Алексей 05.11)
       later ? `Расположение ещё ${later} ${plural(later, 'объекта', 'объектов', 'объектов')} уточняется — откройте карту через минуту.` : '',
+      md.partial ? 'Часть точек не загрузилась.' : '',
       none.length ? `${none.length === 1 ? `Где находится № ${none[0]}` : `Где находятся № ${none.join(', ')}`} — уточните у агента.` : ''].filter(Boolean).join(' ');
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#s-map')) mapClose(); });
@@ -321,7 +342,7 @@
   });
 
   // v5.48 H: pick.js рисует свою страницу, но карточку, карту и просмотр фото берёт отсюда. setData — общий список объектов страницы (индекс = data-i у фото)
-  window.SEL = { cardHtml: (x, i, pk) => card(x, i, 0, pk), openMap: n => mapOpen(Array.isArray(n) ? (n.length === 1 ? n[0] : null) : n), mapReset: () => { mapData = null; },
+  window.SEL = { cardHtml: (x, i, pk) => card(x, i, 0, pk), openMap: n => mapOpen(n), mapReset: () => { mapData = null; },
     setData: d => { data = d; }, esc, money, day, plural, intl, toast, marked: () => {}, fit: () => document.querySelectorAll('.s-descr').forEach(p => { if (p.scrollHeight - p.clientHeight > 10) p.nextElementSibling.hidden = false; }) };
   addEventListener('hashchange', () => location.reload());   // вставили другую ссылку в ту же вкладку
   if (agentMode) AGENT();
@@ -793,7 +814,7 @@
       const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
       if (window.SELAI?.open) return window.SELAI.open(arg);
       toast('Помощник загружается…');
-      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.43.1'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); });
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
 
