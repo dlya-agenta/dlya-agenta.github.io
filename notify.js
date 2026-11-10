@@ -155,6 +155,8 @@ window.NOTIFY = (() => {
     for (const n of (r.items ?? []).reverse()) {
       if (shown.has(n.id)) continue;
       shown.add(n.id);
+      // v5.49 (п. 4): ответ ИИ-Агента в диалоге, который открыт на этой странице (окно или карточка «Готово · Посмотреть»), — второй раз не показываем
+      if (n.kind === 'helper') { let dlg = null; try { dlg = JSON.parse(sessionStorage.getItem('agent'))?.dlg; } catch { /* */ } if (dlg && String(dlg) === String(n.ref)) { ui.call('notes_seen', { ids: [n.id] }).catch(() => {}); continue; } }
       const c = document.createElement('div');
       c.className = 'note-card'; c.dataset.id = n.id;
       if (n.kind === 'task' && n.ref && window.CRM) {   // напоминание о задаче (шаг 3.4): выполнено, +1 час, завтра, открыть

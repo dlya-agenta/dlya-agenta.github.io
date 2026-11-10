@@ -267,6 +267,21 @@
     shell();
     const s = S.get();
     if (s.open) open({ focus: false });   // был открыт на прошлой странице — открыт и здесь, тот же диалог
+    // v5.49 (п. 11): «виджет без приложения» — ярлыки иконки (manifest shortcuts), «Команды» iPhone/Mac с Siri:
+    // ?agent=open — окно Агента; ?agent=voice — кнопка «Нажмите и говорите» (микрофон браузер включает только по нажатию);
+    // ?agent=ask&q=<текст> — сразу запрос (в фоне, ответ карточкой «Посмотреть»). Параметры убираются из адреса.
+    const u = new URLSearchParams(location.search), how = u.get('agent');
+    if (how && !document.documentElement.classList.contains('agent')) {
+      const qv = (u.get('q') || '').slice(0, 1000).trim();
+      u.delete('agent'); u.delete('q'); history.replaceState(null, '', location.pathname + (u.toString() ? '?' + u : '') + location.hash);
+      if (how === 'ask' && qv) setTimeout(() => { shell(); panel(); load(); bg(qv); }, 600);
+      else if (how === 'voice' && window.VOICE?.ok) setTimeout(() => {
+        const d = document.createElement('div'); d.id = 'ag-voice'; d.className = 'ag-card ag-note agent-only';
+        d.innerHTML = `<button type="button" class="ag-x" aria-label="Закрыть">✕</button><b>${SPARK} ИИ-Агент слушает по нажатию</b><p>Скажите задачу: «подбери 2к до 15 млн у моря», «поставь показ на завтра в 15:00».</p><div class="ag-row"><button type="button" class="btn primary" data-go>🎤 Нажмите и говорите</button></div>`;
+        document.body.appendChild(d); d.onclick = e => { if (e.target.closest('[data-go]')) { d.remove(); listen(); } else if (e.target.closest('.ag-x')) d.remove(); };
+      }, 600);
+      else open();
+    }
     setTimeout(poll, 6000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
