@@ -228,7 +228,7 @@
       if (e.target.closest('[data-lp-test]')) { lawPaid(true); return; }
       if (e.target.closest('[data-photo-test]')) { try { const x = await H.call('adm_photo_test'); H.toast(x.ok ? `Ключ BetterToken «${x.name}» работает · всего списано ${x.used_rub} ₽` : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.50
       if (e.target.closest('[data-night-save]')) { const v = id => document.getElementById(id);
-        try { await H.call('adm_night_set', { photo_ai: { on: v('na-on').checked, kinds: [...document.querySelectorAll('[data-na-kind]:checked')].map(x => x.dataset.naKind), days: v('na-days').value, max_rub: v('na-rub').value, parallel: v('na-par').value, min_sim: v('na-sim').value, check_marks: v('na-marks').checked },
+        try { await H.call('adm_night_set', { photo_ai: { on: v('na-on').checked, kinds: [...document.querySelectorAll('[data-na-kind]:checked')].map(x => x.dataset.naKind), days: v('na-days').value, max_rub: v('na-rub').value, parallel: v('na-par').value, min_sim: v('na-sim').value },
           phones: { on: v('np-on').checked, target: v('np-target').value, max: v('np-max').value, until: v('np-until').value } }); H.toast('Настройки ночи сохранены — действуют со следующей ночи'); night(); } catch (er) { H.toast(er.message, 6000); } return; }
       if (e.target.closest('[data-speech-test]')) { try { const x = await H.call('adm_speech_test'); H.toast(x.ok ? 'Ключ SpeechKit принят — голосовые в боте работают' : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.46a
       const lpOn = e.target.closest('[data-lp-on]');
@@ -265,7 +265,7 @@
       <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0">
         <label class="hub-chk"><input type="checkbox" id="na-on"${p.on !== false ? ' checked' : ''}> Улучшать фото ИИ (gpt-image-2.5-flare, 1K, ~0,86 ₽ за фото)</label>
         <span style="display:flex;flex-wrap:wrap;gap:4px 16px">Какие объекты: ${x.kinds.map(k => `<label class="hub-chk"><input type="checkbox" data-na-kind="${esc(k)}"${(p.kinds ?? []).includes(k) ? ' checked' : ''}> ${esc(k)}</label>`).join('')}</span>
-        <label class="hub-chk"><input type="checkbox" id="na-marks"${p.check_marks !== false ? ' checked' : ''}> Фото с водяными знаками и логотипами не править</label>
+        <small class="muted">Фото с водяными знаками, логотипами и баннерами ИИ не правит — остаётся исходное (всегда).</small>
       </div>
       <div class="hub-form">
         <label class="field">Новые — за последние, дней<input type="number" id="na-days" value="${esc(p.days ?? 3)}" min="1" max="14"></label>
