@@ -209,8 +209,21 @@
   }
 
   window.AGENT = { open, ask, listen, minimize, rate, searched, command };
+  // кнопки не мешают вводу: на странице Помощника (там своё поле с 🎤) — скрыты; пока печатают в поле (на телефоне клавиатура) или
+  // открыто окно «Помощь» — тоже скрыты
+  const H = document.documentElement;
+  const onHelper = () => /(^|\/)hub\.html$/.test(location.pathname) && /^#?(helper(=|$)|$)/.test(location.hash.replace(/^#/, '#'));
+  const sync = () => H.classList.toggle('ag-here', onHelper());
+  addEventListener('hashchange', sync);
+  const typing = el => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file|color)$/i.test(el.type))) && !el.closest('#ag');
+  document.addEventListener('focusin', e => { if (typing(e.target)) H.classList.add('ag-typing'); });
+  document.addEventListener('focusout', () => setTimeout(() => { if (!typing(document.activeElement)) H.classList.remove('ag-typing'); }, 150));
+  // телефон: листают вниз — кнопки уезжают за край, вверх — возвращаются (не закрывают карточки при прокрутке)
+  let lastY = scrollY;
+  addEventListener('scroll', () => { const y = scrollY, d = y - lastY; if (Math.abs(d) < 12) return; H.classList.toggle('ag-down', d > 0 && y > 200); lastY = y; }, { passive: true });
   function boot() {
     if (document.documentElement.classList.contains('embed')) return;
+    sync();
     shell();
     const s = S.get();
     if (s.open) open({ focus: false });   // был открыт на прошлой странице — открыт и здесь, тот же диалог

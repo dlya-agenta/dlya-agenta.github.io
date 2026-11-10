@@ -58,3 +58,7 @@ html.ag-on #ag-fabs { right: 458px; }
 .ag-vote small { opacity: .75; }
 @media (max-width: 760px) { .ag-card { left: 12px; right: 12px; width: auto; bottom: calc(150px + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .ag-mic.on, .ag-spin { animation: none; } }
+
+/* не мешать вводу: страница Помощника (своё поле с 🎤), открыто «Помощь»; на телефоне — пока печатают в поле */
+html.ag-here #ag-fabs, html.sup-on #ag-fabs { display: none; }
+@media (max-width: 760px) { html.ag-typing #ag-fabs { display: none; } #ag-fabs { transition: transform .25s ease; } html.ag-down #ag-fabs { transform: translateX(90px); } }
