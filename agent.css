@@ -11,9 +11,16 @@ body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(130px + env(safe-area-in
 .ag-fab .vico, .ag-ico { width: 22px; height: 22px; display: block; }
 .ag-ico { fill: currentColor; }
 .ag-dot { position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: #ffcf33; border: 2px solid #fff; }
+/* телефон: одна компактная кнопка из двух половинок [🎤|✦] в один ряд с «Помощь» — не стопка над карточками */
 @media (max-width: 760px) {
-  .ag-fab { width: 52px; height: 52px; padding: 0; justify-content: center; }
+  #ag-fabs { flex-direction: row; gap: 0; right: 66px; bottom: calc(12px + env(safe-area-inset-bottom)); border-radius: 999px; box-shadow: 0 4px 14px rgba(40, 30, 90, .28); }
+  body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .ag-fab { width: 46px; height: 44px; padding: 0; justify-content: center; box-shadow: none; }
+  .ag-fab:hover { transform: none; }
+  .ag-mic { border-radius: 999px 0 0 999px; padding-left: 4px; }
+  .ag-open { border-radius: 0 999px 999px 0; padding-right: 4px; }
   .ag-fab b { display: none; }
+  .ag-fab .vico, .ag-ico { width: 20px; height: 20px; }
 }
 html.ag-on #ag-fabs .ag-open { display: none; }
 
@@ -61,4 +68,4 @@ html.ag-on #ag-fabs { right: 458px; }
 
 /* не мешать вводу: страница Помощника (своё поле с 🎤), открыто «Помощь»; на телефоне — пока печатают в поле */
 html.ag-here #ag-fabs, html.sup-on #ag-fabs { display: none; }
-@media (max-width: 760px) { html.ag-typing #ag-fabs { display: none; } #ag-fabs { transition: transform .25s ease; } html.ag-down #ag-fabs { transform: translateX(90px); } }
+@media (max-width: 760px) { html.ag-typing #ag-fabs { display: none; } #ag-fabs { transition: transform .25s ease; } html.ag-down #ag-fabs, html.ag-down .sup-fab { transform: translateX(170px); } .sup-fab { transition: transform .25s ease; } }
