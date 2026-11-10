@@ -16,8 +16,16 @@
   let tok = null;
   try { tok = JSON.parse(localStorage.getItem('token')); } catch { /* приватный режим */ }
 
+  // v5.48 H: метка браузера для ссылки «Клиент выбирает сам» (≤ 2 устройства на ссылку): 24 случайных знака в localStorage; на остальных подборках сервер её не читает
+  let memDev = null;
+  const devId = () => {
+    try { const v = localStorage.getItem('pick_dev'); if (/^[a-z0-9]{24}$/.test(v || '')) return v; } catch { /* приватный режим */ }
+    memDev = memDev || Array.from(crypto.getRandomValues(new Uint8Array(24)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+    try { localStorage.setItem('pick_dev', memDev); } catch { /* только до закрытия страницы */ }
+    return memDev;
+  };
   async function call(action, { _fn, ...extra } = {}) {
-    const body = JSON.stringify({ action, t, ...(selId ? { id: selId } : {}), ...(typeof tok === 'string' ? { auth: { token: tok } } : {}), ...extra });
+    const body = JSON.stringify({ action, t, dev: devId(), ...(selId ? { id: selId } : {}), ...(typeof tok === 'string' ? { auth: { token: tok } } : {}), ...extra });
     const url = _fn === 'auto' ? String(window.API).replace(/\/web$/, '/auto') : window.API;
     for (let i = 0; ; i++) {   // первое соединение иногда обрывается — один повтор
       try {
@@ -105,10 +113,10 @@
     document.addEventListener('mouseout', e => { const g = e.target.closest?.('.s-gal'); if (g && !g.contains(e.relatedTarget) && +g.dataset.k) { g.dataset.k = 0; g.querySelector('.s-ph').scrollTo({ left: 0, behavior: 'instant' }); } });
   }
 
-  function card(x, i, n) {
+  function card(x, i, n, pk) {   // pk — карточка ссылки «Клиент выбирает сам» (pick.js): свои кнопки ⭐ ✗ ❓ и «Ответ агента»
     const ph = gal(x.photos, i);
     const tags = [...x.tags, x.sea_m ? `≈ ${seaTxt(x.sea_m)} до моря` : null].filter(Boolean);
-    return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}" data-num="${x.num}">${ph}
+    return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}${pk ? ' p-card' : ''}" data-num="${x.num}">${ph}
       <div class="s-body">
         <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
         <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}${data?.kind === 'excl' ? '' : `<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button>`}</div>
@@ -116,18 +124,28 @@
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
         ${x.video ? `<video class="s-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
         ${x.descr ? `<p class="s-descr">${descrHtml(x.descr)}</p><button type="button" class="btn ghost s-more" hidden>Развернуть</button>` : ''}
-        <div class="s-fb">
+        ${pk ? pickFb(x) : `<div class="s-fb">
           <div class="s-marks" role="group" aria-label="Подходит ли объект">
             <button type="button" class="s-yes" data-mark="yes" aria-pressed="${x.mark === 'yes'}">✓ Подходит</button>
             <button type="button" class="s-no" data-mark="no" aria-pressed="${x.mark === 'no'}">✗ Не подходит</button>
           </div>
           <input class="s-cm" type="text" maxlength="300" value="${esc(x.comment)}" placeholder="Напишите, что нравится, а что нет" aria-label="Комментарий к объекту ${i + 1}" enterkeyhint="done">
           <small class="s-st muted" aria-live="polite"></small>
-        </div>
-        <small class="muted s-no-num">${i + 1} из ${n} · № ${x.num}</small>
+        </div>`}
+        <small class="muted s-no-num">${pk ? '' : `${i + 1} из ${n} · `}№ ${x.num}</small>
       </div></article>`;
   }
 
+  // кнопки клиента на ссылке pick: ⭐ «Хочу посмотреть» (yes), ✗ «Не подходит» (no), ❓ «Вопрос» (строка до 300 знаков, сохраняется сразу)
+  const pickFb = x => `<div class="s-fb p-fb">
+          <div class="p-marks" role="group" aria-label="Ваш выбор">
+            <button type="button" class="p-yes" data-pm="yes" aria-pressed="${x.mark === 'yes'}">⭐ Хочу посмотреть</button>
+            <button type="button" class="p-no" data-pm="no" aria-pressed="${x.mark === 'no'}">✗ Не подходит</button>
+            <button type="button" class="p-ask" data-pm="q" aria-pressed="${!!x.comment}" aria-expanded="${!!x.comment}">❓ Вопрос</button>
+          </div>
+          <div class="p-q"${x.comment ? '' : ' hidden'}><textarea class="p-cm" rows="2" maxlength="300" placeholder="Напишите вопрос по этому объекту — до 300 знаков" aria-label="Вопрос по объекту № ${x.num}" enterkeyhint="done">${esc(x.comment)}</textarea><small class="s-st muted" aria-live="polite"></small></div>
+          ${x.answer ? `<div class="p-ans"><b>Ответ агента</b><p>${esc(x.answer)}</p></div>` : ''}
+        </div>`;
   let data = null;
   function render(d) {
     data = d;
@@ -213,15 +231,17 @@
     hd.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
     hd.addEventListener('touchend', e => { if (y0 != null && e.changedTouches[0].clientY - y0 > 70) mapClose(); y0 = null; });
     try {
-      const [, md] = await Promise.all([leaflet(), mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call(agentMode?'sel_map_agent':'sel_map',agentMode?{id:data.id}:{})]);
-      mapData = md;
+      // v5.48 H (M2): ссылка pick — объект из поиска клиента (ещё не в ответе sel_map) просим отдельно с num; такой ответ не кэшируем — «все на карте» остаются выбранными
+      const pickNum = data?.kind === 'pick' && !agentMode && num && !(mapData?.points.some(p => p.num === num));
+      const [, md] = await Promise.all([leaflet(), !pickNum && mapData && !mapData.points.some(p => p.kind === 'later') ? mapData : call(agentMode?'sel_map_agent':'sel_map',agentMode?{id:data.id}:pickNum?{num}:{})]);
+      if (!pickNum) mapData = md;
       if (!$('#s-map')) return;
-      drawMap(num);
+      drawMap(num, md);
     } catch (e) { const el = $('#s-map-el'); if (el) el.innerHTML = `<p class="muted s-map-wait">${esc(e.message || 'Карта не загрузилась')}</p>`; }
   }
-  function drawMap(num) {
+  function drawMap(num, md = mapData) {
     const el = $('#s-map-el'); el.innerHTML = '';
-    const byNum = new Map(data.items.map(x => [x.num, x])), pts = mapData.points.filter(p => !num || p.num === num);
+    const byNum = new Map(data.items.map(x => [x.num, x])), pts = md.points.filter(p => !num || p.num === num);
     const ok = pts.filter(p => p.lat != null);
     mapObj = L.map(el, { zoomControl: true, attributionControl: false, maxZoom: 19 }).setView([43.585, 39.723], 11);   // центр сразу: круги и точки без него не рисуются
     // v5.31e: источник карты — свёрнутый «ⓘ», как на главной (MAPBASE сам подставит «Яндекс Карты», если подложка Яндекса)
@@ -264,6 +284,7 @@
       if (layers.length === 1) mapObj.setView(b.getCenter(), 16); else mapObj.fitBounds(b.pad(.15), { maxZoom: 15 });
       if (num && layers.length === 1) layers[0].openPopup();
     }
+    if (data?.kind === 'pick' && num && !pts.length) pts.push({ num, kind: 'none' });   // v5.48 H: объект из поиска ещё не в ответе sel_map — «уточните у агента»
     const later = pts.filter(p => p.kind === 'later').length, none = pts.filter(p => p.kind === 'none').map(p => p.num);
     $('#s-map-note').textContent = [   // v5.31e3: надпись «Агент скрыл точные адреса» убрана (Алексей 05.11)
       later ? `Расположение ещё ${later} ${plural(later, 'объекта', 'объектов', 'объектов')} уточняется — откройте карту через минуту.` : '',
@@ -299,10 +320,13 @@
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { cur.k += e.key === 'ArrowRight' ? 1 : -1; show(); }
   });
 
+  // v5.48 H: pick.js рисует свою страницу, но карточку, карту и просмотр фото берёт отсюда. setData — общий список объектов страницы (индекс = data-i у фото)
+  window.SEL = { cardHtml: (x, i, pk) => card(x, i, 0, pk), openMap: n => mapOpen(Array.isArray(n) ? (n.length === 1 ? n[0] : null) : n), mapReset: () => { mapData = null; },
+    setData: d => { data = d; }, esc, money, day, plural, intl, toast, marked: () => {}, fit: () => document.querySelectorAll('.s-descr').forEach(p => { if (p.scrollHeight - p.clientHeight > 10) p.nextElementSibling.hidden = false; }) };
   addEventListener('hashchange', () => location.reload());   // вставили другую ссылку в ту же вкладку
   if (agentMode) AGENT();
   else if (!/^[A-Za-z0-9_-]{22,40}$/.test(t)) fail('В ссылке нет кода подборки — попросите агента прислать её ещё раз.');
-  else call('sel_public').then(render, e => fail(e.message, e.data?.error === 'deleted' ? 'Подборка удалена агентом' : undefined));
+  else call('sel_public').then(d => d.kind === 'pick' && window.PICK ? window.PICK.client(d, call) : render(d), e => window.PICK && e.data?.kind === 'pick' && ['expired', 'device', 'day'].includes(e.data?.error) ? window.PICK.stop(e.data, t) : fail(e.message, e.data?.error === 'deleted' ? 'Подборка удалена агентом' : undefined));
 
   // ---------- v5.20 → v5.23a: страница агента — собственники подборки, ответы, переписка, проверенная подборка ----------
   // Отметки «написал» и ответы — на сервере (auto own_marks / own_mark / own_chat / own_reply), проверка ответов — сервер мессенджеров:
@@ -774,6 +798,7 @@
     }
 
     call('sel_agent').then(async d => {
+      if (d.kind === 'pick' && window.PICK?.agent) return window.PICK.agent(d, call);   // v5.48 H9: ссылка «Клиент выбирает сам» — своя страница агента (pick.js)
       data = d; document.title = `${d.kind === 'excl' ? 'Агенты эксклюзивов' : 'Собственники'} — ${d.title || 'подборка'}`;
       d.items.forEach(x => { if (x.st) marks[x.num] = { st: x.st, wrote: true }; });
       draw();

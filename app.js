@@ -258,7 +258,7 @@ async function start() {
   safe('AVATAR', () => avatar(me.photo));
   safe('PROFILE', () => { PROFILE.use({ call, sheet, toast, logout, photo: avatar, saved: name => { me.name = name; $('#who').textContent = name || me.login; } }); });
   safe('NOTIFY', () => { NOTIFY.start({ call, sheet, toast }, meta); });   // окно уведомлений, Telegram и push в профиле, «На экран Домой» (site/notify.js)
-  safe('CRM', () => { CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, photo: x => photoUrl(x, 0) }, meta); });   // клиенты и задачи (site/crm.js, шаг 3.4)
+  safe('CRM', () => { CRM.use({ call, sheet, closeSheet, toast, openItem, selStart, pickSheet, photo: x => photoUrl(x, 0) }, meta); });   // клиенты и задачи (site/crm.js, шаг 3.4)
   safe('LINKS', () => { window.LINKS?.use({ call, sheet, closeSheet, toast, me: () => me, agent: () => !!me && !me.guest }); });   // v5.23c: связи под карточкой — собственник, подборки, клиенты (site/links.js)
   safe('RK', () => { window.RK?.use({ sheet, closeSheet, toast, auth: () => auth }); });   // «Реклама»: черновики на площадках (site/reklama/rk.js, шаг 4.1)
   safe('ADMIN', () => { ADMIN.use({ call, sheet, toast, setToken: t => { token = t; store.set('token', t); auth = { token: t }; }, saved: x => { if (x?.features) { meta.features = x.features; renderFilters(); } } }); });
@@ -304,6 +304,7 @@ async function start() {
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
   document.querySelectorAll('[data-go="crm"]').forEach(b => b.hidden = !meta.features.crm || me.guest);
+  document.querySelectorAll('[data-go="pick"]').forEach(b => b.hidden = meta.features.pick === false || me.guest);   // v5.48 H9: «🔗 Клиент выбирает сам» (features.pick)
   mgSync();
   // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
@@ -315,6 +316,7 @@ async function start() {
   FUI.help(); renderFilters(); selbar(); applyLay();
   if (!EMBED) search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
+  if (/^#client=\d+$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.openClient(+location.hash.slice(8)); history.replaceState(null, '', location.pathname + location.search); }   // v5.48 H9: «Клиент: Имя» со страницы ссылки
   if (/^#(crm|task=\d+)$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.open(location.hash); }   // напоминание о задаче: …/#task=<id>
   if (/^#rk(=\w+)?$/.test(location.hash) && me.can_rk && !me.guest && window.RK) { sheetGo = 'rk'; RK.open(location.hash); }
   // «📄 Сформировать подборку» из «Моего помощника» (v5.16): объекты уже в store 'sel', комиссия — 'sel_cm'
@@ -324,7 +326,7 @@ async function start() {
     const cm = store.get('sel_cm', null); store.set('sel_cm', null);
     if (cm != null && $('#s-mk')) { $('#s-mk').value = cm; $('#s-mk').dispatchEvent(new Event('input', { bubbles: true })); }
   }   // «Реклама»: …/#rk, #rk=daily
-  if (/^#sels=(all|own|fb|ex|main)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
+  if (/^#sels=(all|own|fb|ex|pick|main)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
   if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
   HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
@@ -1343,6 +1345,15 @@ async function onSelPage(e) {
     toast(add.length > room ? `Добавлено ${Math.max(0, room)} — в подборке до ${MAXSEL} объектов` : 'Объекты выбраны — внизу «📄 В подборку»');
     return;
   }
+  const co = e.target.closest('[data-client-open]'); if (co && meta?.features.crm) { e.preventDefault(); CRM.openClient(+co.dataset.clientOpen); return; }
+  if (window.PICK?.onCopy(e, toast)) return;   // v5.48 H9: «Скопировать» у ссылки «Клиент выбирает сам»
+  const pe = e.target.closest('[data-pext]');
+  if (pe) {
+    pe.disabled = true;
+    try { const r = await call('pick_extend', { id: +pe.dataset.pext }); toast(`Ссылка продлена до ${new Date(r.until).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`); selCache = null; showSelections(selTab); }
+    catch (err) { pe.disabled = false; toast(err.message, 5000); }
+    return;
+  }
   const x = e.target.closest('[data-extend]');
   if (x) {
     x.disabled = true;
@@ -1634,6 +1645,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   }
   if (['sels', 'selhow', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
+  if (g === 'pick') pickSheet({ f });   // v5.48 H9: «🔗 Клиент выбирает сам» — текущий фильтр становится рамкой
   if (g === 'sels') showSelections(b.dataset.tab || 'all');   // v5.23c: «Мои подборки» — своя группа меню: все / ответы собственников / отклики клиентов
   if (g === 'selhow') selHow();
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
@@ -1705,6 +1717,108 @@ function clientUi() {
   b.classList.toggle('on', client.on);
   b.textContent = client.on ? '🖥️ С клиентом ✓' : '🖥️ С клиентом';
 }
+// ---------- v5.48 H9: «🔗 Клиент выбирает сам» — окно создания ссылки (из главной и из карточки клиента CRM) ----------
+// Рамка — то, что берёт сервер: тип, районы/ЖК, комнаты, цена (млн ₽ собственника), площадь. Число объектов в рамке — обычным поиском (k=1, без комиссии):
+// отдельного «только посчитать» нет. Больше 500 — создать нельзя (сервер скажет то же). Цены фильтра главной в режиме «С клиентом» — с комиссией: пересчитываем в цены собственника.
+const PK_MAX = 500;
+const pkFrame = (src, back = false) => {
+  const o = {}, k = back && cmOn() ? 1 + cmOn() / 100 : 1;
+  for (const key of ['k', 'd', 'zk', 'r']) if (Array.isArray(src?.[key]) && src[key].length) o[key] = [...src[key]];
+  for (const key of ['pmin', 'pmax']) if (src?.[key] > 0) o[key] = Math.round(src[key] / k * 100) / 100;
+  for (const key of ['amin', 'amax']) if (src?.[key] > 0) o[key] = +src[key];
+  return o;
+};
+const pkWords = fr => {
+  const mln = v => String(Math.round(v * 10) / 10).replace('.', ','), rn = n => n === 0 ? 'студия' : `${n}к`, parts = [];
+  if (fr.k?.length) parts.push(fr.k.join('/'));
+  if (fr.r?.length) parts.push([...new Set(fr.r)].sort((a, b) => a - b).map(rn).join('/'));
+  const where = [...(fr.zk ?? []).map(id => `ЖК ${zkById(id)?.name ?? id}`), ...(fr.d ?? []).map(areaName)];
+  if (where.length) parts.push(where.join(', '));
+  if (fr.pmin && fr.pmax) parts.push(`${mln(fr.pmin)}–${mln(fr.pmax)} млн`); else if (fr.pmax) parts.push(`до ${mln(fr.pmax)} млн`); else if (fr.pmin) parts.push(`от ${mln(fr.pmin)} млн`);
+  if (fr.amin && fr.amax) parts.push(`${fr.amin}–${fr.amax} м²`); else if (fr.amax) parts.push(`до ${fr.amax} м²`); else if (fr.amin) parts.push(`от ${fr.amin} м²`);
+  return parts.join(' · ');
+};
+const pkObj = n => `${n.toLocaleString('ru-RU')} ${n % 10 === 1 && n % 100 !== 11 ? 'объект' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'объекта' : 'объектов'}`;
+// pre: { f — фильтр главной | frame — готовая рамка (CRM), title, client_id, phone, hint, back — вернуться в карточку клиента }
+function pickSheet(pre = {}) {
+  if (me?.guest) return toast('Ссылки для клиента — с подпиской', 5000);
+  // финальное ревью M8: из CRM — районы, ЖК и тип из текущего фильтра главной (если заданы), бюджет и комнаты — из карточки клиента
+  const main = pkFrame(f, true), fr = pre.frame ? { ...Object.fromEntries(['k', 'd', 'zk'].filter(k => main[k]).map(k => [k, main[k]])), ...pre.frame } : pkFrame(pre.f, true), lock = !!pre.client_id;
+  // районы — тот же список, что у кнопки «Район» на главной (meta.regions): районы верхнего уровня + уже выбранные микрорайоны
+  const dKeys = [...new Set([...(meta.regions ?? []).map(r => r.k), ...(fr.d ?? [])])];
+  let clients = [], tm = 0, seq = 0, count = null, ready = false;
+  sheet('🔗 Клиент выбирает сам', `<div class="pk-win">
+    <p class="hint">Клиент сам ищет в рамке вашего фильтра, отмечает ⭐ «Хочу посмотреть» и задаёт вопросы. Вы видите выбор в «Мои подборки → Клиент выбирает». Ссылка действует 24 часа и продлевается; телефоны, адреса и цены собственника клиенту не видны.</p>
+    ${pre.hint ? `<p class="hint pk-wish">Пожелания клиента: ${esc(pre.hint)}</p>` : ''}
+    <label class="field">Имя клиента или название<input id="pk-t" maxlength="80" autocomplete="off" placeholder="Например: Иван, 2к в Хосте" value="${esc(pre.title ?? '')}"></label>
+    <label class="field">Комиссия сверху цены: <b id="pk-mv">${client.cm}%</b><input id="pk-m" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>
+    <label class="field">Клиент CRM<select id="pk-c"><option value="">Без клиента</option>${pre.client_id ? `<option value="${pre.client_id}" selected>${esc(pre.title || 'Клиент')}</option>` : ''}</select></label>
+    <div class="pk-frame"><b>Рамка — что клиент сможет искать</b>
+      <p id="pk-words" class="pk-words"></p>
+      <div class="pk-two"><label class="field">Цена от, млн ₽<input id="pk-pmin" inputmode="decimal" value="${fr.pmin ? mlnTxt(fr.pmin) : ''}"></label><label class="field">до, млн ₽<input id="pk-pmax" inputmode="decimal" value="${fr.pmax ? mlnTxt(fr.pmax) : ''}"></label></div>
+      <div class="pk-two"><label class="field">Площадь от, м²<input id="pk-amin" inputmode="decimal" value="${fr.amin ?? ''}"></label><label class="field">до, м²<input id="pk-amax" inputmode="decimal" value="${fr.amax ?? ''}"></label></div>
+      <div class="field"><span>Комнаты</span><div class="pk-chips">${[0, 1, 2, 3, 4].map(n => `<label class="chip-l"><input type="checkbox" name="pk-r" value="${n}"${(fr.r ?? []).includes(n) ? ' checked' : ''}><span>${n === 0 ? 'Студия' : n === 4 ? '4+' : n}</span></label>`).join('')}</div></div>
+      ${dKeys.length ? `<div class="field"><span>Районы</span><div class="pk-chips">${dKeys.map(k => `<label class="chip-l"><input type="checkbox" name="pk-d" value="${esc(k)}"${(fr.d ?? []).includes(k) ? ' checked' : ''}><span>${esc(areaName(k))}</span></label>`).join('')}</div></div>` : ''}
+      <p class="hint">ЖК и тип берутся из фильтра на главной${(fr.zk ?? []).length || (fr.k ?? []).length ? '' : ' (сейчас не заданы)'}. Районы не отмечены — любой район. Цены — собственника, без комиссии.</p>
+      <p id="pk-count" class="pk-count" role="status" aria-live="polite">Считаю объекты…</p></div>
+    <div class="sheet-foot"><button class="btn primary" id="pk-go" disabled>Создать ссылку</button><button class="btn ghost" data-close>Отмена</button></div></div>`);
+  const sent = () => FUI.clean(fr);   // одна и та же очищенная рамка — и для подсчёта, и для pick_create
+  const $$ = id => document.getElementById(id), read = () => {
+    const num = id => { const v = parseFloat(String($$(id).value).replace(/\s/g, '').replace(',', '.')); return v > 0 ? v : undefined; };
+    for (const key of ['pmin', 'pmax', 'amin', 'amax']) { const v = num('pk-' + key); if (v) fr[key] = v; else delete fr[key]; }
+    const rr = [...document.querySelectorAll('#sheet-body [name="pk-r"]:checked')].map(i => +i.value); if (rr.length) fr.r = rr; else delete fr.r;
+    if (dKeys.length) { const dd = [...document.querySelectorAll('#sheet-body [name="pk-d"]:checked')].map(i => i.value); if (dd.length) fr.d = dd; else delete fr.d; }
+  };
+  const stat = () => {
+    $$('pk-words').textContent = pkWords(fr) || 'Рамка пустая — любые объекты';
+    const c = $$('pk-count'), go = $$('pk-go');
+    c.classList.toggle('bad', count != null && count > PK_MAX);
+    c.textContent = count == null ? (ready ? 'Число объектов посчитаем при создании' : 'Считаю объекты…') : count < 0 ? 'Число объектов уточняется'
+      : count > PK_MAX ? `Рамка слишком широкая: ${count.toLocaleString('ru-RU')} ${count % 10 === 1 && count % 100 !== 11 ? 'объект' : 'объектов'}. Сузьте район или бюджет`
+      : count === 0 ? 'В рамке нет объектов — клиенту будет пусто. Расширьте цену или комнаты' : `В рамке ${pkObj(count)}`;
+    go.disabled = count != null && count > PK_MAX;   // count < 0 — не блокируем: сервер проверит рамку сам
+  };
+  const recount = () => {
+    read(); count = null; ready = false; stat(); clearTimeout(tm); const my = ++seq;
+    tm = setTimeout(async () => {
+      try { const r = await call('search', { f: sent(), text: '', offset: 0, sort: 'new', cm: 0 }); if (my === seq) { count = r.count; ready = true; stat(); } }
+      catch { if (my === seq) { ready = true; stat(); $$('pk-go').disabled = false; } }
+    }, 450);
+  };
+  $$('pk-m').oninput = () => { $$('pk-mv').textContent = `${$$('pk-m').value}%`; };
+  document.querySelectorAll('#sheet-body .pk-frame input').forEach(i => i.addEventListener('input', recount));
+  $$('pk-go').disabled = false; recount();
+  // клиенты CRM — для выбора; нет списка (CRM выключена) — остаётся «Без клиента»
+  call('crm_list', {}).then(r => {
+    if (!$$('pk-c')) return;
+    clients = r.clients ?? [];
+    $$('pk-c').innerHTML = `<option value="">Без клиента</option>${clients.map(c => `<option value="${c.id}"${c.id === pre.client_id ? ' selected' : ''}>${esc(c.name || c.phone || `Клиент ${c.id}`)}</option>`).join('')}`;
+    $$('pk-c').disabled = lock;
+  }, () => {});
+  $$('pk-c').onchange = () => { const c = clients.find(x => x.id === +$$('pk-c').value); if (c && !$$('pk-t').value.trim()) $$('pk-t').value = (c.name || '').slice(0, 80); };
+  $$('pk-go').onclick = async () => {
+    read(); const go = $$('pk-go'); go.disabled = true; go.textContent = 'Создаю…';
+    try {
+      const cid = +$$('pk-c').value || undefined, cl = clients.find(x => x.id === cid);
+      const title = $$('pk-t').value.trim() || (cl?.name ? `Для: ${cl.name}`.slice(0, 80) : '');
+      const r = await call('pick_create', { f: sent(), markup: +$$('pk-m').value, title, ...(cid ? { client_id: cid } : {}) });
+      selCache = null;
+      $('#sheet-body').innerHTML = `<div class="pk-win"><p class="pk-ok" role="status">Ссылка готова${(r.count ?? count) >= 0 ? ` · в рамке ${pkObj(r.count ?? count)}` : ''}</p>
+        <p class="hint">Действует до ${new Date(r.until).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Отправьте клиенту:</p>
+        <input class="pk-link" readonly value="${esc(r.link)}" aria-label="Ссылка клиенту">
+        ${PICK.sendHtml(r.link, r.until, cl?.phone ?? pre.phone)}
+        <div class="sheet-foot pk-foot"><a class="btn soft" href="${esc(r.link)}&a=1" target="_blank" rel="noopener">Страница ссылки</a><a class="btn ghost" href="./#sels=pick">Мои подборки</a>${pre.client_id && window.CRM ? '<button class="btn ghost" id="pk-back">К клиенту</button>' : ''}<button class="btn ghost" data-close>Готово</button></div></div>`;
+      $$('pk-back')?.addEventListener('click', () => CRM.openClient(pre.client_id));
+    } catch (e) {
+      go.disabled = false; go.textContent = 'Создать ссылку';
+      if (e.gate) return showLogin(e.gate);
+      if (e.data?.error === 'wide') { const m = /(\d[\d\s]*)\s+объект/.exec(e.message); if (m) { count = +m[1].replace(/\s/g, ''); stat(); } }
+      toast(e.message, 7000);
+    }
+  };
+}
+$('#sheet-body').addEventListener('click', e => { window.PICK?.onCopy(e, toast); });
+
 function clientSheet() {
   sheet('Показ клиенту', `
     <p>Цены на сайте — с вашей комиссией сверху. Источники объявлений, заметки, телефоны собственников и «Контакт» скрыты: экран можно показывать клиенту. «Мой помощник», «Ипотечный брокер» и «Налоги при продаже» остаются в меню «Помощник» — посчитать ипотеку или налог при клиенте.</p>

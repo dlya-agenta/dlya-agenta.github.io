@@ -165,3 +165,11 @@
 .tk-img .x { position: absolute; top: -6px; right: -6px; }
 .tk-plan { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .crm-big { min-height: 48px; font-size: 16px; padding: 0 22px; }
+
+/* v5.48 H9: ссылки «Клиент выбирает сам» в карточке клиента */
+.crm-via { display: inline-block; align-self: flex-start; margin-top: 2px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--link); font-size: 12px; font-weight: 600; }
+.crm-obj small.crm-pq { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; overflow-wrap: anywhere; }
+.crm-bad { color: var(--bad); }
+.crm-pkrow .crm-sel .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.crm-picks .crm-h { flex-wrap: wrap; gap: 6px 10px; }
+.crm-picks .crm-h b { white-space: nowrap; }

@@ -133,6 +133,23 @@ window.CRM = (() => {
     try { C = await ui.call('crm_client', { id }); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     drawClient();
   }
+  // v5.48 H9: ссылки «Клиент выбирает сам» клиента и подписи у объектов (выбрал сам, вопрос клиента, ответ собственника, ответ клиенту)
+  const pickRow = p => `<div class="crm-selrow crm-pkrow" data-pk="${p.id}"><b>${esc(p.title || 'Подбор для клиента')}</b>
+    <small class="muted">${p.live ? `активна до ${esc(when(p.until))}` : 'закрыта'} · выбрал: ${p.chosen ?? 0}${p.open_q ? ` · <b class="crm-bad">вопросов без ответа: ${p.open_q}</b>` : ''}</small>
+    <span class="crm-sel"><a class="btn primary" href="${esc(p.link)}&a=1" target="_blank" rel="noopener">Открыть</a>${p.live && window.PICK ? `<button type="button" class="btn soft" data-pk-copy="${esc(window.PICK.sendText(p.until, p.link))}">Скопировать</button>` : ''}</span></div>`;
+  const pickLines = x => [x.via === 'pick' ? '<span class="crm-via">выбрал сам</span>' : '',
+    x.cq ? `<small class="crm-pq"><b>Вопрос клиента:</b> «${esc(x.cq)}»</small>` : '', x.oreply ? `<small class="crm-pq"><b>Собственник:</b> «${esc(x.oreply)}»</small>` : '',
+    x.canswer ? `<small class="crm-pq"><b>Клиенту ответили:</b> «${esc(x.canswer)}»</small>` : ''].join('');
+  // бюджет и пожелания клиента → рамка ссылки: цена до/от (млн ₽), комнаты из слов «2к», «двушка»… — агент правит в окне
+  function pickPre(c) {
+    const fr = {}, w = String(c.wish ?? '').toLowerCase();
+    if (c.budget_from) fr.pmin = +(c.budget_from / 1e6).toFixed(2);
+    if (c.budget_to) fr.pmax = +(c.budget_to / 1e6).toFixed(2);
+    const r = [...w.matchAll(/(?<!\d)(\d)\s*[-–]?\s*(?:к(?![а-яё])|комн|ком\.)/g)].map(m => Math.min(4, +m[1])), W = { студи: 0, однуш: 1, двуш: 2, трёш: 3, трешк: 3, четырёхк: 4 };
+    for (const [k, v] of Object.entries(W)) if (w.includes(k)) r.push(v);
+    if (r.length) fr.r = [...new Set(r)];
+    return { frame: fr, title: c.name || c.phone || '', client_id: c.id, phone: c.phone, hint: c.wish || '' };
+  }
   function drawClient() {
     const c = C.client, d = digits(c.phone), n = C.items.length, open = C.tasks.filter(t => !t.done_at), done = C.tasks.filter(t => t.done_at);
     body().innerHTML = `<div class="crm">
@@ -158,12 +175,14 @@ window.CRM = (() => {
       <section class="crm-sec"><div class="crm-h"><b>Задачи</b><button type="button" class="btn ghost" data-new-task>＋ Задача</button></div>
         ${open.length ? open.map(t => taskRow(t, false)).join('') : '<p class="muted crm-empty">Открытых задач нет.</p>'}
         ${done.length ? `<details class="crm-later"><summary>Выполненные — ${done.length}</summary>${done.map(t => taskRow(t, false)).join('')}</details>` : ''}</section>
+      ${ui.pickSheet || (C.picks ?? []).length ? `<section class="crm-sec crm-picks"><div class="crm-h"><b>Ссылки клиенту · ${(C.picks ?? []).length}</b>${ui.pickSheet ? '<button type="button" class="btn ghost" data-pick-new>🔗 Ссылка: клиент выбирает сам</button>' : ''}</div>
+        ${(C.picks ?? []).length ? (C.picks).map(pickRow).join('') : '<p class="muted crm-empty">Ссылок нет. Клиент сам отметит ⭐ и задаст вопросы по вашей рамке — выбранное попадёт в его объекты с пометкой «выбрал сам».</p>'}</section>` : ''}
       <section class="crm-sec"><div class="crm-h"><b>Объекты · ${n}</b><span><button type="button" class="btn ghost" data-from-sel>📄 Из подборки</button><button type="button" class="btn ghost" data-favs>⭐ Из избранного</button></span></div>
         ${n ? `<div class="crm-sel"><button type="button" class="btn primary" data-sel="pdf">📄 Подборка PDF</button><button type="button" class="btn soft" data-sel="link">🔗 Подборка ссылкой</button></div>
           ${n > 10 ? `<p class="hint">В PDF войдут 10 последних объектов, ссылкой — ${n > 20 ? '20 последних' : `все ${n}`}.</p>` : ''}` : '<p class="muted crm-empty">Объектов нет. На карточке объекта нажмите «👥 Клиенту» — он появится здесь.</p>'}
         <div class="crm-objs">${C.items.map(x => `<div class="crm-obj" data-num="${x.num}">
           ${(x.web_photos || x.pics?.length) && ui.photo ? `<img src="${esc(ui.photo(x))}" alt="" loading="lazy">` : '<span class="crm-noph">🏠</span>'}
-          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small></div>
+          <div data-open-obj><b>${esc(money(x.price))}</b><small>${esc(what(x))}</small><small class="muted">${x.excl ? '💎 эксклюзив · ' : ''}№ ${x.num}${x.gone ? ' · снято' : ''}</small>${pickLines(x)}</div>
           ${window.LAWREQ ? '<button type="button" class="btn ghost sm" data-lq-obj title="Проверка юриста: документы для задатка и сделки, запрос собственнику">⚖️</button>' : ''}<button type="button" class="x" data-del-obj aria-label="Убрать у клиента">✕</button></div>`).join('')}</div></section>
       <p class="crm-danger">${c.archived_at ? '<button type="button" class="btn soft" data-arch-client="0">↩ Вернуть из архива</button>' : '<button type="button" class="btn ghost" data-arch-client="1">🗄 В архив</button>'}${C.can_del === false ? '' : '<button type="button" class="btn ghost bad" data-del-client>🗑 Удалить</button>'}</p></div>`;
     bind(onClient);
@@ -204,6 +223,7 @@ window.CRM = (() => {
     x.zk || x.complex || x.sub || x.district || ''].filter(Boolean).join(' · ');
   async function onClient(e) {
     const t = e.target, c = C.client;
+    if (t.closest('[data-pick-new]')) return ui.pickSheet(pickPre(c));
     if (t.closest('[data-back]')) return tab === 'main' ? mainOpen() : open();
     if (t.closest('[data-edit]')) return clientForm(c);
     if (t.closest('[data-new-task]')) return taskForm(null, { client_id: c.id });

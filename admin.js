@@ -33,7 +33,8 @@ window.ADMIN = (() => {
     ['opts.mail_items', 'Объявлений в рассылке', 'number'], ['opts.mail_groups', 'Чатов для рассылок на мессенджер', 'number'], ['opts.house_chats', 'Домовые чаты', 'check'], ['opts.video', 'Ролики из фото', 'check'],
     ['opts.video_day', 'Роликов в сутки', 'number'], ['opts.helper', 'Запросов «Моему помощнику» (Подписчик — всего, PRO/MAX — в месяц)', 'number'], ['opts.deal', 'Вкладка «Сделка» (с первого дня, v5.19)', 'check'], ['opts.deal_ai', 'Помощь ИИ в «Сделке» в сутки', 'number'],
     ['opts.law_q', 'Юрист/ипотечник: вопросов в месяц', 'number'], ['opts.law_docs', 'Юрист: загрузок документов (пакетов) в месяц', 'number'],
-    ['opts.law_check', 'Юрист: проверок объекта и собственника в месяц', 'number'], ['opts.law_ctx', 'Юрист в группе: чтений переписки в месяц', 'number']];   // v5.24b   // v5.15
+    ['opts.law_check', 'Юрист: проверок объекта и собственника в месяц', 'number'], ['opts.law_ctx', 'Юрист в группе: чтений переписки в месяц', 'number'],
+    ['opts.pick_links', 'Ссылок клиенту одновременно', 'number']];   // v5.48 H   // v5.24b   // v5.15
   let ui = null, r = null, show = 'all';
   const changed = new Map();   // JSON-ключ поля → значение: ["u", логин, поле] | ["s", путь настройки]
 

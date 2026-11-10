@@ -91,3 +91,27 @@ body.client .share-agent { display: none; }
   .sp-menu { min-width: 200px; }
   .sp-acts .sp-cl, .sp-clrow .btn { flex: 1 1 100%; }
 }
+
+/* v5.48 H9: «🔗 Клиент выбирает сам» — окно создания, кнопки отправки, карточка ссылки в «Мои подборки» */
+.pk-win { display: grid; gap: 12px; min-width: 0; }
+.pk-win .field > input, .pk-win .field > select { width: 100%; box-sizing: border-box; }
+.pk-frame { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); min-width: 0; }
+.pk-words { margin: 0; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.pk-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-l input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-l span { display: inline-block; border: 1.5px solid var(--line); background: var(--card); border-radius: 999px; padding: 7px 13px; font-size: 14.5px; cursor: pointer; touch-action: manipulation; color: var(--text); }
+.chip-l input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+.chip-l input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pk-count { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ok); }
+.pk-count.bad { color: var(--bad); }
+.pk-ok { margin: 0; font-weight: 700; color: var(--ok); font-size: 16px; }
+.pk-wish { background: var(--soft); border-radius: 8px; padding: 8px 10px; margin: 0; overflow-wrap: anywhere; }
+.pk-link { width: 100%; box-sizing: border-box; font-size: 13.5px; }
+.pk-send { display: flex; flex-wrap: wrap; gap: 8px; }
+.pk-send .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.sp-pick .sp-acts .btn { text-decoration: none; }
+@media (max-width: 480px) { .pk-send .btn { flex: 1 1 calc(50% - 8px); justify-content: center; } .sp-tabs { flex-wrap: wrap; } .sp-tab { padding: 8px 10px; font-size: 13.5px; } }
+.pk-win > * { min-width: 0; }
+.pk-foot { flex-wrap: wrap; }
+.pk-foot .btn { text-decoration: none; display: inline-flex; align-items: center; }
