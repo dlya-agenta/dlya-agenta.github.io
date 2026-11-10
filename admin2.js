@@ -265,7 +265,7 @@
       <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0">
         <label class="hub-chk"><input type="checkbox" id="na-on"${p.on !== false ? ' checked' : ''}> Улучшать фото ИИ (gpt-image-2.5-flare, 1K, ~0,86 ₽ за фото)</label>
         <span style="display:flex;flex-wrap:wrap;gap:4px 16px">Какие объекты: ${x.kinds.map(k => `<label class="hub-chk"><input type="checkbox" data-na-kind="${esc(k)}"${(p.kinds ?? []).includes(k) ? ' checked' : ''}> ${esc(k)}</label>`).join('')}</span>
-        <small class="muted">Фото с водяными знаками, логотипами и баннерами ИИ не правит — остаётся исходное (всегда).</small>
+        <small class="muted">Водяные знаки, логотипы и баннеры модель убирает сама (договорённость с источником фото).</small>
       </div>
       <div class="hub-form">
         <label class="field">Новые — за последние, дней<input type="number" id="na-days" value="${esc(p.days ?? 3)}" min="1" max="14"></label>
