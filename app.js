@@ -308,7 +308,7 @@ async function start() {
   document.querySelectorAll('[data-go="crm"]').forEach(b => b.hidden = !meta.features.crm || me.guest);
   document.querySelectorAll('[data-go="pick"]').forEach(b => b.hidden = meta.features.pick === false || me.guest);   // v5.48 H9: «🎯 Самоподбор» (features.pick)
   mgSync();
-  // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
+  // «Реклама», «Рассылки» и «Архив 3 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
   // ссылки из новых разделов (v5.15): ./?q=<запрос> — сразу этот поиск; #o=<номер> — сразу объявление
   const qp = new URLSearchParams(location.search).get('q');
@@ -316,6 +316,7 @@ async function start() {
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
   FUI.help(); renderFilters(); selbar(); applyLay();
+  if (location.hash === '#arc') { history.replaceState(null, '', location.pathname + location.search); if (me.can_arch) f.arc = 'only'; else setTimeout(() => PLANS.locked('arch'), 300); renderFilters(); }   // v5.59: «🗂 Архив» из меню других страниц
   if (!EMBED) search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#client=\d+$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.openClient(+location.hash.slice(8)); history.replaceState(null, '', location.pathname + location.search); }   // v5.48 H9: «Клиент: Имя» со страницы ссылки
@@ -377,6 +378,14 @@ function renderFilters() {
   $('#f-ext').checked = !!f.ext;
   if ($('#f-ex')) { $('#f-ex').checked = !!f.ex; $('#f-ex').onchange = () => { f.ex = $('#f-ex').checked || undefined; fchg(); }; }   // v5.48 G: эксклюзивы коллег в выдаче и на карте
   $('#f-ext').onchange = () => { f.ext = $('#f-ext').checked || undefined; fchg(); };
+  // v5.59 (Алексей 11.11): снятые с продажи из Архива (3 года) — в обычной выдаче по галочке; по умолчанию сняты; без Архива в тарифе — «Что даёт PRO»
+  if ($('#f-arc')) {
+    $('#f-arc').checked = !!f.arc; $('#f-arco').checked = f.arc === 'only';
+    const arcSet = only => { if (!me?.can_arch) { $('#f-arc').checked = $('#f-arco').checked = false; f.arc = undefined; return PLANS.locked('arch'); }
+      f.arc = only ? 'only' : $('#f-arc').checked ? 1 : undefined; fchg(); };
+    $('#f-arc').onchange = () => { if (!$('#f-arc').checked) $('#f-arco').checked = false; arcSet($('#f-arco').checked); };
+    $('#f-arco').onchange = () => { if ($('#f-arco').checked) $('#f-arc').checked = true; arcSet($('#f-arco').checked); };
+  }
   // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
   for (const k of ['amin', 'amax', 'fmin', 'fmax']) put(k, f[k] ?? '');
@@ -669,7 +678,7 @@ function myNorm(x) {
 
 // новый поиск отменяет запрос в пути: выдача не мигает (прежняя видна бледной до ответа) и не подменяется устаревшим ответом
 let sctl = null;
-let oldShown = false;
+let oldShown = false, arcShown = false;
 async function search(more = false) {
   if (more && busy) return;
   sctl?.abort();
@@ -679,12 +688,12 @@ async function search(more = false) {
   $('#more').disabled = true;
   try {
     const r = await call('search', { f: FUI.clean(f), text, offset: more ? offset : 0, sort, cm: cmOn() }, ctl.signal);
-    if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; oldShown = false; }
+    if (!more) { offset = 0; items.clear(); $('#list').innerHTML = ''; oldShown = false; arcShown = false; }
     total = r.count;
     if (!more) window.AGENT?.searched({ text, f: FUI.clean(f), count: total, understood: r.understood || '' });   // v5.48 F: «ищет одно и то же» → подбор с ИИ
     r.items.forEach(x => items.set(x.num, myNorm(x)));
     // объявления старше 6 месяцев — после актуальных, перед первым из них разделитель (один на всю выдачу)
-    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const d = x.old && !oldShown; if (d) oldShown = true; return (d ? FUI.oldLine() : '') + card(x); }).join(''));
+    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const a = x.arc && !arcShown && f.arc !== 'only'; if (a) arcShown = oldShown = true; const d = x.old && !oldShown; if (d) oldShown = true; return (a ? FUI.arcLine() : d ? FUI.oldLine() : '') + card(x); }).join(''));
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
     if (favMode === 'deals' && window.MINE) $('#status').insertAdjacentHTML('beforeend', ' · <button type="button" class="lnk" data-myrmlist>🗑 Убранные у меня</button>');   // v5.48 G
@@ -717,7 +726,7 @@ $('#status').addEventListener('click', e => { const b = e.target.closest('[data-
 
 function gallery(x) {
   const n = nPhotos(x);
-  return `<div class="gal" data-n="${n}">${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
+  return `<div class="gal" data-n="${n}">${isNew(x) && !x.arc ? '<span class="newmark">Новое</span>' : ''}
     <div class="strip">${n ? Array.from({ length: n }, (_, k) => `<div class="ph"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" loading="lazy" data-k="${k}"></div>`).join('')
       : x.source === 'tg' ? '<div class="none closed"><b>Закрытая продажа</b><br>уточняйте детали у собственника</div>' : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}</div>
     ${n > 1 ? `<button class="nav l" data-nav="-1" aria-label="Назад">‹</button><button class="nav r" data-nav="1" aria-label="Вперёд">›</button>
@@ -767,11 +776,11 @@ function card(x, mini = false) {
   const zk = x.zk ?? zkName(x.complex);   // заголовок — название ЖК, если известно (по объявлению или по адресу дома)
   const where = [x.street || x.address, placeOf(x)].filter(Boolean).join(' · ');
   const date = x.lite ? '…' : x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : '—';
-  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}${x.excl ? ' xcard' : ''}" data-num="${x.num}">
+  return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}${x.excl ? ' xcard' : ''}${x.arc ? ' arcard' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
       <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
-      ${xLine(x)}
+      ${xLine(x)}${arcLine(x)}
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : mini ? '' : '<div class="zk zk-none" aria-hidden="true"></div>'}
       <div class="title" data-open>${esc(what(x))}</div>
       <div class="addr" data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(where)}</div>
@@ -789,6 +798,9 @@ function card(x, mini = false) {
   </article>`;
 }
 // v5.48 G: эксклюзив коллеги — пометка «💎 Коллега» (только агенту), комиссия коллеге; «моя правка» — ✏️ у цены; ответ собственника на рассылку
+// v5.59: снят с продажи (Архив) — плашка с причиной и напоминанием уточнить актуальность
+const ARC_WHY = { 'Сделка': 'продано', 'Передумали': 'передумали продавать', 'Договор с агентством': 'договор с агентством', 'Двойная информация': 'дубль' };
+const arcLine = x => x.arc ? `<div class="arcline"><b>🗂 Снят с продажи</b>${x.del_reason ? ` · ${esc(ARC_WHY[x.del_reason] ?? x.del_reason.toLowerCase())}` : ''}<span class="agent-only"> · уточните актуальность у собственника</span></div>` : '';
 const xLine = x => x.excl ? `<div class="xline agent-only"><span class="xbadge">💎 Коллега</span>${x.agent ? ` ${esc([x.agent.name, x.agent.company].filter(Boolean).join(' · '))}` : ''}${x.comm_pct ? ` · комиссия ${String(x.comm_pct).replace('.', ',')}%` : x.comm_rub ? ` · комиссия ${rub(x.comm_rub)}` : ''}</div>` : '';
 const myMark = x => x.my_edit ? `<span class="mymark agent-only" title="Ваша правка — видна только вам и вашим клиентам${x.price_src ? `. В объявлении: ${rub(priceOf(x.price_src))}` : ''}">✏️ отредактировано</span>` : '';
 const ANS = { yes: ['ok', 'Собственник: актуально'], no: ['', 'Собственник: не продаёт'], sold: ['', 'Собственник: продано'] };
@@ -1644,11 +1656,11 @@ async function loadMap() {
       openPts(e.layer.getLatLng(), ps);
     });
     // цена точки — собственника; с комиссией («С клиентом») — при показе, как в выдаче
-    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old, g, xx], i) =>
-      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true, g: g ?? (addr ? `a${addr}` : ''), ...(xx === 'x' ? { excl: true, pics: ph ? [ph] : [] } : {}) }));   // v5.48 G: эксклюзив коллеги
-    lowMark(mapPts);   // v5.24a: ключ ЖК/дома с сервера (g), из старого кэша — по адресу точки
+    mapPts = r.points.map(([num, lat, lng, price, rooms, kind, area, floor, floors, addr, ph, nw, old, g, xx, ar], i) =>
+      ({ i, num, lat, lng, price, rooms, kind, area, floor, floors, address: addr, ph, nw, old: old ? 1 : 0, web_photos: ph ? 1 : 0, lite: true, g: g ?? (addr ? `a${addr}` : ''), ...(ar ? { arc: true } : {}), ...(xx === 'x' ? { excl: true, pics: ph ? [ph] : [] } : {}) }));   // v5.48 G: эксклюзив коллеги
+    lowMark(mapPts.filter(p => !p.arc));   // v5.59: снятые не считаются в «Низкой цене»; v5.24a: ключ ЖК/дома с сервера (g), из старого кэша — по адресу точки
     const marks = mapPts.map(p => {
-      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `mk-p${p.low ? ' low' : ''}${p.excl ? ' mk-x' : ''}`, html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }), zIndexOffset: p.low ? 500 : 0 });
+      const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `mk-p${p.low ? ' low' : ''}${p.excl ? ' mk-x' : ''}${p.arc ? ' mk-arc' : ''}`, html: `<span>${p.price ? mlnShort(priceOf(p.price)) : '•'}</span>`, iconSize: null }), zIndexOffset: p.low ? 500 : 0 });
       m.p = p;
       m.on('click', () => { clearTimeout(hoverT); openPts(m.getLatLng(), [p]); });
       if (hoverOk) m.on('mouseover', () => hoverOpen(() => openPts(m.getLatLng(), [p]))).on('mouseout', hoverLeave);
@@ -1721,7 +1733,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
   if (g === 'rk') { if (!window.RK) return toast('Раздел «Реклама» не загрузился — возможно, его режет блокировщик рекламы в браузере', 6000); if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/plc/plc.js (шаг 4.1; v5.26f: папка была reklama/ — её вырезают блокировщики рекламы в Safari, сайт на iPhone не запускался)
   if (g === 'mail') { if (me.can_mail) location.href = 'mail.html'; else PLANS.locked('mail'); }   // рассылки — своя страница mail.html (шаг 4.2)
-  if (g === 'arch') { if (me.can_arch) location.href = 'arch.html'; else PLANS.locked('arch'); }   // «Архив 2 года» — своя страница со своим фильтром и картой
+  if (g === 'arch') { if (me.can_arch) { f.arc = 'only'; fchg(); toast('🗂 Архив: только снятые с продажи за 3 года. Снять галочку «только снятые» — вместе с объектами в продаже', 5000); } else PLANS.locked('arch'); }   // v5.59: Архив — снятые из базы в основном поиске (раньше arch.html тянул 15+ тыс. с источника)
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
   if (g === 'mod') modSheet();   // v5.37a: группа Main — жалобы на объявления

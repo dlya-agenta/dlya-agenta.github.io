@@ -9,7 +9,7 @@ window.OFFER = (() => {
   // v5.15: в тексте — рубли по курсу ЦБ, доллары рядом (HUB.rub — hub.js; курс не загрузился — только $)
   const money = v => window.HUB?.rub(Number(v || 0)) ? `${HUB.rub(Number(v || 0))} (${usd(v)})` : usd(v);
   const token = () => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } };
-  const LEAD = { limit: 'Номера на сегодня закончились — в PRO их больше.', arch: 'Архив за 2 года открыт в PRO.', rk: 'Реклама на площадках — в PRO.',
+  const LEAD = { limit: 'Номера на сегодня закончились — в PRO их больше.', arch: 'Архив снятых за 3 года открыт в PRO.', rk: 'Реклама на площадках — в PRO.',
     mail: 'Рассылки в мессенджеры — в PRO.' };
   let me = null, cur = null, pro = null, why = '', busy = false, tick = 0;
   let seen = [];   // окно по поводу — один раз за вкладку на предложение (без повода — только плашка)
@@ -34,7 +34,7 @@ window.OFFER = (() => {
   const left = () => { const s = Math.max(0, Math.round((Date.parse(cur?.expires_at) - Date.now()) / 1000));
     return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const feats = p => [`${p.phones_day} номеров в день и ${p.phones_month} в месяц`, `${p.devices} ${p.devices < 5 ? 'устройства' : 'устройств'} одновременно`,
-    p.opts?.arch && 'Архив за 2 года и объявления старше 6 месяцев', p.opts?.rk_month && `Черновики для рекламы на площадках: ${p.opts.rk_month} в месяц`,
+    p.opts?.arch && 'Архив снятых за 3 года и объявления старше 6 месяцев', p.opts?.rk_month && `Черновики для рекламы на площадках: ${p.opts.rk_month} в месяц`,
     p.opts?.mail_items && `Рассылки в Telegram, WhatsApp и MAX: до ${p.opts.mail_items} объявлений`].filter(Boolean);
 
   function show() {

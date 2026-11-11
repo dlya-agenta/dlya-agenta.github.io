@@ -23,7 +23,7 @@
 <link rel="stylesheet" href="crm.css?v=5.51">
 <link rel="stylesheet" href="links.css?v=5.49">
 <link rel="stylesheet" href="map.css?v=5.24a1">
-<link rel="stylesheet" href="mine.css?v=5.48g2">
+<link rel="stylesheet" href="mine.css?v=5.59">
 <link rel="stylesheet" href="plc/plc.css?v=5.26f">
 <link rel="stylesheet" href="support.css?v=5.58">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -47,7 +47,7 @@
         <div class="mg-p" role="menu">
           <button class="link on" data-go="all" aria-current="page"><span class="lbl-long">🏠 Все объявления</span><span class="lbl-short">🏠 Все</span></button>
           <a class="link agent-only client-ok" href="hub.html#newb">🏗 Новостройки</a>
-          <button class="link agent-only client-ok" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 2 года</span><span class="lbl-short">🗂 Архив</span></button>
+          <button class="link agent-only client-ok" data-go="arch" id="go-arch"><span class="lbl-long">🗂 Архив 3 года</span><span class="lbl-short">🗂 Архив</span></button>
           <a class="link agent-only" href="hub.html#market">📈 Цены рынка</a>
           <button class="link agent-only" data-go="hidden" id="go-hidden" hidden>🙈 Скрытые</button>
           <button class="link agent-only" data-go="mod" id="go-mod" hidden>🛡 Модерация</button>
@@ -130,6 +130,7 @@
             <div class="pair half"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label><label data-h="nold"><input type="checkbox" id="nold"> не старый фонд</label></div></div>
         <div class="fcell agent-only"><div class="fl" data-h="ex">Эксклюзивы</div><div class="checks"><label title="Эксклюзивы коллег вместе с объявлениями собственников"><input type="checkbox" id="f-ex"> 💎 показывать</label></div></div>
+        <div class="fcell agent-only"><div class="fl" data-h="arc">Снятые с продажи</div><div class="checks"><label title="Снятые с продажи и проданные за 3 года — внизу выдачи, серыми точками на карте"><input type="checkbox" id="f-arc"> 🗂 показывать</label><label title="Только снятые с продажи"><input type="checkbox" id="f-arco"> только снятые</label></div></div>
         <details class="fmore w2" id="f-more"><summary>Ещё фильтры <b id="f-more-n" class="fmore-n" hidden></b></summary><div class="fgrid">
         <div class="fcell w2"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
         <div class="fcell w2"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
@@ -208,10 +209,10 @@
 <script src="selection-editor.js?v=5.58e" defer></script>
 <script src="mapbase.js?v=5.31e1"></script>
 <script src="mapdeclutter.js?v=5.52"></script>
-<script src="filters.js?v=5.49" defer></script>
+<script src="filters.js?v=5.59" defer></script>
 <script src="suggest.js?v=5.23" defer></script>
-<script src="offer.js?v=5.23" defer></script>
-<script src="plans.js?v=5.51" defer></script>
+<script src="offer.js?v=5.59" defer></script>
+<script src="plans.js?v=5.59" defer></script>
 <script src="mfa.js?v=5.26e" defer></script>
 <script src="admin.js?v=5.48h" defer></script>
 <script src="guest.js?v=5.25a1" defer></script>
@@ -228,13 +229,13 @@
 <script src="aimd.js?v=5.58g" defer></script>
 <script src="hub.js?v=5.58" defer></script>
 <script src="complaints.admin.js?v=5.44" defer></script>
-<script src="msgapp.js?v=5.49a" defer></script>
+<script src="msgapp.js?v=5.59" defer></script>
 <script src="objpop.js?v=5.58h" defer></script>
 <script src="minimap.js?v=5.54" defer></script>
-<script src="nav.js?v=5.55" defer></script>
+<script src="nav.js?v=5.59" defer></script>
 <script src="edit.main.js?v=5.57" defer></script>
 <script src="mine.js?v=5.48g" defer></script>
-<script src="app.js?v=5.58h" defer></script>
+<script src="app.js?v=5.59" defer></script>
 <script src="selai.js?v=5.58h" defer></script>
 <script src="agent.js?v=5.54" defer></script>
 <script src="tour.js?v=5.49" defer></script>

@@ -114,7 +114,7 @@ window.PAYUI = (() => {
   }
   const FEAT = p => [`${p.phones_day} номеров в день · ${p.phones_month} в месяц`,
     `${p.devices} ${p.devices === 1 ? 'устройство' : p.devices < 5 ? 'устройства' : 'устройств'} одновременно`,
-    p.opts?.arch && 'Архив за 2 года и объявления старше 6 месяцев', p.opts?.rk_month && `Черновики для рекламы: ${p.opts.rk_month} в месяц`,
+    p.opts?.arch && 'Архив снятых за 3 года и объявления старше 6 месяцев', p.opts?.rk_month && `Черновики для рекламы: ${p.opts.rk_month} в месяц`,
     p.opts?.mail_items && `Рассылки в мессенджеры: до ${p.opts.mail_items} объявлений`, p.opts?.house_chats && 'Поиск по домовым чатам Сочи (скоро)'].filter(Boolean);
   // что считать: тариф, пакет, пополнение (сумма), срочное объявление чата (номер сообщения)
   const args = () => sel.kind === 'pack' ? { kind: 'pack' } : sel.kind === 'topup' ? { kind: 'topup', amount: sel.amount } : sel.kind === 'urgent' ? { kind: 'urgent', msg_id: sel.msg_id }
