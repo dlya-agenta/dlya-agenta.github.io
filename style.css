@@ -1069,3 +1069,9 @@ html.embed .sheet-box { width: 100%; max-width: none; max-height: none; height: 
   #s-name, #s-phone, #s-budget, #pk-c { max-width: 420px; }
   #s-commission, .sheet input[type=range] { max-width: 520px; }
 }
+/* v5.56 (Алексей 11.11): строки карточек выдачи на одном уровне — место под ЖК есть у всех, метки в одну строку, описание — ровно 3 строки */
+.list .card .zk-none { min-height: 1.25em; }
+.list:not(.l1) .card .tags { flex-wrap: nowrap; overflow: hidden; min-height: 24px; mask-image: linear-gradient(90deg, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); }
+.list:not(.l1) .card .tags > * { flex: none; }
+.list .card .descr p { min-height: calc(1.45em * 3); }
+.list .card .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

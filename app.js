@@ -743,12 +743,16 @@ document.addEventListener('load', e => {
   if (im.naturalHeight > im.naturalWidth * 1.05) { im.parentElement.classList.add('tall'); im.parentElement.style.setProperty('--bg', `url("${im.src}")`); }
 }, true);
 function tags(x) {
-  return [...[...new Set((x.finish || []).map(t => FINL[t] ?? t))].map(t => `<span class="tag">${esc(t)}</span>`),
+  // v5.56 (Алексей 11.11): ремонт — ОДНА метка, последняя подтверждённая: проверка по фото (x.repair: современный / хороший / без ремонта),
+  // её нет — последняя отметка объявления («С ремонтом», «Чистовая», «White box», «Черновая»). Раньше стояли все сразу и спорили друг с другом.
+  const fin = (x.finish || []).map(t => FINL[t] ?? t), rep = REPF[x.repair];
+  const repTag = rep ? `<span class="tag ${rep[1]}" title="Ремонт проверен по фото">${rep[0]}</span>` : fin.length ? `<span class="tag">${esc(fin[fin.length - 1])}</span>` : '';
+  return [repTag,
     x.fz214 ? '<span class="tag">ФЗ-214</span>' : '', x.pool ? '<span class="tag">Бассейн</span>' : '',
     x.sea_m != null && x.sea_m <= 5000 ? `<span class="tag sea" title="По прямой до берега">≈ ${seaTxt(x.sea_m)} до моря</span>` : '',
     x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : '',
     // v5.49 (п. 12): два разных признака ремонта — «С ремонтом» выше по словам объявления, а этот — проверка ремонта по фото (только агенту)
-    REPF[x.repair] ? `<span class="tag agent-only ${REPF[x.repair][1]}" title="Оценка ремонта">${REPF[x.repair][0]}</span>` : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
+    ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
 }
 // микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
 const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
@@ -765,7 +769,7 @@ function card(x, mini = false) {
     <div class="body">
       <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
       ${xLine(x)}
-      ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : ''}
+      ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : mini ? '' : '<div class="zk zk-none" aria-hidden="true"></div>'}
       <div class="title" data-open>${esc(what(x))}</div>
       <div class="addr" data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(where)}</div>
       <div class="tags">${tags(x)}${ansTag(x)}</div>
