@@ -1334,6 +1334,7 @@ function leaveSelections() {
   tabs();
 }
 async function onSelPage(e) {
+  const mi = e.target.closest('.sp-menu .btn'); if (mi) setTimeout(() => { const d = mi.closest('details'); if (d) d.open = false; }, 0);   // v5.52: пункт «⋯» нажат — меню закрыть
   const edit = e.target.closest('[data-edit-selection]'); if (edit) return window.SELECTION_EDITOR?.open(+edit.dataset.editSelection);
   const a = e.target.closest('[data-url]'); if (a && tg?.openLink) { e.preventDefault(); tg.openLink(a.dataset.url); return; }
   const t = e.target.closest('.sp-tab'); if (t) { e.preventDefault(); showSelections(t.getAttribute('href').slice(6)); return; }
@@ -1536,6 +1537,7 @@ async function loadMap() {
   if (!window.L) return toast('Карта ещё загружается…');
   if (!map) {
     map = L.map('map', { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
+    window.MAPDECLUTTER?.attach(map);   // v5.52: метки без наложений, как у Авито
     // v5.20: вместо строки «Leaflet | © OpenStreetMap» — маленький «ⓘ»; нажатие показывает подпись (лицензия OpenStreetMap требует, чтобы она была доступна)
     const Info = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
       const d = L.DomUtil.create('div', 'map-info');

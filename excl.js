@@ -240,6 +240,7 @@
     if (!map) {
       el.innerHTML = '';
       map = L.map(el, { zoomControl: true, attributionControl: false }).setView([43.585, 39.723], 11);
+      window.MAPDECLUTTER?.attach(map);   // v5.52: метки без наложений
       (window.MAPBASE ? MAPBASE.add(map) : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map));   // v5.23: Яндекс по ключу из админки, иначе OpenStreetMap; источник — свёрнутым «ⓘ»
       attrib().addTo(map);
       map.on('moveend', () => { clearTimeout(mlT); $('#ex-mli').classList.add('wait'); mlT = setTimeout(mapList, 700); })
