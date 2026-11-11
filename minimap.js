@@ -18,12 +18,14 @@ window.MINIMAP = (() => {
     let token = null; try { token = JSON.parse(localStorage.getItem('token')); } catch { /* приватный режим */ }
     if (!token || !window.API) return null;
     const auth = { token };
-    const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'item', auth, num }) }).then(r => r.json()).catch(() => null);
-    return r?.item ?? null;
+    const r = await fetch(window.API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'items', auth, nums: [+num] }) }).then(r => r.json()).catch(() => null);
+    return r?.items?.[0] ?? null;
   }
   const load = (src, css) => new Promise(ok => { const el = document.createElement(css ? 'link' : 'script'); if (css) { el.rel = 'stylesheet'; el.href = src; } else el.src = src; el.onload = el.onerror = ok; document.head.appendChild(el); });
   const leaflet = async () => { await Promise.all([load('vendor/leaflet/leaflet.min.css', 1), load('vendor/leaflet/leaflet.min.js')]); if (!window.MAPBASE) await load('mapbase.js?v=5.31e1'); };
   async function open(o = {}) {
+    // v5.54: страница в рамке (окно ИИ-Агента, окно объявления) — карту открывает страница вокруг, на весь экран
+    try { if (window.parent !== window && window.parent.location.origin === location.origin && window.parent.MINIMAP) return window.parent.MINIMAP.open(o); } catch { /* другая страница */ }
     style(); close();
     box = document.createElement('div'); box.className = 'mm-ov'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Объект на карте');
     box.innerHTML = `<div class="mm-box"><div class="mm-head no-objlink"><b>📍 ${o.num ? `№ ${esc(o.num)} на карте` : 'На карте'}<small>${esc(o.place || '')}</small></b><button type="button" class="mm-x" aria-label="Закрыть">✕</button></div><div class="mm-map"><p class="mm-wait">Загружаю карту…</p></div></div>`;

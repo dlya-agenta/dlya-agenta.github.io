@@ -77,7 +77,7 @@ window.SHARE = (() => {
   const isEx = s => s.kind === 'excl', isPk = s => s.kind === 'pick';   // v5.25b: подборки эксклюзивов — своя вкладка «Подборки эксклюзивов» (в «Все» не входят)
   const agentLink = s => rel(s.agent_link || (s.link ? `${s.link}&a=1` : `s.html#id=${s.id}&a=1`));
   let css = false;
-  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.52">'); };
+  const style = () => { if (css) return; css = true; document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="sels.css?v=5.54">'); };
   // сводка ответов собственников по подборке: marks — { [num]: { st, at, text } } из auto own_marks (вкладка A)
   function ownSum(s, marks) {
     const m = (s.nums ?? []).map(n => marks?.[n]).filter(Boolean);

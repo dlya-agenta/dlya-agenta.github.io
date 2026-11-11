@@ -24,6 +24,7 @@
       if (m.type === 'ask') { opts = { mode: m.mode, page: m.page }; if (m.fresh) newDialog(); ask(m.q); }
       if (m.type === 'page') opts.page = m.page;
       if (m.type === 'new') newDialog();
+      if (m.type === 'picks') { picked = new Set((m.nums ?? []).map(Number).filter(Boolean)); showPicks(true); }   // v5.54: «✨ В ИИ-Агент» из полосы выбора
       if (m.type === 'fill') { const i = el?.querySelector('#h-q'); if (i) { i.value = m.q; i.focus(); } }
     });
     // ссылки и объявления — во всей вкладке, а не в маленьком окне
@@ -67,9 +68,9 @@
       <label class="pick" title="Отметить для помощника, подборки, рекламы"><input type="checkbox" data-pick="${x.num}"${on ? ' checked' : ''}><i class="pk-box" aria-hidden="true"></i><span class="pk-t">${on ? 'Выбрано' : 'Выбрать'}</span></label></div>
     <div class="body">
       <div class="price"><b>${x.price ? rub(x.price) : 'Цена не указана'}</b><small>${x.price && x.area ? `${Math.round(x.price / x.area).toLocaleString('ru-RU')} ₽/м²` : ''}</small>${lock(x)}</div>
-      ${x.zk || x.complex ? `<div class="zk">${esc(x.zk || x.complex)}</div>` : ''}
-      <div class="title">${esc(title(x))}</div>
-      <div class="addr">${esc(where)}</div>
+      ${x.zk || x.complex ? `<div class="zk" data-obj="${x.num}" title="Открыть объявление">${esc(x.zk || x.complex)}</div>` : ''}
+      <div class="title" data-obj="${x.num}" title="Открыть объявление">${esc(title(x))}</div>
+      <div class="addr" data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(where)}</div>
       ${x.archived ? '<div class="tags"><span class="tag">Архив · требуется уточнить актуальность</span></div>' : ''}
       <div class="meta">№ ${x.num}</div>
       <div class="actions">${phoneHtml(x)}<button type="button" class="btn ghost" data-obj="${x.num}">Открыть</button></div>
@@ -93,6 +94,15 @@
     if (q0) { localStorage.removeItem('helper_q'); cur = null; el.querySelector('#h-q').value = q0; }
     if (cur) loadDialog(cur);
   }
+  // v5.54: выбранные на странице объекты — строкой над полем: агент пишет, что с ними сделать (уходят в запрос как picked)
+  function showPicks(focus) {
+    const b = el?.querySelector('#h-picks'), q = el?.querySelector('#h-q'); if (!b) return;
+    const L = [...picked];
+    b.hidden = !L.length;
+    b.innerHTML = L.length ? `<span class="h-pk-t">📌 Выбрано: <b>${L.length}</b></span>${L.slice(0, 12).map(n => `<a class="objlink" href="./#o=${n}" data-obj="${n}">№ ${n}</a>`).join(' ')}${L.length > 12 ? ` <span class="muted">и ещё ${L.length - 12}</span>` : ''}<button type="button" class="link h-pk-x" data-pkclear title="Убрать выбранные из запроса">✕ убрать</button>` : '';
+    if (q) q.placeholder = L.length ? 'Что сделать с выбранными? Например: сравни их, напиши собственникам про торг, сделай подборку клиенту Ольге' : q.dataset.ph0 || q.placeholder;
+    if (focus && q) setTimeout(() => q.focus({ preventScroll: true }), 60);
+  }
   function draw() {
     const voice = H.voiceOk();
     el.innerHTML = `<div class="hub-two">
@@ -105,11 +115,12 @@
         <div class="ex-box"><p class="ex-h">💡 Примеры просьб — нажмите, чтобы вставить</p><div class="hub-tips">${TIPS.map(t => `<button type="button" class="chip" data-tip="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>
         <p class="hint" id="h-wait" hidden>⏳ Помощник работает: ищет, сравнивает, выполняет — обычно 20–90 секунд (<b id="h-sec">0</b> с). Можно уйти со страницы — ответ придёт в бот.</p>
         <div id="h-turns"></div>
-        <form class="hub-ask h-stick" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
+        <div id="h-picks" class="h-picks" hidden></div><form class="hub-ask h-stick" id="h-ask"><textarea id="h-q" rows="2" placeholder="Что сделать? Например: подбери 2к до 15 млн у моря в Адлере, сравни цены и поставь задачу позвонить клиенту завтра в 10" aria-label="Просьба помощнику" maxlength="2000"></textarea>
           ${voice ? '<button type="button" class="btn soft" id="h-mic" title="Сказать голосом" aria-label="Сказать голосом">🎤</button>' : ''}
           <button class="btn primary" id="h-go">Отправить</button></form>
         </section></div>`;
     renderContext();
+    { const q = el.querySelector('#h-q'); if (q) q.dataset.ph0 = q.placeholder; } showPicks();
     el.onclick = onClick; el.onchange = onChange;
     el.querySelector('#h-ask').onsubmit = e => { e.preventDefault(); ask(); };
     el.querySelector('#h-q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
@@ -282,6 +293,7 @@
   }
   async function onClick(e) {
     const t = e.target;
+    if (t.closest('[data-pkclear]')) { picked.clear(); el.querySelectorAll('.hub-fc.picked').forEach(k => k.classList.remove('picked')); el.querySelectorAll('[data-pick]').forEach(i => { i.checked = false; }); showPicks(); return; }
     const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
     const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, cp.dataset.hcopyT || 'Номер скопирован'); return; }
     if (t.closest('.hub-fc .strip img')) { openObj(t.closest('.hub-fc').dataset.num); return; }

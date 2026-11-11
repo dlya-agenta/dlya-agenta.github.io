@@ -32,3 +32,7 @@ html:has(.sai-ov) :is(.toast, #v-toast) { z-index: 2147483500 !important; }
 /* строка адреса в карточке — «посмотреть на карте» (minimap.js), объявление при этом не открывается */
 [data-mm], .s-place[data-map] { cursor: pointer; }
 :is(.addr, .iv-addr, .ex-place, .s-place)[data-mm]:hover, .s-place[data-map]:hover { color: var(--link); text-decoration: underline dotted; text-underline-offset: 3px; }
+/* v5.54 (Алексей 11.11): последнее открытое — сверху. Окно объявления, рамка объявления и фото — выше окна ИИ-Агента (3500) и Помощи */
+.sheet:not(.offer) { z-index: 3600; }
+.objpop { z-index: 3600; }
+.viewer { z-index: 3700; }

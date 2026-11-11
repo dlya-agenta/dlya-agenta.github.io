@@ -248,7 +248,9 @@
     };
   }
 
-  window.AGENT = { open, ask, listen, minimize, rate, searched, command, bg: q => { shell(); panel(); load(); bg(q); } };   // bg — запрос в фоне, ответ карточкой (п. 4)
+  // v5.54: «✨ В ИИ-Агент» в полосе выбора — выбранные объекты в окно Агента, агент пишет, что с ними сделать
+  function withPicks(nums) { open(); send({ type: 'picks', nums: [...nums].slice(0, 40) }); }
+  window.AGENT = { withPicks, open, ask, listen, minimize, rate, searched, command, bg: q => { shell(); panel(); load(); bg(q); } };   // bg — запрос в фоне, ответ карточкой (п. 4)
   // кнопки не мешают вводу: на странице Помощника (там своё поле с 🎤) — скрыты; пока печатают в поле (на телефоне клавиатура) или
   // открыто окно «Помощь» — тоже скрыты
   const H = document.documentElement;

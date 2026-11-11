@@ -1174,6 +1174,7 @@ $('#sel-mail').onclick = async () => {
     toast(`В списке рассылки: ${(j.list ?? []).length}. Открыть — «Продвижение» → «Рассылки»`, 4500);
   } catch (err) { toast(err.message, 4500); } finally { b.disabled = false; }
 };
+$('#sel-ai').onclick = () => { if (!sel.size) return; if (window.AGENT?.withPicks) AGENT.withPicks([...sel]); else toast('ИИ-Агент загружается — нажмите ещё раз через секунду'); };   // v5.54: выбранные → в окно ИИ-Агента
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {

@@ -6,7 +6,7 @@
   const V = '5.53a', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   // v5.53: окно объявления поверх Помощника и на страницах без objpop.js (страница агента s.html)
   // (только когда агент открыл Помощник — у клиента на s.html номера ссылками не становятся)
-  const objpop = () => { if (!window.OBJPOP && !document.querySelector('script[src^="objpop.js"]')) { const sc = document.createElement('script'); sc.src = 'objpop.js?v=5.53'; document.head.appendChild(sc); } };
+  const objpop = () => { if (!window.OBJPOP && !document.querySelector('script[src^="objpop.js"]')) { const sc = document.createElement('script'); sc.src = 'objpop.js?v=5.54'; document.head.appendChild(sc); } };
   if (!document.querySelector('link[data-selai]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `selai.css?v=${V}`; l.dataset.selai = '1'; document.head.appendChild(l); }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };

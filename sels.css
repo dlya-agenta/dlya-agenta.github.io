@@ -173,3 +173,23 @@ body.client .share-agent { display: none; }
   .sp-acts .btn { padding: 0 10px; }
   .sp-acts:has(.kid, .ok) { flex-wrap: wrap; }
 }
+/* v5.54 (снимок Алексея 11.11): на телефоне полоса выбора — ровная сетка, круглые 🎤 ✨ 💬 — над полосой, а не поверх её кнопок */
+@media (max-width: 560px) {
+  .selbar:not([hidden]) { display: grid !important; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .selbar #selcount { grid-column: 1 / 5; align-self: center; }
+  .selbar #sel-clear { grid-column: 5 / 7; justify-self: end; }
+  .selbar #sel-make { grid-column: 1 / 4; }
+  .selbar #sel-ai { grid-column: 4 / 7; }
+  .selbar :is(#sel-rk, #sel-mail, #sel-video) { grid-column: span 2; }
+  .selbar :is(#sel-make, #sel-ai, #sel-rk, #sel-mail, #sel-video) { min-width: 0; white-space: normal; line-height: 1.15; font-size: 13.5px; padding: 8px 6px; min-height: 42px; }
+  .selbar :is(#sel-rk, #sel-mail, #sel-video)[hidden] { display: none; }
+  body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(var(--selbar-top, 190px) + 10px) !important; }
+}
+@media (max-width: 560px) {
+  .selbar #selcount, .selbar #sel-clear { grid-row: 1; }
+  .selbar #sel-make, .selbar #sel-ai { grid-row: 2; }
+  .selbar :is(#sel-rk, #sel-mail, #sel-video) { grid-row: 3; }
+  .selbar #sel-rk { grid-column: 1 / 3; } .selbar #sel-mail { grid-column: 3 / 5; } .selbar #sel-video { grid-column: 5 / 7; }
+}
+/* подсказки-карточки снизу (Краткий курс, напоминания Агента) — над полосой выбора */
+body:has(#selbar:not([hidden])) .ag-card { bottom: calc(var(--selbar-top, 190px) + 10px) !important; }
