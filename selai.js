@@ -3,7 +3,9 @@
 // Сервер — hub sel_ai {sel_id} (что понял, альтернативы, текст клиенту; ai: true — переписал ИИ, false — по правилам) и sel_ai_make {sel_id, nums, text} → новая подборка ссылкой.
 (() => {
   if (window.SELAI) return;
-  const V = '5.51', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  const V = '5.53', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  // v5.53: окно объявления поверх Помощника и на страницах без objpop.js (страница агента s.html)
+  if (!window.OBJPOP && !document.querySelector('script[src^="objpop.js"]')) { const sc = document.createElement('script'); sc.src = 'objpop.js?v=5.53'; document.head.appendChild(sc); }
   if (!document.querySelector('link[data-selai]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `selai.css?v=${V}`; l.dataset.selai = '1'; document.head.appendChild(l); }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
@@ -63,25 +65,42 @@
     b.querySelector('[data-close]').onclick = close;
   }
   const agentLink = (o, f) => (o.t ? `s.html#${encodeURIComponent(o.t)}&a=1` : `s.html#id=${o.sel_id}&a=1`) + (f ? `&f=${f}` : '');
-  const fbLi = (x, icon) => `<li><span class="sai-n">${icon ? icon + ' ' : ''}№ ${x.num}</span><span>${esc(x.why)}</span></li>`;
+  const fbLi = (x, icon) => `<li><span class="sai-n">${icon ? icon + ' ' : ''}<a class="objlink" href="./#o=${x.num}" data-obj="${x.num}" title="Открыть объявление">№ ${x.num}</a></span><span>${esc(x.why)}</span></li>`;
   const fbList = (xs, icon) => !xs.length ? '<p class="sai-mut">нет</p>' : `<ul class="sai-fb">${xs.slice(0, 4).map(x => fbLi(x, icon)).join('')}</ul>${xs.length > 4
     ? `<details class="sai-det"><summary>ещё ${xs.length - 4}</summary><ul class="sai-fb">${xs.slice(4, 30).map(x => fbLi(x, icon)).join('')}</ul></details>` : ''}`;
-  const qLi = x => `<li><span class="sai-n">№ ${x.num}</span><q>${esc(x.q)}</q></li>`;
+  const qLi = x => `<li><span class="sai-n"><a class="objlink" href="./#o=${x.num}" data-obj="${x.num}" title="Открыть объявление">№ ${x.num}</a></span><q>${esc(x.q)}</q></li>`;
   const qList = xs => `<ul class="sai-q">${xs.slice(0, 4).map(qLi).join('')}</ul>${xs.length > 4 ? `<details class="sai-det"><summary>ещё ${xs.length - 4}</summary><ul class="sai-q">${xs.slice(4, 40).map(qLi).join('')}</ul></details>` : ''}`;
   // v5.48 H2: pick — «вне рамки» у альтернатив за рамкой агента; галочками заранее отмечены только объекты в рамке (первые 6)
   // v5.51: карточка — фото ровно 4:3 (раньше вертикальные фото растягивали карточку), значки на фото, «нужен ремонт / не указан» не показываем
   const RP_OK = new Set(['с ремонтом']);
+  // v5.53 (Алексей 11.11): фото листаются, как в поиске — мышкой по фото (кадры меняются, внизу полоски), на телефоне — пальцем; до 12 кадров
+  const gal = a => { const n = Math.max(1, Math.min(12, +a.photos || 1)), u = k => k ? String(a.photo).replace(/\/0\.jpg(\?.*)?$/, `/${k}.jpg$1`) : a.photo;
+    const L = n > 1 && /\/0\.jpg(\?.*)?$/.test(a.photo) ? n : 1;
+    return `<span class="sai-strip">${Array.from({ length: L }, (_, k) => `<img src="${esc(u(k))}" alt="" loading="lazy" referrerpolicy="no-referrer">`).join('')}</span>${L > 1 ? `<span class="sai-dots">${Array.from({ length: L }, (_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</span>` : ''}`; };
+  // кадра нет (фото ещё не загружено) — убрать из ленты и полосок
+  document.addEventListener('error', e => { const im = e.target; if (im.tagName !== 'IMG' || !im.parentElement?.classList.contains('sai-strip')) return;
+    const ph = im.closest('.sai-ph'), k = [...im.parentElement.children].indexOf(im); im.remove(); ph?.querySelectorAll('.sai-dots i')[k]?.remove(); }, true);
+  const scrub = e => { const ph = e.target.closest?.('.sai-ph'), st = ph?.querySelector('.sai-strip'); if (!st) return; const n = st.children.length; if (n < 2) return;
+    const r = ph.getBoundingClientRect(), k = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n))); if (ph.dataset.k == k) return;
+    ph.dataset.k = k; st.scrollTo({ left: k * st.clientWidth, behavior: 'instant' }); ph.querySelectorAll('.sai-dots i').forEach((d, i) => d.classList.toggle('on', i === k)); };
+  if (matchMedia('(hover: hover)').matches) {
+    document.addEventListener('mousemove', scrub);
+    document.addEventListener('mouseout', e => { const ph = e.target.closest?.('.sai-ph'); if (ph && !ph.contains(e.relatedTarget) && +ph.dataset.k) { ph.dataset.k = 0; ph.querySelector('.sai-strip')?.scrollTo({ left: 0, behavior: 'instant' }); ph.querySelectorAll('.sai-dots i').forEach((d, i) => d.classList.toggle('on', !i)); } });
+  }
+  // телефон: лента листается пальцем (scroll-snap) — полоски по месту
+  document.addEventListener('scroll', e => { const st = e.target; if (!st.classList?.contains('sai-strip')) return; const k = Math.round(st.scrollLeft / (st.clientWidth || 1));
+    st.parentElement.querySelectorAll('.sai-dots i').forEach((d, i) => d.classList.toggle('on', i === k)); }, true);
   function card(a, i, pk) {
     const pa = [a.rooms === 0 ? 'студия' : a.rooms != null ? `${a.rooms}-комн.` : '', a.area ? `${n1(a.area)} м²` : '', a.floor ? `${a.floor} эт.` : ''].filter(Boolean);
     return `<label class="sai-card${a.modern ? ' mod' : ''}${pk && a.outside_frame ? ' out' : ''}"><input type="checkbox" data-num="${a.num}"${i < 6 && !(pk && a.outside_frame) ? ' checked' : ''}>
-      <span class="sai-ph">${a.photo ? `<img src="${esc(a.photo)}" alt="" loading="lazy">` : '<span class="sai-nophoto">фото нет</span>'}
+      <span class="sai-ph">${a.photo ? gal(a) : '<span class="sai-nophoto">фото нет</span>'}
         <span class="sai-badges">${a.modern ? '<b class="sai-badge"><i>✨ </i>Современный ремонт</b>' : RP_OK.has(a.repair) ? '<b class="sai-badge soft">С ремонтом</b>' : ''}${pk && a.outside_frame ? '<b class="sai-badge out">вне рамки</b>' : ''}</span>
         ${a.photos ? `<em>📷 ${a.photos}</em>` : ''}<i class="sai-tick" aria-hidden="true"></i></span>
       <span class="sai-ci"><span class="sai-pr">${esc(mln(a.price_client || a.price))}${a.price_client && a.price && a.price_client !== a.price ? ` <small>собств. ${esc(mln(a.price))}</small>` : ''}</span>
         <span class="sai-pa">${pa.map(esc).join('<i>·</i>')}</span>
-        <span class="sai-pl">📍 ${esc([a.zk, a.sub].filter(Boolean).join(', ') || 'Сочи')}${a.sea_m ? `<span class="sai-sea">🌊 ${esc(sea(a.sea_m).replace(' до моря', ''))}</span>` : ''}</span>
+        <span class="sai-pl"><span class="sai-mm" data-mm data-num="${a.num}" title="Показать на карте">📍 ${esc([a.zk, a.sub].filter(Boolean).join(', ') || 'Сочи')}</span>${a.sea_m ? `<span class="sai-sea">🌊 ${esc(sea(a.sea_m).replace(' до моря', ''))}</span>` : ''}</span>
         ${a.why ? `<span class="sai-why">${esc(a.why)}</span>` : ''}
-        <span class="sai-foot"><span class="sai-num">№ ${a.num}</span><span class="sai-pick-l"></span></span></span></label>`;
+        <span class="sai-foot"><span class="sai-num"><a class="objlink" href="./#o=${a.num}" data-obj="${a.num}" title="Открыть объявление">№ ${a.num}</a></span><span class="sai-pick-l"></span></span></span></label>`;
   }
   function render(b, r, o) {
     state = { r, o };

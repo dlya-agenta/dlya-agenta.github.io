@@ -24,3 +24,11 @@
 .ex-tabs { align-items: center; }
 /* пустой список (сделки, подборки…) — текст во всю ширину, а не в первой колонке сетки */
 :is(.dl-list, .sp-list, .ex-list) > p:only-child { grid-column: 1 / -1; }
+/* v5.53: окна, открытые из Помощника по откликам (он поверх всего), — поверх него: объявление, фото, карта, подсказки */
+html:has(.sai-ov) :is(.sheet, .objpop) { z-index: 2147483100 !important; }
+html:has(.sai-ov) :is(.s-map, .sa-modal) { z-index: 2147483200 !important; }
+html:has(.sai-ov) :is(.viewer, .s-view) { z-index: 2147483300 !important; }
+html:has(.sai-ov) :is(.toast, #v-toast) { z-index: 2147483500 !important; }
+/* строка адреса в карточке — «посмотреть на карте» (minimap.js), объявление при этом не открывается */
+[data-mm], .s-place[data-map] { cursor: pointer; }
+:is(.addr, .iv-addr, .ex-place, .s-place)[data-mm]:hover, .s-place[data-map]:hover { color: var(--link); text-decoration: underline dotted; text-underline-offset: 3px; }

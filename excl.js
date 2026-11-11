@@ -189,7 +189,7 @@
         <button type="button" class="ex-fav${x.fav ? ' on' : ''}" data-fav="${x.id}" aria-label="${x.fav ? 'Убрать из избранного' : 'В избранное'}" aria-pressed="${!!x.fav}">${x.fav ? '★' : '☆'}</button></div>
       <div class="ex-cb"><b class="ex-price">${esc(money(x.price))}${x.price_prev ? ` <s>${esc(dots(x.price_prev))}</s>` : ''}</b>
         ${x.area && x.price ? `<small class="muted">${esc(dots(Math.round(x.price / x.area)))} ₽/м²</small>` : ''}
-        <span class="ex-what">${esc(what(x))}</span><span class="ex-place muted">${esc(place(x) || 'Сочи')}</span>
+        <span class="ex-what">${esc(what(x))}</span><span class="ex-place muted"data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(place(x) || 'Сочи')}</span>
         <span class="ex-meta muted">${x.sea_m ? `🌊 ${esc(sea(x.sea_m))} · ` : ''}${x.finish ? `${esc(FN[x.finish] ?? '')} · ` : ''}${esc(ago(x.at))}</span>
         ${x.agent ? `<span class="ex-ag">👤 ${esc(x.agent.name)}${x.agent.company ? `, ${esc(x.agent.company)}` : ''}</span>` : x.locked ? `<span class="ex-ag muted">🔒 Контакт агента — ${x.lock_paid ? 'с оплаченной подпиской' : 'по подписке'}</span>` : ''}
         <label class="ex-pick"><input type="checkbox" data-pick="${x.num}"${sel.has(x.num) ? ' checked' : ''}> Выбрать</label></div></article>`;

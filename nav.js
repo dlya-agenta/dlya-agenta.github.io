@@ -220,7 +220,7 @@ window.NAV = (() => {
   }
   // v5.52 (п. 2 Алексея): единый стиль — ui.css последним на всех страницах и одна подпись в шапке
   function uiKit() {
-    if (!document.querySelector('link[href^="ui.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'ui.css?v=5.52'; document.head.appendChild(l); }
+    if (!document.querySelector('link[href^="ui.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'ui.css?v=5.53'; document.head.appendChild(l); }
     document.querySelectorAll('.top .brand small').forEach(s => { s.textContent = '5 минут — вместо тысячи часов!'; });
   }
   const start = () => { uiKit(); build(); wire(); dress(); proxyHash(); appBar(); };

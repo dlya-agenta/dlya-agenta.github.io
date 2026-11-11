@@ -767,7 +767,7 @@ function card(x, mini = false) {
       ${xLine(x)}
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : ''}
       <div class="title" data-open>${esc(what(x))}</div>
-      <div class="addr">${esc(where)}</div>
+      <div class="addr" data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(where)}</div>
       <div class="tags">${tags(x)}${ansTag(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${!mini && x.descr ? `<div class="descr" data-d><p>${descrHtml(x.descr)}</p>${x.descr.length > 160 ? '<button type="button" class="more" data-more><span>Развернуть описание</span><i>▾</i></button>' : ''}</div>` : ''}
@@ -1030,7 +1030,7 @@ function itemView(x, k) {
       ${xLine(x)}
       ${zk ? `<div class="zk">${esc(zk)}</div>` : ''}
       <div class="iv-title">${esc(what(x))}</div>
-      <div class="iv-addr">${esc(where)}</div>
+      <div class="iv-addr" data-mm data-num="${x.num}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} title="Показать на карте">📍 ${esc(where)}</div>
       <div class="tags">${tags(x)}${ansTag(x)}</div>
       <div class="meta">Добавлено ${date} · № ${x.num}</div>
       ${x.video ? `<video class="iv-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
@@ -1370,7 +1370,7 @@ async function onSelPage(e) {
   const ai = e.target.closest('[data-selai]');
   if (ai) {
     const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null, ...(ai.dataset.pick ? { pick: true } : {}) };
-    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
     if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
   }
 }

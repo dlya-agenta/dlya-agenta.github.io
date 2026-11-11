@@ -119,7 +119,7 @@
     return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}${pk ? ' p-card' : ''}" data-num="${x.num}">${ph}
       <div class="s-body">
         <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : 'цена по запросу'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
-        <div class="s-place-row">${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}${data?.kind === 'excl' ? '' : `<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button>`}</div>
+        <div class="s-place-row">${x.place ? `<p class="muted s-place"${data?.kind === 'excl' ? '' : ` data-map="${x.num}" title="Показать на карте"`}>${esc(x.place)}</p>` : ''}${data?.kind === 'excl' ? '' : `<button type="button" class="link s-onmap" data-map="${x.num}">📍 Посмотреть на карте</button>`}</div>
         ${tags.length ? `<div class="s-tags">${tags.map(g => `<span class="tag">${esc(g)}</span>`).join('')}</div>` : ''}
         ${x.gone ? '<p class="s-gone">Объявление снято с продажи — уточните у агента.</p>' : ''}
         ${x.video ? `<video class="s-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
@@ -342,7 +342,7 @@
   });
 
   // v5.48 H: pick.js рисует свою страницу, но карточку, карту и просмотр фото берёт отсюда. setData — общий список объектов страницы (индекс = data-i у фото)
-  window.SEL = { cardHtml: (x, i, pk) => card(x, i, 0, pk), openMap: n => mapOpen(n), mapReset: () => { mapData = null; },
+  window.SEL = { gal, cardHtml: (x, i, pk) => card(x, i, 0, pk), openMap: n => mapOpen(n), mapReset: () => { mapData = null; },
     setData: d => { data = d; }, esc, money, day, plural, intl, toast, marked: () => {}, fit: () => document.querySelectorAll('.s-descr').forEach(p => { if (p.scrollHeight - p.clientHeight > 10) p.nextElementSibling.hidden = false; }) };
   addEventListener('hashchange', () => location.reload());   // вставили другую ссылку в ту же вкладку
   if (agentMode) AGENT();
@@ -433,7 +433,7 @@
         <div class="sa-body">
           <label class="chk"><input type="checkbox" data-action-pick value="${x.num}" ${unpicked.has(x.num) ? "" : "checked"}> Выбрать для действия</label>
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
-          ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
+          ${x.place ? `<p class="muted s-place"${data?.kind === 'excl' ? '' : ` data-map="${x.num}" title="Показать на карте"`}>${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с продажи</p>' : ''}
           ${adHtml(x)}
           ${x.cmark || x.ccomment ? `<div class="sa-cfb">${x.cmark === 'yes' ? '<b class="t-ok">👍 Клиенту подходит</b>' : x.cmark === 'no' ? '<b class="t-bad">👎 Клиенту не подходит</b>' : '<b>💬 Вопрос клиента</b>'}${x.ccomment ? ` <span>«${esc(clip(x.ccomment, 160))}»</span>` : ''}</div>` : ''}
@@ -518,7 +518,7 @@
         <div class="sa-body">
           <label class="chk"><input type="checkbox" data-action-pick value="${x.num}" ${unpicked.has(x.num) ? "" : "checked"}> Выбрать для действия</label>
           <div class="s-head"><h2>${esc(x.what)}</h2><div class="s-price">${x.price ? `${money(x.price)} ₽` : '—'}${x.ppm ? `<small>${money(x.ppm)} ₽/м²</small>` : ''}</div></div>
-          ${x.place ? `<p class="muted s-place">${esc(x.place)}</p>` : ''}
+          ${x.place ? `<p class="muted s-place"${data?.kind === 'excl' ? '' : ` data-map="${x.num}" title="Показать на карте"`}>${esc(x.place)}</p>` : ''}
           ${x.gone ? '<p class="s-gone">Снято с размещения</p>' : ''}
           ${x.video ? `<video class="s-video" src="${esc(x.video)}" controls playsinline preload="metadata"></video>` : ''}
           ${x.comm ? `<div class="sa-ad"><span class="tag ok">🤝 Комиссия коллеге: ${esc(x.comm)}</span>${x.comm_note ? `<small class="muted">${esc(x.comm_note)}</small>` : ''}</div>` : ''}
@@ -814,7 +814,7 @@
       const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
       if (window.SELAI?.open) return window.SELAI.open(arg);
       toast('Помощник загружается…');
-      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53'; el.onload = el.onerror = ok; document.head.appendChild(el); });
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
 

@@ -280,7 +280,7 @@
       const price = [x.price ? `Собственник: <b>${mon(x.price)} ₽</b>` : '', x.client_price ? `клиенту: <b>${mon(x.client_price)} ₽</b>` : ''].filter(Boolean).join(' · ');
       const tel = S().intl(x.phone);
       return `<article class="pk-card" data-num="${x.num}">
-        ${ph ? `<img class="pk-ph" src="${eh(ph)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="pk-ph pk-noph" aria-hidden="true">Фото нет</div>'}
+        ${ph ? (S().gal ? `<div class="pk-ph pk-gal">${S().gal(x.photos, 9)}</div>` : `<img class="pk-ph" src="${eh(ph)}" alt="" loading="lazy" referrerpolicy="no-referrer">`) : '<div class="pk-ph pk-noph" aria-hidden="true">Фото нет</div>'}
         <div class="pk-body">
           <div class="pk-top"><h3>${eh(x.what)}</h3><small class="muted">№ ${x.num}</small></div>
           ${x.place ? `<p class="muted pk-place">${eh(x.place)}</p>` : ''}
