@@ -24,17 +24,17 @@
     const cmp = iD >= 0 && body.length >= 1 && body.every(r => NUM.test(r[0] ?? ''));
     if (!cmp) return `<div class="ai-tw"><table class="ai-t"><thead><tr>${head.map(h => `<th>${inl(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r => `<tr>${head.map((_, k) => `<td>${inl(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     const objs = body.map(r => { const n = +NUM.exec(r[0])[1], d = pctOf(r[iD]);
-      const o = { num: n, what: r[0].replace(NUM, '').replace(/^[\s—–:,-]+/, '').trim(), diff: d, ppm: iP >= 0 ? r[iP] : '', market: iM >= 0 && iM !== iP ? r[iM] : '', with: iW >= 0 ? r[iW] : '', price: iC >= 0 ? r[iC] : '' };
+      const o = { num: n, top: /⭐/.test(r[0]), what: r[0].replace(/⭐\s*/g, '').replace(NUM, '').replace(/^[\s—–:,-]+/, '').trim(), diff: d, ppm: iP >= 0 ? r[iP] : '', market: iM >= 0 && iM !== iP ? r[iM] : '', with: iW >= 0 ? r[iW] : '', price: iC >= 0 ? r[iC] : '' };
       CMP.set(n, o); return o; });
     const sorted = [...objs].filter(o => o.diff != null).sort((a, b) => a.diff - b.diff);
-    const chips = sorted.length >= 2 ? `<div class="ai-vd">${sorted.slice(0, 4).map(o => `<div class="ai-vc ${cls(o.diff)}">${th(o.num)}<div><i>${verdict(o.diff)}</i><b>${objA(o.num)} <span>${o.diff > 0 ? '+' : o.diff < 0 ? '−' : ''}${Math.abs(o.diff).toString().replace('.', ',')} %</span></b></div></div>`).join('')}</div>` : '';
+    const chips = sorted.length >= 2 ? `<div class="ai-vd">${sorted.slice(0, 4).map(o => `<div class="ai-vc ${cls(o.diff)}${o.top ? ' ai-topc' : ''}">${th(o.num)}<div><i>${o.top ? '⭐ ' : ''}${verdict(o.diff)}</i><b>${objA(o.num)} <span>${o.diff > 0 ? '+' : o.diff < 0 ? '−' : ''}${Math.abs(o.diff).toString().replace('.', ',')} %</span></b></div></div>`).join('')}</div>` : '';
     const bars = sorted.length ? `<div class="ai-bars">${sorted.map(o => { const x = Math.max(4, Math.min(96, 50 + o.diff * 1.2));
       return `<div class="ai-bar"><div class="ai-bo">${th(o.num)}<div>${objA(o.num)}<small>${esc(o.ppm)}${o.with ? ` · ${esc(o.with)}` : ''}</small></div></div>
         <div class="ai-sc" title="Точка — цена объекта за м², черта — середина рынка того, с чем сравнивали"><span class="ai-mid"></span><span class="ai-dot ${cls(o.diff)}" style="left:${x}%"></span></div>
         <span class="ai-bd ${cls(o.diff)}">${o.diff > 0 ? '+' : o.diff < 0 ? '−' : ''}${Math.abs(o.diff).toString().replace('.', ',')} %</span></div>`; }).join('')}
       <p class="ai-leg">Точка — цена за м², черта — рынок (с чем сравнивали). Левее — дешевле.</p></div>` : '';
-    const tbl = `<div class="ai-tw"><table class="ai-t ai-cmp"><thead><tr>${head.map((h, k) => `<th${k && k !== iW ? ' class="r"' : ''}>${inl(h)}</th>`).join('')}</tr></thead><tbody>${body.map((r, j) => `<tr>${head.map((h, k) => !k
-      ? `<td data-l="${esc(h)}"><div class="ai-to">${th(objs[j].num)}<div>${objA(objs[j].num)}<small>${esc(objs[j].what)}</small></div></div></td>`
+    const tbl = `<div class="ai-tw"><table class="ai-t ai-cmp"><thead><tr>${head.map((h, k) => `<th${k && k !== iW ? ' class="r"' : ''}>${inl(h)}</th>`).join('')}</tr></thead><tbody>${body.map((r, j) => `<tr${objs[j].top ? ' class="ai-top"' : ''}>${head.map((h, k) => !k
+      ? `<td data-l="${esc(h)}"><div class="ai-to">${th(objs[j].num)}<div>${objs[j].top ? '<span class="ai-star" title="В тройке лучших">⭐ Топ-3</span> ' : ''}${objA(objs[j].num)}<small>${esc(objs[j].what)}</small></div></div></td>`
       : k === iD ? `<td class="r" data-l="${esc(h)}"><span class="ai-bd ${cls(objs[j].diff)}">${esc(r[k] ?? '')}</span></td>`
       : `<td${k !== iW ? ' class="r"' : ''} data-l="${esc(h)}">${inl(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     return chips + bars + tbl;
@@ -47,6 +47,7 @@
     for (const raw of lines) {
       const l = raw.trimEnd(); let m;
       if (!l.trim()) { close(); continue; }
+      if ((m = /^\s*(?:[-*•]\s*)?🔒\s*(.*)/.exec(l))) { close(); out.push(`<p class="ai-ag" title="Клиент этого не увидит"><b>🔒 Для вас:</b> ${inl(m[1])}</p>`); continue; }
       if ((m = /^\s*([+＋])\s+(.*)/.exec(l))) { close(); out.push(`<p class="ai-pl">${inl(m[2])}</p>`); continue; }
       if ((m = /^\s*[−–]\s+(.*)/.exec(l))) { close(); out.push(`<p class="ai-mn">${inl(m[1])}</p>`); continue; }
       if (/^\s*([-*•])\s+/.test(l)) { const tx = l.replace(/^\s*[-*•]\s+/, '');
@@ -63,7 +64,7 @@
     let buf = [], sec = null, nsec = 0;
     const flush = () => { if (!buf.length) return; const h = blocks(buf); buf = []; if (sec) sec.body += h; else out.push(h); };
     const endSec = () => { flush(); if (!sec) return; nsec++;
-      out.push(`<details class="ai-sec"${sec.open ? ' open' : ''}><summary>${sec.num ? th(sec.num) : ''}<span>${sec.num ? `${objA(sec.num)}${sec.title ? ' — ' : ''}` : ''}${inl(sec.title)}</span></summary><div class="ai-sb">${sec.body}</div></details>`); sec = null; };
+      out.push(`<details class="ai-sec${sec.top ? ' ai-top' : ''}${sec.agent ? ' ai-agsec' : ''}"${sec.open ? ' open' : ''}><summary>${sec.num ? th(sec.num) : ''}<span>${sec.agent ? '<b class="ai-agt">🔒 Только для вас</b> ' : ''}${sec.top ? '<span class="ai-star">⭐ Топ-3</span> ' : ''}${sec.num ? `${objA(sec.num)}${sec.title ? ' — ' : ''}` : ''}${inl(sec.title)}</span></summary><div class="ai-sb">${sec.body}</div></details>`); sec = null; };
     for (let i = 0; i < L.length; i++) {
       const l = L[i].trimEnd(), t = l.trim(); let m;
       if (/^\*\s*Перед сделкой/.test(t)) { endSec(); out.push(`<p class="hub-star"><b>*</b> ${esc(t.replace(/^\*\s*/, ''))}</p>`); continue; }
@@ -76,7 +77,9 @@
       if (/^\s*\|?\s*:?-{3,}/.test(t)) continue;
       if ((m = /^#{1,6}\s+(.*)/.exec(t))) {
         endSec(); const n = NUM.exec(m[1]), lead = n && m[1].indexOf(n[1]) <= 3;
-        if (lead) sec = { num: +n[1], title: m[1].slice(m[1].indexOf(n[1]) + n[1].length).replace(/^[\s*—–:.,-]+/, ''), body: '', open: true };
+        const agentH = /🔒|отбраковк|для агента|торг/i.test(m[1]);
+        if (lead) sec = { num: +n[1], top: /⭐/.test(m[1]), title: m[1].slice(m[1].indexOf(n[1]) + n[1].length).replace(/^[\s*—–:.,-]+/, ''), body: '', open: true };
+        else if (agentH) sec = { num: 0, agent: true, title: m[1].replace(/🔒\s*/, ''), body: '', open: true };
         else out.push(`<p class="md-h">${inl(m[1])}</p>`);
         continue;
       }
@@ -132,6 +135,10 @@
   .ai-lk{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.ai-lk code{font:13px/1.4 ui-monospace,Menlo,monospace;word-break:break-all;background:none;padding:0;flex:1 1 260px}
   .ai-lk:hover,.ai-q:hover{background:color-mix(in srgb,var(--accent,#3b82f6) 15%,transparent)}.ai-cp{font-size:12px;font-weight:600;color:var(--link,#1f6fb2);white-space:nowrap}
   .ai-q p{margin:0 0 4px}.ai-q .ai-cp{display:block;margin-top:4px}.ai-op{text-decoration:none;font-weight:700;padding:0 4px}.ai-copied{background:rgba(31,157,92,.18)!important}.ai-copied .ai-cp{color:#1f9d5c}
+.ai-t tr.ai-top td{background:rgba(245,179,1,.10)}.ai-t tr.ai-top td:first-child{box-shadow:inset 4px 0 0 #f5b301}.ai-star{display:inline-block;font-size:11.5px;font-weight:800;color:#8a6200;background:rgba(245,179,1,.2);border-radius:99px;padding:1px 7px;margin-right:4px;white-space:nowrap}
+  .ai-vc.ai-topc{border-color:#f5b301;box-shadow:0 0 0 1px #f5b301 inset}.ai-sec.ai-top{border-color:#f5b301;box-shadow:0 0 0 1px rgba(245,179,1,.6) inset}
+  .ai-ag{padding:7px 10px;border-radius:9px;background:rgba(124,92,255,.10);border:1px dashed rgba(124,92,255,.45)}.ai-agsec{border-style:dashed;border-color:rgba(124,92,255,.55);background:rgba(124,92,255,.06)}.ai-agt{color:#7c5cff}
+  .s-an-ag{margin-top:12px;border:1px dashed rgba(124,92,255,.55);border-radius:12px;padding:10px 12px;background:rgba(124,92,255,.06)}.s-an-ag summary{cursor:pointer;font-weight:700;color:#7c5cff;margin-bottom:6px}
   .ai-note{padding:10px 12px;border-radius:12px;background:rgba(224,164,0,.12);border:1px solid rgba(224,164,0,.35)}`;
   const st = document.createElement('style'); st.textContent = css; (document.head || document.documentElement).appendChild(st);
   document.addEventListener('click', e => {
@@ -140,5 +147,12 @@
     const ok = () => { const c = b.querySelector('.ai-cp'), was = c?.textContent; b.classList.add('ai-copied'); if (c) c.textContent = '✓ Скопировано'; setTimeout(() => { b.classList.remove('ai-copied'); if (c) c.textContent = was; }, 1600); };
     (navigator.clipboard?.writeText(t) ?? Promise.reject()).then(ok, () => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); ok(); } catch { /* */ } a.remove(); });
   });
-  window.AIMD = { md };
+  // v5.58e: та же разбивка, что на сервере (selection-edits.ts splitAnalysis): клиенту / «🔒 для агента»
+  const AGENT_HEAD = /🔒|отбраковк|для агента|агенту|торг|переговор|что предлагаю дальше|предлагаю дальше|следующ(?:ие|ий) шаг/i;
+  const AGENT_LINE = /^\s*(?:[-*•]\s*)?🔒|^\s*(?:\*\*)?(?:Что предлагаю дальше|Предлагаю дальше|Можно дальше)|объясняйте|не показыва|показывать не перв|отсека(?:ть|йте)|аргумент (?:в|для) торг|для вас как агента|клиенту не говор|комисси/i;
+  const split = t => { const cl = [], ag = []; let inA = false;
+    for (const l of String(t ?? '').replace(/\r/g, '').split('\n')) { const h = /^\s*#{1,6}\s+(.*)/.exec(l) || /^\s*\*\*([^*]{3,80})\*\*\s*:?\s*$/.exec(l); if (h) inA = AGENT_HEAD.test(h[1]);
+      (inA || AGENT_LINE.test(l) ? ag : cl).push(inA || AGENT_LINE.test(l) ? l.replace(/^(\s*(?:[-*•]\s*)?)🔒\s*/, '$1') : l); }
+    return { client: cl.join('\n').trim(), agent: ag.join('\n').trim() }; };
+  window.AIMD = { md, split };
 })();

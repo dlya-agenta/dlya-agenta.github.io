@@ -9,7 +9,7 @@
   const money = v => Math.round(v).toLocaleString('ru-RU');
   // v5.58: «📎 Анализ подборки» (галочка при создании) — вид «A + C» (aimd.js); номер в анализе ведёт к карточке объекта на этой странице, мини-фото — из подборки
   const anHtml = d => { if (!d?.analysis || !window.AIMD) return ''; window.__SAN = d.items ?? [];
-    return `<section class="s-an"><h2>📊 Анализ подборки</h2>${window.AIMD.md(d.analysis)}</section>`; };
+    return `<section class="s-an"><h2>📊 Анализ подборки</h2>${window.AIMD.md(d.analysis)}${d.analysis_agent ? `<details class="s-an-ag" open><summary>🔒 Только для вас — клиент этого не видит</summary>${window.AIMD.md(d.analysis_agent)}</details>` : ''}</section>`; };
   const anFill = () => document.querySelectorAll('.s-an .objm-th img:not([src])').forEach(im => { const x = (window.__SAN ?? []).find(y => +y.num === +im.parentElement.dataset.obj); if (x?.photos?.[0]) im.src = x.photos[0]; else im.parentElement.style.visibility = 'hidden'; });
   new MutationObserver(() => { if (document.querySelector('.s-an .objm-th img:not([src])')) anFill(); }).observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener('click', e => { const a = e.target.closest('.s-an a.objlink, .s-an .objm-th'); if (!a) return; e.preventDefault(); e.stopPropagation();

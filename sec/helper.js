@@ -218,7 +218,7 @@
   const RT = new Map(); let rtK = 0;
   const anxNums = t => [...new Set([...String(t).matchAll(/(?<![\d.,])(\d{6,7})(?![\d.,]\d|\s\d{3}(?!\d))/g)].map(m => +m[1]))];
   const anxHtml = t => { if (anxNums(t).length < 2) return ''; const k = 'a' + (++rtK); RT.set(k, t);
-    return `<p class="hub-anx" data-anx="${k}"><button type="button" class="btn soft" data-selan title="Подборка из этих объектов, анализ — прикреплён (агенту, клиенту, в PDF)">📁 В подборку с анализом</button><button type="button" class="btn ghost" data-selown>✉️ Собственникам</button><button type="button" class="btn ghost" data-ancopy>📋 Скопировать анализ</button></p>`; };
+    return `<p class="hub-anx" data-anx="${k}"><button type="button" class="btn soft" data-selan title="Подборка из этих объектов, анализ — прикреплён (агенту, клиенту, в PDF)">📁 В подборку с анализом</button><button type="button" class="btn ghost" data-selown>✉️ Собственникам</button><button type="button" class="btn ghost" data-ancopy>📋 Скопировать анализ</button><button type="button" class="btn ghost" data-anmore title="ИИ подберёт похожие и сравнит со всеми">✨ Ещё варианты и сравнить</button><button type="button" class="btn ghost" data-anadd title="Эти объекты останутся выбранными — добавьте из поиска и нажмите «✨ В ИИ-Агент»">➕ Добавить из поиска</button></p>`; };
   const anxOf = b => { const k = b.closest('[data-anx]').dataset.anx, t = RT.get(k) ?? '', box = b.closest('.hub-turn')?.querySelector('.hub-reply');
     const dom = box ? [...new Set([...box.querySelectorAll('a.objlink[data-obj]')].map(a => +a.dataset.obj))] : [];
     return { t, nums: (dom.length >= 2 ? dom : anxNums(t)).slice(0, 20) }; };
@@ -304,10 +304,12 @@
     const t = e.target;
     if (t.closest('[data-pkclear]')) { picked.clear(); el.querySelectorAll('.hub-fc.picked').forEach(k => k.classList.remove('picked')); el.querySelectorAll('[data-pick]').forEach(i => { i.checked = false; }); showPicks(); return; }
     const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
-    const an = t.closest('[data-selan], [data-selown], [data-ancopy]');
+    const an = t.closest('[data-selan], [data-selown], [data-ancopy], [data-anmore], [data-anadd]');
     if (an) { const { t: tx, nums } = anxOf(an);
-      if (an.matches('[data-ancopy]')) { H.copy(tx.replace(/^\*\s*Перед сделкой.*$/m, '').trim(), 'Анализ скопирован — вставьте клиенту в мессенджер'); return; }
+      if (an.matches('[data-ancopy]')) { H.copy((window.AIMD?.split ? window.AIMD.split(tx).client : tx).replace(/^\*\s*Перед сделкой.*$/m, '').trim(), 'Анализ для клиента скопирован (без 🔒 заметок для вас)'); return; }
       if (an.matches('[data-selown]')) { picked = new Set(nums); return owners(); }
+      if (an.matches('[data-anmore]')) { picked = new Set(nums); showPicks?.(true); return ask(`Предложи ещё 3–5 похожих вариантов к объектам ${nums.join(', ')} (тот же бюджет, район и тип) и сравни их вместе с этими — тем же видом, отметь три лучших`); }
+      if (an.matches('[data-anadd]')) { store.set('sel', nums); H.toast('Объекты выбраны — добавьте ещё галочками в поиске и нажмите «✨ В ИИ-Агент»'); go('./?add=1'); return; }
       store.set('sel', nums); store.set('sel_an', { nums, text: tx, at: Date.now() }); go('./#selmake'); return; }
     const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, cp.dataset.hcopyT || 'Номер скопирован'); return; }
     if (t.closest('.hub-fc .strip img')) { openObj(t.closest('.hub-fc').dataset.num); return; }

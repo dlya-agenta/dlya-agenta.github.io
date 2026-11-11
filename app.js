@@ -1193,10 +1193,13 @@ function anGet() { const a = store.get('sel_an', null); if (!a?.text || Date.now
   const hit = (a.nums ?? []).filter(n => sel.has(+n)).length; return hit >= Math.min(2, sel.size) ? a : null; }
 function anBox() {
   const a = anGet();
+  const sp = a ? (window.AIMD?.split ?? (t => ({ client: t, agent: '' })))(a.text.replace(/^\*\s*Перед сделкой.*$/m, '').trim()) : null;   // v5.58e: клиенту / 🔒 вам
   if (!a) return `<p class="hint agent-only">📎 Анализ подборки можно прикрепить: отметьте объекты → «✨ В ИИ-Агент» → «Сравни цены» → под ответом «📁 В подборку с анализом».</p>`;
   return `<div class="s-an-box agent-only"><label class="chk"><input type="checkbox" id="s-an" checked> <span><b>📎 Прикрепить анализ подборки</b> — сравнение и выводы ИИ увидят клиент по ссылке и в PDF, вы — на странице агента</span></label>
-    <details class="s-an-d"><summary>Посмотреть и поправить текст анализа</summary><textarea id="s-an-t" rows="10" maxlength="12000">${esc(a.text.replace(/^\*\s*Перед сделкой.*$/m, '').trim())}</textarea>
-    <p class="hint">Клиент увидит этот текст. Уберите то, что только для вас (торг, комиссия, слабые места для переговоров).</p><div class="s-an-pv"></div></details></div>`;
+    <details class="s-an-d"><summary>Посмотреть и поправить текст анализа</summary>
+    <label class="field">📊 Клиенту — увидит по ссылке и в PDF<textarea id="s-an-t" rows="9" maxlength="12000">${esc(sp.client)}</textarea></label>
+    <label class="field">🔒 Только вам — торг, отбраковка, советы (клиент не увидит, будет на вашей странице подборки)<textarea id="s-an-a" rows="5" maxlength="12000">${esc(sp.agent)}</textarea></label>
+    <p class="hint">Так выглядит часть клиенту:</p><div class="s-an-pv"></div></details></div>`;
 }
 function selStart(nums, title, fmt) {
   sel = new Set(nums.slice(0, MAXSEL)); store.set('sel', [...sel]); selbar();
@@ -1326,7 +1329,7 @@ $('#sel-make').onclick = () => {
         }
       }
       prog(`${limit ? limit + ' ' : ''}${fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'}`); b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…';
-      const r = await call('sel_create', { ...args, ...($('#s-an')?.checked && $('#s-an-t')?.value.trim() ? { analysis: $('#s-an-t').value.trim() } : {}), edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
+      const r = await call('sel_create', { ...args, ...($('#s-an')?.checked && $('#s-an-t')?.value.trim() ? { analysis: $('#s-an-t').value.trim(), analysis_agent: $('#s-an-a')?.value.trim() ?? '' } : {}), edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
       if (r.used) PLANS.counter(r.used);
       if ($('#s-an')?.checked) store.set('sel_an', null);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
