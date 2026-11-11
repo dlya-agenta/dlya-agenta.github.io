@@ -22,7 +22,8 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // «С ремонтом» = дизайнерский + евроремонт + современный (одним видом); white box в фильтре нет, в данных — остаётся
 // v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
 const FIN = [['clean', 'Чистовая'], ['rough', 'Черновая']];
-const REPF = { modern: ['📷 Современный ремонт — по фото', 'ok'], good: ['📷 Хороший ремонт — по фото', ''], old: ['📷 По фото: старый ремонт', 'warn'], none: ['📷 По фото: без ремонта', 'warn'] };
+// v5.50h (Алексей 11.11): «Современный ремонт» — без слов «по фото»; «старый ремонт» в карточке не показываем (оценка остаётся в базе — для фильтров и подбора)
+const REPF = { modern: ['Современный ремонт', 'ok'], good: ['📷 Хороший ремонт — по фото', ''], none: ['📷 По фото: без ремонта', 'warn'] };
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 20, MAXPDF = 10;   // v5.23: подборка ссылкой — до 20 объектов, PDF и «PDF + ссылка» — до 10
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
@@ -366,7 +367,7 @@ function renderFilters() {
     if (!b) { const was = arr('fin').includes('repair'); finClick(e); if (!was && arr('fin').includes('repair')) toast(REPAIR_MSG, 7000); return; }
     if (!b.disabled) { f.m = !f.m || undefined; fchg(); }
   };
-  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['uniq', 'Только уникальные'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Контакт']]
+  const flags = [['pool', 'Бассейн'], ['fz', 'ФЗ-214'], ['unseen', 'Непросмотренные'], ['fav', '★ Избранное'], ['deal', '🤝 Контакт']]
     .filter(([k]) => (k !== 'fav' || meta.features.favorites) && (k !== 'deal' || (meta.features.deals && !client.on)));
   $('#f-flags').innerHTML = flags.map(([k, t]) => `<button type="button" class="chip${f[k] ? ' on' : ''}" data-k="${k}"${k === 'fz' && land ? ` disabled title="${land}"` : ''}>${t}</button>`).join('');
   $('#f-flags').onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.disabled) return; f[b.dataset.k] = !f[b.dataset.k] || undefined; fchg(); };
