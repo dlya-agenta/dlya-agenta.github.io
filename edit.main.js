@@ -16,6 +16,8 @@
     img.src = u;
   });
 
+  // v5.57 (Алексей 11.11): фото в окне правки — с кнопкой «★ Обложкой»; порядок в окне = порядок на сайте
+  const pic = (u, on) => `<span class="em-pw${on ? '' : ' off'}"><button type="button" class="em-pic${on ? '' : ' off'}" data-u="${esc(u)}"><img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"><i>${on ? '✕' : '↩'}</i></button><button type="button" class="em-cv" data-cov title="Сделать обложкой" aria-label="Сделать обложкой">★</button><em>★ Обложка</em></span>`;
   async function open(num, done) {
     let d;
     try { d = await call('admin_edit_get', { num }); } catch (e) { toast(e.message); return; }
@@ -28,18 +30,22 @@
       <p class="hint">${ed.price ? `Изменено группой Main. У источника: ${rub(d.src_price)} · <button type="button" class="linkbtn" data-reset="price">вернуть</button>` : 'Сейчас — цена источника'}</p>
       <label class="field">Описание<textarea name="descr" rows="8" maxlength="6000">${esc(d.descr)}</textarea></label>
       <p class="hint">${ed.descr ? 'Изменено группой Main · <button type="button" class="linkbtn" data-reset="descr">вернуть описание источника</button>' : 'Сейчас — описание источника'}</p>
-      <div class="field">Фото <span class="muted">— нажмите на фото, чтобы скрыть или вернуть</span></div>
-      <div class="em-pics">${all.map(u => `<button type="button" class="em-pic${on.has(u) ? '' : ' off'}" data-u="${esc(u)}"><img src="${esc(u)}" alt="" loading="lazy"><i>${on.has(u) ? '✕' : '↩'}</i></button>`).join('')}</div>
+      <div class="field">Фото <span class="muted">— нажмите на фото, чтобы скрыть или вернуть; «★» — сделать обложкой (первое фото у всех: выдача, подборки, PDF)</span></div>
+      <div class="em-pics">${[...d.pics, ...all.filter(u => !on.has(u))].map(u => pic(u, on.has(u))).join('')}</div>
       <label class="btn ghost sm em-add">＋ Добавить фото<input type="file" accept="image/*" multiple hidden></label>
       ${ed.pics ? '<p class="hint">Фото изменены группой Main · <button type="button" class="linkbtn" data-reset="pics">вернуть фото источника</button></p>' : ''}
       <div class="iv-row"><button type="button" class="btn primary" data-save>Сохранить</button><button type="button" class="btn ghost" data-cancel>Отмена</button></div>
       ${d.by ? `<p class="hint">Последняя правка: ${esc(d.by)}, ${new Date(d.at).toLocaleString('ru-RU')}</p>` : ''}
     </div>`);
     const box = document.querySelector('#sheet .em-form'), pics = box.querySelector('.em-pics');
+    const mark = () => pics.querySelectorAll('.em-pw').forEach(w => w.classList.toggle('cov', w === pics.querySelector('.em-pw:not(.off)')));   // первое видимое — обложка
+    mark();
     const finish = r => { if (!r?.ok) { toast(r?.error || 'Не сохранилось'); return false; } toast('Сохранено — видно всем'); closeSheet(); done?.(); return true; };
     pics.onclick = e => {
+      const cv = e.target.closest('[data-cov]');
+      if (cv) { const w = cv.closest('.em-pw'); w.classList.remove('off'); w.querySelector('.em-pic').classList.remove('off'); w.querySelector('i').textContent = '✕'; pics.prepend(w); mark(); toast('Обложка выбрана — нажмите «Сохранить»'); return; }
       const b = e.target.closest('.em-pic'); if (!b) return;
-      b.classList.toggle('off'); b.querySelector('i').textContent = b.classList.contains('off') ? '↩' : '✕';
+      b.classList.toggle('off'); b.closest('.em-pw').classList.toggle('off', b.classList.contains('off')); b.querySelector('i').textContent = b.classList.contains('off') ? '↩' : '✕'; mark();
     };
     box.querySelector('.em-add input').onchange = async e => {
       const files = [...e.target.files].slice(0, 10);
@@ -48,7 +54,7 @@
           toast(`Загружаю фото… (${files.indexOf(f) + 1} из ${files.length})`, 8000);
           const r = await call('admin_edit_photo', { num, data: await shrink(f) });
           if (!r.ok) throw new Error(r.error);
-          pics.insertAdjacentHTML('beforeend', `<button type="button" class="em-pic" data-u="${esc(r.url)}"><img src="${esc(r.url)}" alt=""><i>✕</i></button>`);
+          pics.insertAdjacentHTML('beforeend', pic(r.url, true)); mark();
         } catch (err) { toast(err.message); }
       }
       toast('Фото добавлены — нажмите «Сохранить»');
@@ -74,6 +80,9 @@
     .em-pic{position:relative;padding:0;border:1px solid var(--line,#ccc);border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:none;cursor:pointer}
     .em-pic img{width:100%;height:100%;object-fit:cover;display:block}
     .em-pic i{position:absolute;top:3px;right:3px;font-style:normal;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;font-size:12px;text-align:center}
+    .em-pw{position:relative;display:block}.em-pw .em-pic{width:100%}.em-pw em{display:none;position:absolute;left:3px;bottom:3px;font-style:normal;font-size:11px;font-weight:700;background:#f5b301;color:#1b1b1b;border-radius:99px;padding:1px 6px;pointer-events:none}
+    .em-cv{position:absolute;left:3px;bottom:3px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(0,0,0,.65);color:#ffd54a;font-size:14px;line-height:26px;padding:0;cursor:pointer}.em-cv:hover{background:#1f6fb2}
+    .em-pw.cov em{display:block}.em-pw.cov .em-cv,.em-pw.off .em-cv{display:none}.em-pw.cov .em-pic{border:2px solid #f5b301}
     .em-pic.off img{opacity:.25;filter:grayscale(1)} .em-add{margin:4px 0 10px} .linkbtn{background:none;border:0;padding:0;color:var(--acc,#2563eb);text-decoration:underline;cursor:pointer;font:inherit}
   </style>`);
   window.EDITMAIN = { open };

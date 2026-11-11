@@ -102,8 +102,8 @@
     const w = words.sort((p, q) => q.length - p.length)[0]; if (!w) return null;
     return { stem: w.slice(0, Math.max(4, w.length - 2)), house: m[2].replace(/\s+/g, '') };
   }
-  function mention(scope, textSel) {
-    const xs = cardsIn(scope); if (!xs.length) return;
+  function mention(scope, textSel, extra = []) {
+    const xs = [...cardsIn(scope), ...extra.filter(e => !scope.querySelector(`.card[data-num="${e.num}"]`))]; if (!xs.length) return;
     const pats = [];
     for (const x of xs) {
       const k = keyOf(x.addr);
@@ -126,11 +126,44 @@
       }
     });
   }
-  // перечисление объектов: строки списка с объектами — маленькое фото слева
+  // v5.57 (Алексей 11.11): номер объекта без «№» («260015 Сочи-Парк…», «**260537** — ЖК…») — ИИ так пишет, когда сравнивает выбранные объекты
+  // и карточек в ответе нет. Номер становится ссылкой, только если объект есть (проверка действием items) — цены, индексы и годы не трогаются.
+  // По найденным объектам дальше ищутся их адреса и ЖК, как по карточкам.
+  const BARE = /(?<![\d.,+\/№#=:-]|\d[\s\u00a0])(\d{6,7})(?![\d.,]\d|[\s\u00a0]?\d|[\s\u00a0]?(?:₽|р\.|руб|тыс|млн|м²|м2|кв|%|г\.|год))/g;
+  const textsIn = box => { const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement?.closest(SKIP) ? 3 : 1 }), out = []; while (w.nextNode()) out.push(w.currentNode); return out; };
+  function bare(scope, textSel) {
+    const boxes = [...scope.querySelectorAll(textSel)]; if (scope.matches?.(textSel)) boxes.push(scope);
+    const cand = new Set();
+    for (const b of boxes) for (const t of textsIn(b)) for (const m of t.data.matchAll(BARE)) cand.add(+m[1]);
+    if (!cand.size) return;
+    fetchInfo([...cand].slice(0, 60)).then(() => {
+      const ok = new Set([...cand].filter(n => info.get(n)));
+      if (!ok.size || !scope.isConnected) return;
+      for (const b of boxes) for (const t0 of textsIn(b)) {
+        let t = t0;
+        for (;;) {
+          BARE.lastIndex = 0; let m; while ((m = BARE.exec(t.data)) && !ok.has(+m[1]));
+          if (!m) break;
+          const a = document.createElement('a'); a.className = 'objlink objm'; a.href = `./#o=${m[1]}`; a.dataset.obj = m[1]; a.title = `Открыть объявление № ${m[1]}`; a.textContent = m[1];
+          const rest = t.splitText(m.index); rest.data = rest.data.slice(m[1].length); t.after(a); t = rest;
+        }
+      }
+      const extra = [...ok].map(n => { const x = info.get(n); return { num: n, addr: x.address || x.street || '', zk: x.complex ? `ЖК ${x.complex}` : '' }; });
+      mention(scope, textSel, extra.filter(e => extra.filter(y => y.zk && y.zk === e.zk).length <= 1 || !e.zk));
+      thumbs(scope);
+    });
+  }
+  // перечисление объектов: строки списка (и строки таблицы ИИ — p.md-row, абзацы, начинающиеся с объекта) — маленькое фото слева
+  function rows(l) {
+    if (l.tagName === 'UL' || l.tagName === 'OL') return [...l.children].filter(li => li.tagName === 'LI' && li.querySelector('a.objlink[data-obj]'));
+    // блок абзацев: строка, где объект назван в начале (первые 40 знаков)
+    return [...l.children].filter(p => p.tagName === 'P' && (() => { const a = p.querySelector('a.objlink[data-obj]'); if (!a) return false;
+      const r = document.createRange(); r.setStart(p, 0); r.setEndBefore(a); return r.toString().replace(/[\s*—–-]+/g, ' ').trim().length <= 40; })());
+  }
   function thumbs(root) {
-    root.querySelectorAll?.('ul, ol').forEach(l => {
+    root.querySelectorAll?.('ul, ol, .md').forEach(l => {
       if (l.closest('.objpop, .op-hov, .hub-cards, nav, .mg-p, .sp-menu')) return;
-      const lis = [...l.children].filter(li => li.tagName === 'LI' && li.querySelector('a.objlink[data-obj]'));
+      const lis = rows(l);
       if (lis.length < 2) return;
       const nums = [];
       lis.forEach(li => { if (li.querySelector(':scope > .objm-th')) return; const n = +li.querySelector('a.objlink[data-obj]').dataset.obj; nums.push(n);
@@ -139,10 +172,12 @@
       fetchInfo([...new Set(nums)]).then(() => lis.forEach(li => { const th = li.querySelector(':scope > .objm-th'), im = th?.querySelector('img'); if (!im || im.src) return; const u = dom.get(+th.dataset.obj)?.photo || photoOf(info.get(+th.dataset.obj)); if (u) im.src = u; else th.classList.add('none'); }));
     });
   }
-  const SCOPES = [['.hub-turn', '.hub-reply'], ['.sai-ov', '.sai-sum, .sai-box, .sai-why'], ['.ag-msgs, .chat, .law-chat', '.msg, .m-text, .bubble']];
+  // v5.57: все окна ИИ — Помощник и ИИ-Агент, Помощник по откликам, юрист и ипотека (.hub-msgs .hub-msg.ai), чат ИИ в сделке, заключения юриста, Помощь, Управляющий
+  const SCOPES = [['.hub-turn', '.hub-reply'], ['.sai-ov', '.sai-sum, .sai-box, .sai-why'], ['.ag-msgs, .chat, .law-chat', '.msg, .m-text, .bubble'],
+    ['.hub-msgs, .lw-grp, .dl-sec', '.hub-msg.ai, .dl-note'], ['#sup', '.sup-msg.sup-ai, .sup-msg.sup-agent'], ['#mg-chat, #mg-right', '.mg-msg:not(.mg-owner), .mg-logt']];
   function scan(n) {
     if (n.nodeType !== 1) return;
-    for (const [sc, txt] of SCOPES) { const list = n.matches(sc) ? [n] : [...n.querySelectorAll(sc)]; if (n.closest?.(sc)) list.push(n.closest(sc)); new Set(list).forEach(s => mention(s, txt)); }
+    for (const [sc, txt] of SCOPES) { const list = n.matches(sc) ? [n] : [...n.querySelectorAll(sc)]; if (n.closest?.(sc)) list.push(n.closest(sc)); new Set(list).forEach(s => { mention(s, txt); bare(s, txt); }); }
     thumbs(n.closest?.('ul, ol')?.parentElement ?? n);
   }
   // всплывающая карточка при наведении (компьютер)
@@ -190,7 +225,7 @@
     .op-hb{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px}.op-hb b{font-size:17px}.op-hz{font-weight:600}.op-ha{color:var(--muted,#6b7280)}
     .op-hf{display:flex;align-items:center;gap:6px;margin-top:6px}.op-hf small{margin-left:auto;color:var(--muted,#6b7280)}
     .op-hbtn{border:0;border-radius:8px;padding:7px 11px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent,#1f6fb2);color:var(--accent-text,#fff)}.op-hbtn.soft{background:var(--soft,#eef2f7);color:var(--link,#1f6fb2)}
-    li.objm-li{list-style-position:outside}.objm-th{float:left;width:56px;height:42px;overflow:hidden;border-radius:7px;margin:2px 10px 4px 0;background:var(--soft,#eef2f7);cursor:pointer}.objm-th img{display:block;width:100%;height:calc(100% / .95);object-fit:cover;object-position:center top}.objm-th.none{visibility:hidden}
+    li.objm-li{list-style-position:outside}p.objm-li{overflow:hidden}p.objm-li .objm-th{margin-top:0}.objm-th{float:left;width:56px;height:42px;overflow:hidden;border-radius:7px;margin:2px 10px 4px 0;background:var(--soft,#eef2f7);cursor:pointer}.objm-th img{display:block;width:100%;height:calc(100% / .95);object-fit:cover;object-position:center top}.objm-th.none{visibility:hidden}
     li.objm-li::after{content:'';display:block;clear:both}a.objm{white-space:normal}`;
   const st = document.createElement('style'); st.textContent = css; (document.head || document.documentElement).appendChild(st);
   // строка адреса → карта (minimap.js) — подгрузить на любой странице с объявлениями
