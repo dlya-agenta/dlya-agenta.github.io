@@ -7,6 +7,13 @@
   const descrHtml = s => esc(String(s ?? '').replace(/^Коротко:.*(\n|$)/m, '').trim())
     .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/^([А-ЯЁ][а-яё ]{2,20}:)/gm, '<b>$1</b>');
   const money = v => Math.round(v).toLocaleString('ru-RU');
+  // v5.58: «📎 Анализ подборки» (галочка при создании) — вид «A + C» (aimd.js); номер в анализе ведёт к карточке объекта на этой странице, мини-фото — из подборки
+  const anHtml = d => { if (!d?.analysis || !window.AIMD) return ''; window.__SAN = d.items ?? [];
+    return `<section class="s-an"><h2>📊 Анализ подборки</h2>${window.AIMD.md(d.analysis)}</section>`; };
+  const anFill = () => document.querySelectorAll('.s-an .objm-th img:not([src])').forEach(im => { const x = (window.__SAN ?? []).find(y => +y.num === +im.parentElement.dataset.obj); if (x?.photos?.[0]) im.src = x.photos[0]; else im.parentElement.style.visibility = 'hidden'; });
+  new MutationObserver(() => { if (document.querySelector('.s-an .objm-th img:not([src])')) anFill(); }).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('click', e => { const a = e.target.closest('.s-an a.objlink, .s-an .objm-th'); if (!a) return; e.preventDefault(); e.stopPropagation();
+    const c = document.querySelector(`[data-num="${a.dataset.obj}"]`); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.classList.add('s-an-hl'); setTimeout(() => c.classList.remove('s-an-hl'), 1600); } }, true);
   const day = s => s ? new Date(s).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : '';
   const seaTxt = m => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} м` : `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`;
   const plural = (n, a, b, c) => n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? b : c;
@@ -154,7 +161,7 @@
     $('#s-app').innerHTML = `
       ${d.owner ? `<div class="s-owner">Это ваша подборка — так её видит клиент. Ваши открытия не считаются и уведомления о них не приходят.${d.views != null ? ` Клиент открывал: ${d.views} ${plural(d.views, 'раз', 'раза', 'раз')}.` : ''}</div>` : ''}
       <header class="s-hero">
-        <h1>${esc(d.title)}</h1>${d.intro ? `<p style="white-space:pre-wrap">${esc(d.intro)}</p>` : ''}
+        <h1>${esc(d.title)}</h1>${d.intro ? `<p style="white-space:pre-wrap">${esc(d.intro)}</p>` : ''}${anHtml(d)}
         <p class="muted">Подборка от ${day(d.created_at)} · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · ссылка действует до ${day(d.until)}</p>
         ${d.agent || tel ? `<div class="s-agent">${d.agent_photo ? `<img class="s-agent-ph" src="${esc(d.agent_photo)}" alt="" width="48" height="48" loading="lazy">` : ''}<span>Ваш агент${d.agent ? `: <b>${esc(d.agent)}</b>` : ''}</span><span class="s-agent-btns">
           ${tel ? `<a class="btn soft" href="tel:+${tel}">Позвонить</a><a class="btn ghost" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</span></div>` : ''}
@@ -535,7 +542,7 @@
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels=ex">← Подборки эксклюзивов</a>
           <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь контакты коллег и комиссия. Клиенту — «Ссылка для клиента».</div>
-          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}
+          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${anHtml(data)}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}
           <p class="muted">💎 Эксклюзивы коллег · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · агентов: ${ags} · цены агентов</p>
         </header>
         ${data.can_view ? `<section class="sa-box">
@@ -560,7 +567,7 @@
       $('#s-app').innerHTML = `<header class="s-hero">
           <a class="link sa-back" href="./#sels">← Мои подборки</a>
           <div class="sa-only" role="note">🔒 Это ссылка для вас (агента) — клиенту её не отправляйте: здесь телефоны собственников и переписка с ними. Клиенту — «Ссылка для клиента» или проверенная подборка.</div>
-          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}${data.editable ? ` <button type="button" class="btn soft" data-client-link>🔗 Ссылка для клиента</button>` : ''}
+          <h1>${esc(data.title)}</h1>${data.intro ? `<p style="white-space:pre-wrap">${esc(data.intro)}</p>` : ''}${anHtml(data)}${data.editable ? `<button type="button" class="btn soft" data-map="all">🗺 На карте</button> <button type="button" class="btn soft" data-edit-selection>✎ Править подборку</button> <button type="button" class="btn soft" data-selection-pdf>PDF с правками</button> <a class="btn soft" href="mail.html?selection=${data.id}">✉️ В рассылку</a>` : ''}${data.editable ? ` <button type="button" class="btn soft" data-client-link>🔗 Ссылка для клиента</button>` : ''}
           <p class="muted">Собственники подборки · ${n} ${plural(n, 'объект', 'объекта', 'объектов')} · телефон открыт у ${wp} · цены собственника</p>
         </header>
         <section class="sa-box">

@@ -140,6 +140,7 @@ window.HUB = (() => {
 
   // ---------- ответ ИИ: простая разметка (заголовки ##, **жирный**, списки «- » и «1. », таблицы — строками) → безопасный HTML ----------
   function md(text) {
+    if (window.AIMD) return window.AIMD.md(text);   // v5.58: единое оформление ответов ИИ (aimd.js)
     const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
     const out = []; let list = null;
     const close = () => { if (list) { out.push(`</${list}>`); list = null; } };

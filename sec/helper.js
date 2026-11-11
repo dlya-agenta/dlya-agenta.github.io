@@ -213,9 +213,18 @@
     // v5.49 (п. 12): подборку-ссылку помощник создаёт сам — открыть, скопировать (без ожидания сети: на iPhone копирование после await запрещено), страница агента
     : a.type === 'sel_link' && /^https:\/\/dlya-agenta\.github\.io\//.test(a.href ?? '') ? `<a class="btn primary" href="${esc(a.href)}" target="_blank" rel="noopener">${esc(a.label)}</a> <button type="button" class="btn soft" data-hcopy="${esc(a.href)}" data-hcopy-t="Ссылка для клиента скопирована">📋 Скопировать</button>${a.agent ? ` <a class="btn ghost" href="${esc(a.agent)}" target="_blank" rel="noopener">🔒 Моя страница подборки</a>` : ''}`
     : a.type === 'link' && /^(\.\/|hub\.html|mail\.html|arch\.html|pay\.html|partner\.html)/.test(a.href ?? '') ? `<a class="btn soft" href="${esc(a.href)}">${esc(a.label)}</a>` : '';
+  // v5.58 (Алексей 11.11): под ответом, где разобраны 2+ объекта, — «📁 В подборку с анализом» (подборка с галочкой «📎 Прикрепить анализ подборки»:
+  // анализ видят агент и клиент по ссылке и в PDF), «✉️ Собственникам», «📋 Скопировать анализ». Текст ответа — в RT по ключу кнопки.
+  const RT = new Map(); let rtK = 0;
+  const anxNums = t => [...new Set([...String(t).matchAll(/(?<![\d.,])(\d{6,7})(?![\d.,]\d|\s\d{3}(?!\d))/g)].map(m => +m[1]))];
+  const anxHtml = t => { if (anxNums(t).length < 2) return ''; const k = 'a' + (++rtK); RT.set(k, t);
+    return `<p class="hub-anx" data-anx="${k}"><button type="button" class="btn soft" data-selan title="Подборка из этих объектов, анализ — прикреплён (агенту, клиенту, в PDF)">📁 В подборку с анализом</button><button type="button" class="btn ghost" data-selown>✉️ Собственникам</button><button type="button" class="btn ghost" data-ancopy>📋 Скопировать анализ</button></p>`; };
+  const anxOf = b => { const k = b.closest('[data-anx]').dataset.anx, t = RT.get(k) ?? '', box = b.closest('.hub-turn')?.querySelector('.hub-reply');
+    const dom = box ? [...new Set([...box.querySelectorAll('a.objlink[data-obj]')].map(a => +a.dataset.obj))] : [];
+    return { t, nums: (dom.length >= 2 ? dom : anxNums(t)).slice(0, 20) }; };
   const turnHtml = (r, offer) => r.via === 'wait' ? `<article class="hub-turn hub-pending" data-tid="${r.id}"><p class="hub-q">🗣 ${esc(r.q)}</p><p class="hint">⏳ Агент работает над этим запросом…</p></article>` : `<article class="hub-turn"><p class="hub-q">🗣 ${esc(r.q)}</p>
     ${r.steps?.length ? `<details class="hub-steps"${r.reply ? '' : ' open'}><summary>Что сделал агент (${r.steps.length})</summary><ul>${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
-    ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
+    ${r.reply ? `<div class="hub-reply">${H.md(r.reply)}</div>${anxHtml(r.reply)}` : `<p class="hint">${r.understood ? `Понял так: ${esc(r.understood)} · ` : ''}найдено <b>${r.count}</b></p>`}
     ${r.actions?.length ? `<p class="hub-acts" data-acts='${esc(JSON.stringify(r.actions))}'>${r.actions.map(actHtml).join('')}</p>` : ''}
     ${r.alt ? `<p class="hub-alt">💡 ${esc(r.alt.label)} ${r.alt.more ? `<b>+${r.alt.more}</b>` : ''} ${r.alt.q?.length ? `<button class="btn soft" data-alt="${esc(JSON.stringify(r.alt.q))}">Показать</button>` : ''}</p>` : ''}
     ${(r.items ?? []).length ? `<div class="hub-grid hub-cards">${r.items.slice(0, 30).map(x => (items.set(x.num, x), card(x))).join('')}</div>${nextHtml(r)}` : ''}
@@ -295,6 +304,11 @@
     const t = e.target;
     if (t.closest('[data-pkclear]')) { picked.clear(); el.querySelectorAll('.hub-fc.picked').forEach(k => k.classList.remove('picked')); el.querySelectorAll('[data-pick]').forEach(i => { i.checked = false; }); showPicks(); return; }
     const nv = t.closest('[data-hnav]'); if (nv) { const st2 = nv.closest('.gal').querySelector('.strip'); st2.scrollBy({ left: st2.clientWidth * +nv.dataset.hnav, behavior: 'smooth' }); return; }
+    const an = t.closest('[data-selan], [data-selown], [data-ancopy]');
+    if (an) { const { t: tx, nums } = anxOf(an);
+      if (an.matches('[data-ancopy]')) { H.copy(tx.replace(/^\*\s*Перед сделкой.*$/m, '').trim(), 'Анализ скопирован — вставьте клиенту в мессенджер'); return; }
+      if (an.matches('[data-selown]')) { picked = new Set(nums); return owners(); }
+      store.set('sel', nums); store.set('sel_an', { nums, text: tx, at: Date.now() }); go('./#selmake'); return; }
     const cp = t.closest('[data-hcopy]'); if (cp) { H.copy(cp.dataset.hcopy, cp.dataset.hcopyT || 'Номер скопирован'); return; }
     if (t.closest('.hub-fc .strip img')) { openObj(t.closest('.hub-fc').dataset.num); return; }
     const ob = t.closest('button[data-obj]'); if (ob && AG) { openObj(ob.dataset.obj); return; }

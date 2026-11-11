@@ -1158,6 +1158,17 @@ function selbar() {
 // v5.23e: кнопка «Помощь» (#sup-fab) — над полосой выбора по её фактической высоте (две строки на телефоне ~126 px; sels.css --selbar-top)
 if (window.ResizeObserver) new ResizeObserver(() => { const b = $('#selbar'); if (b && !b.hidden && b.offsetHeight) document.documentElement.style.setProperty('--selbar-top', `${Math.ceil(innerHeight - b.getBoundingClientRect().top)}px`); }).observe($('#selbar'));
 // подборка из объектов клиента одним нажатием (crm.js): объекты — в подборку, окно подборки с названием и выбранным видом (PDF или ссылка)
+// v5.58 (Алексей 11.11): «📎 Прикрепить анализ подборки» — анализ ИИ-Агента/Помощника по этим объектам (кнопка «📁 В подборку с анализом» под ответом
+// кладёт его в store 'sel_an'). Анализ видят агент и клиент по ссылке, он идёт в PDF; текст можно поправить до отправки. Анализ свежий (3 дня) и про эти объекты.
+function anGet() { const a = store.get('sel_an', null); if (!a?.text || Date.now() - (a.at || 0) > 3 * 864e5) return null;
+  const hit = (a.nums ?? []).filter(n => sel.has(+n)).length; return hit >= Math.min(2, sel.size) ? a : null; }
+function anBox() {
+  const a = anGet();
+  if (!a) return `<p class="hint agent-only">📎 Анализ подборки можно прикрепить: отметьте объекты → «✨ В ИИ-Агент» → «Сравни цены» → под ответом «📁 В подборку с анализом».</p>`;
+  return `<div class="s-an-box agent-only"><label class="chk"><input type="checkbox" id="s-an" checked> <span><b>📎 Прикрепить анализ подборки</b> — сравнение и выводы ИИ увидят клиент по ссылке и в PDF, вы — на странице агента</span></label>
+    <details class="s-an-d"><summary>Посмотреть и поправить текст анализа</summary><textarea id="s-an-t" rows="10" maxlength="12000">${esc(a.text.replace(/^\*\s*Перед сделкой.*$/m, '').trim())}</textarea>
+    <p class="hint">Клиент увидит этот текст. Уберите то, что только для вас (торг, комиссия, слабые места для переговоров).</p><div class="s-an-pv"></div></details></div>`;
+}
 function selStart(nums, title, fmt) {
   sel = new Set(nums.slice(0, MAXSEL)); store.set('sel', [...sel]); selbar();
   document.querySelectorAll('.card[data-num]').forEach(el => pickSync(+el.dataset.num));
@@ -1206,12 +1217,14 @@ $('#sel-make').onclick = () => {
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
+    ${anBox()}
     <label class="chk agent-only"><input type="checkbox" id="s-ph" ${store.get('selPhones', false) ? 'checked' : ''}> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
     <div class="hint agent-only" id="s-ph-n">Номера тратятся из лимита тарифа только с галочкой. Без неё телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны».</div>
     <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span></div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   SHARE.mount();
+  { const t = $('#s-an-t'), pv = $('.s-an-pv'), draw = () => { if (pv && window.AIMD) pv.innerHTML = window.AIMD.md(t.value); }; if (t) { t.addEventListener('input', draw); $('.s-an-d').addEventListener('toggle', draw, { once: true }); } }
   $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
   // v5.23e: галочка телефонов по умолчанию выключена (раньше на каждую ссылку незаметно уходило до 20 номеров); рядом — сколько новых номеров уйдёт.
   // sel_check только считает (номер не открывает): по одному запросу на вид (ссылкой — 20 первых, PDF — 10)
@@ -1284,8 +1297,9 @@ $('#sel-make').onclick = () => {
         }
       }
       prog(`${limit ? limit + ' ' : ''}${fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'}`); b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…';
-      const r = await call('sel_create', { ...args, edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
+      const r = await call('sel_create', { ...args, ...($('#s-an')?.checked && $('#s-an-t')?.value.trim() ? { analysis: $('#s-an-t').value.trim() } : {}), edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
       if (r.used) PLANS.counter(r.used);
+      if ($('#s-an')?.checked) store.set('sel_an', null);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
       window.INVITE?.hit('sel');
     } catch (e) { if (e.gate) return showLogin(e.gate); $('#s-err').textContent = e.message; b.disabled = false; b.textContent = 'Сформировать'; }

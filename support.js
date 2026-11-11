@@ -3,6 +3,8 @@
 // Лимиты, ответ ИИ и статусы — только сервер (функция support). Без входа обращение привязано к ключу sup_key в localStorage этого браузера.
 // В режиме «С клиентом» кнопка скрыта (agent-only). support.html — то же окно на всю страницу (?t=<№> — сразу обращение), админка — support.admin.js (#admin).
 window.SUPPORT = (() => {
+  // v5.58: ответы ИИ в «Помощи» — тем же оформлением, что у Помощника (aimd.js), на любой странице
+  if (!window.AIMD && !document.querySelector('script[src^="aimd.js"]')) { const sc = document.createElement('script'); sc.src = 'aimd.js?v=5.58'; sc.defer = true; document.head.appendChild(sc); }
   const API = String(window.API || 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/web').replace(/\/web$/, '/support');
   const CAT = { pay: 'Оплата', access: 'Доступ', bug: 'Ошибка', idea: 'Предложение' };
   const ST = { new: 'Новое', work: 'В работе', done: '✅ Решено', admin: '❗ На проверку Admin' };
@@ -151,7 +153,7 @@ window.SUPPORT = (() => {
   function drawTicket() {
     const t = T.ticket, left = Math.max(0, (t.max_msgs ?? 10) - (t.msgs ?? 0));
     const msgs = T.msgs.map(m => m.role === 'sys' ? `<div class="sup-sys">${esc(m.text)} · ${when(m.at)}</div>` : `<div class="sup-msg sup-${m.role}">
-      ${m.role !== 'user' ? `<small class="sup-from">${WHO[m.role] ?? ''}</small>` : ''}<div class="sup-text">${esc(m.text)}</div>
+      ${m.role !== 'user' ? `<small class="sup-from">${WHO[m.role] ?? ''}</small>` : ''}<div class="sup-text">${m.role !== 'user' && window.AIMD ? window.AIMD.md(m.text) : esc(m.text)}</div>
       ${(m.files ?? []).filter(f => f.url).map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="sup-shot"><img src="${esc(f.url)}" alt="Скриншот" loading="lazy"></a>`).join('')}
       <small class="sup-at">${when(m.at)}</small></div>`).join('');
     const waitAi = t.wait ? '<div class="sup-msg sup-ai sup-typing"><small class="sup-from">🤖 ИИ-помощник</small><div class="sup-text">Отвечает<span class="sup-dots"><i></i><i></i><i></i></span></div></div>' : '';

@@ -129,7 +129,7 @@
   // v5.57 (Алексей 11.11): номер объекта без «№» («260015 Сочи-Парк…», «**260537** — ЖК…») — ИИ так пишет, когда сравнивает выбранные объекты
   // и карточек в ответе нет. Номер становится ссылкой, только если объект есть (проверка действием items) — цены, индексы и годы не трогаются.
   // По найденным объектам дальше ищутся их адреса и ЖК, как по карточкам.
-  const BARE = /(?<![\d.,+\/№#=:-]|\d[\s\u00a0])(\d{6,7})(?![\d.,]\d|[\s\u00a0]?\d|[\s\u00a0]?(?:₽|р\.|руб|тыс|млн|м²|м2|кв|%|г\.|год))/g;
+  const BARE = /(?<![\d.,+\/№#=:-]|\d[\s\u00a0])(\d{6,7})(?![\d.,]\d|[\s\u00a0]\d{3}(?!\d)|[\s\u00a0]?(?:₽|р\.|руб|тыс|млн|м²|м2|кв|%|г\.|год))/g;
   const textsIn = box => { const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement?.closest(SKIP) ? 3 : 1 }), out = []; while (w.nextNode()) out.push(w.currentNode); return out; };
   function bare(scope, textSel) {
     const boxes = [...scope.querySelectorAll(textSel)]; if (scope.matches?.(textSel)) boxes.push(scope);
@@ -158,9 +158,15 @@
     if (l.tagName === 'UL' || l.tagName === 'OL') return [...l.children].filter(li => li.tagName === 'LI' && li.querySelector('a.objlink[data-obj]'));
     // блок абзацев: строка, где объект назван в начале (первые 40 знаков)
     return [...l.children].filter(p => p.tagName === 'P' && (() => { const a = p.querySelector('a.objlink[data-obj]'); if (!a) return false;
-      const r = document.createRange(); r.setStart(p, 0); r.setEndBefore(a); return r.toString().replace(/[\s*—–-]+/g, ' ').trim().length <= 40; })());
+      const r = document.createRange(); r.setStart(p, 0); r.setEndBefore(a); return r.toString().replace(/[\s*—–-]+/g, ' ').trim().length <= 3; })());   // v5.58: только если строка начинается с объекта
+  }
+  // v5.58: мини-фото, которые уже нарисовал aimd.js (таблица, плашки, шкала, разборы), — заполнить
+  function fillTh(root) {
+    const ths = [...(root.querySelectorAll?.('.objm-th') ?? [])].filter(t => !t.querySelector('img')?.src && !t.classList.contains('none')); if (!ths.length) return;
+    fetchInfo([...new Set(ths.map(t => +t.dataset.obj))]).then(() => ths.forEach(t => { const im = t.querySelector('img'); if (!im || im.src) return; const u = dom.get(+t.dataset.obj)?.photo || photoOf(info.get(+t.dataset.obj)); if (u) im.src = u; else t.classList.add('none'); }));
   }
   function thumbs(root) {
+    fillTh(root);
     root.querySelectorAll?.('ul, ol, .md').forEach(l => {
       if (l.closest('.objpop, .op-hov, .hub-cards, nav, .mg-p, .sp-menu')) return;
       const lis = rows(l);
@@ -184,6 +190,10 @@
   let hov = null, hovT = 0, hovN = 0;
   const hide = () => { clearTimeout(hovT); hovT = setTimeout(() => { hov?.remove(); hov = null; hovN = 0; }, 180); };
   const what = x => x.title_t || [x.rooms === 0 ? 'Студия' : x.rooms ? `${x.rooms}-комн.` : '', x.area ? `${String(x.area).replace('.', ',')} м²` : '', x.floor ? `${x.floor}${x.floors ? `/${x.floors}` : ''} эт.` : ''].filter(Boolean).join(' · ');
+  // v5.58: в ответе ИИ было сравнение — в карточке видно, с чем сравнивали (window.AICMP заполняет aimd.js)
+  const cmpHtml = n => { const c = window.AICMP?.get(n); if (!c || c.diff == null) return '';
+    const k = c.diff <= -5 ? 'ok' : c.diff >= 5 ? 'bad' : 'mid', d = `${c.diff > 0 ? '+' : c.diff < 0 ? '−' : ''}${Math.abs(c.diff).toString().replace('.', ',')} %`;
+    return `<span class="op-cmp"><span class="op-ct">📊 Сравнение <b class="${k}">${d}</b></span>${c.ppm ? `<span><i>Этот объект</i>${esc(c.ppm)}</span>` : ''}${c.market ? `<span><i>Рынок</i>${esc(c.market)}</span>` : ''}${c.with ? `<span><i>С чем сравнил</i>${esc(c.with)}</span>` : ''}</span>`; };
   function showHov(el) {
     const n = +el.dataset.obj; if (!n || hovN === n && hov) return;
     hovN = n; hov?.remove();
@@ -201,7 +211,7 @@
       const phs = photosOf(x), price = x.price ? `${Math.round(x.price).toLocaleString('ru-RU')} ₽` : x.price_t || '';
       const ad = [x.street || x.address || x.addr, x.sub || x.district].filter(Boolean).join(' · ');
       hov.innerHTML = `${phs.length ? `<div class="op-hph" data-n="${phs.length}"><img src="${esc(phs[0])}" alt="" referrerpolicy="no-referrer">${phs.length > 1 ? `<span class="op-hd">${phs.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</span><span class="op-hc">1 / ${phs.length}</span>` : ''}</div>` : ''}<div class="op-hb"><b>${esc(price)}</b><span>${esc(what(x))}</span>${x.zk || x.complex ? `<span class="op-hz">${esc(x.zk || x.complex)}</span>` : ''}
-        ${ad ? `<span class="op-ha">📍 ${esc(ad)}</span>` : ''}<span class="op-hf"><button type="button" class="op-hbtn" data-obj="${n}">Открыть</button><button type="button" class="op-hbtn soft" data-mm data-num="${n}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} data-place="${esc(ad)}">📍 На карте</button><small>№ ${n}</small></span></div>`;
+        ${ad ? `<span class="op-ha">📍 ${esc(ad)}</span>` : ''}${cmpHtml(n)}<span class="op-hf"><button type="button" class="op-hbtn" data-obj="${n}">Открыть</button><button type="button" class="op-hbtn soft" data-mm data-num="${n}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} data-place="${esc(ad)}">📍 На карте</button><small>№ ${n}</small></span></div>`;
       place();
       // быстрое листание, как в выдаче: ведёте мышкой по фото — кадры меняются, полоски внизу; кадра нет — пропускается
       const box = hov.querySelector('.op-hph'); if (!box || phs.length < 2) return;
@@ -223,6 +233,7 @@
     .op-hd{position:absolute;left:8px;right:8px;bottom:7px;display:flex;gap:3px;pointer-events:none}.op-hd i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.45)}.op-hd i.on{background:#fff}
     .op-hc{position:absolute;right:8px;top:8px;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;pointer-events:none}.op-hw{padding:14px;color:var(--muted,#6b7280)}
     .op-hb{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px}.op-hb b{font-size:17px}.op-hz{font-weight:600}.op-ha{color:var(--muted,#6b7280)}
+    .op-cmp{display:grid;gap:2px;margin-top:6px;padding:7px 9px;border-radius:9px;background:var(--soft,#eef2f7);font-size:12.5px}.op-cmp span{display:flex;justify-content:space-between;gap:8px}.op-cmp i{font-style:normal;color:var(--muted,#6b7280)}.op-ct{font-weight:600}.op-ct b.ok{color:#1f9d5c}.op-ct b.bad{color:#d64545}.op-ct b.mid{color:#b7860b}
     .op-hf{display:flex;align-items:center;gap:6px;margin-top:6px}.op-hf small{margin-left:auto;color:var(--muted,#6b7280)}
     .op-hbtn{border:0;border-radius:8px;padding:7px 11px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent,#1f6fb2);color:var(--accent-text,#fff)}.op-hbtn.soft{background:var(--soft,#eef2f7);color:var(--link,#1f6fb2)}
     li.objm-li{list-style-position:outside}p.objm-li{overflow:hidden}p.objm-li .objm-th{margin-top:0}.objm-th{float:left;width:56px;height:42px;overflow:hidden;border-radius:7px;margin:2px 10px 4px 0;background:var(--soft,#eef2f7);cursor:pointer}.objm-th img{display:block;width:100%;height:calc(100% / .95);object-fit:cover;object-position:center top}.objm-th.none{visibility:hidden}

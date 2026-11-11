@@ -112,3 +112,4 @@ html.sup-on body { overflow: hidden; }
 #sa-set-d summary { cursor: pointer; }
 #sa-set-d .pnote, #sa-set-d .small { margin: 10px 0 0; }
 .suppage .pmain > .sup-panel { width: 100%; }
+.sup-text:has(.ai-md) { white-space: normal; }
