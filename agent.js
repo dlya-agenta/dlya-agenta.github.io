@@ -27,8 +27,8 @@
   function shell() {
     if (fabs) return;
     fabs = document.createElement('div'); fabs.id = 'ag-fabs'; fabs.className = 'agent-only';
-    fabs.innerHTML = `<button type="button" class="ag-fab ag-mic" aria-label="Спросить ИИ-Агента голосом" title="Голосом — Агент слушает, окно не открывается; ответ — карточкой «Посмотреть»">${MIC}</button>
-      <button type="button" class="ag-fab ag-open" aria-label="ИИ-Агент" title="ИИ-Агент: напишите или скажите, что сделать">${SPARK}<b>ИИ-Агент</b><i class="ag-dot" hidden></i></button>`;
+    fabs.innerHTML = `<button type="button" class="ag-fab ag-mic" aria-label="Спросить ИИ-Агента голосом">${MIC}<b>Спросить голосом</b></button>
+      <button type="button" class="ag-fab ag-open" aria-label="ИИ-Агент">${SPARK}<b>ИИ-Агент</b><i class="ag-dot" hidden></i></button>`;
     document.body.appendChild(fabs);
     mic = fabs.querySelector('.ag-mic');
     fabs.querySelector('.ag-open').onclick = () => (box && !box.hidden ? minimize() : open());

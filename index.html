@@ -15,23 +15,23 @@
 <link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">
 <link rel="stylesheet" href="vendor/markercluster/MarkerCluster.min.css">
 <link rel="stylesheet" href="vendor/markercluster/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5.49b">
-<link rel="stylesheet" href="nav.css?v=5.49b">
-<script src="design.js?v=5.47"></script>
+<link rel="stylesheet" href="style.css?v=5.51">
+<link rel="stylesheet" href="nav.css?v=5.51">
+<script src="design.js?v=5.51"></script>
 <link rel="stylesheet" href="offer.css?v=5.23">
 <link rel="stylesheet" href="notify.css?v=5.23">
-<link rel="stylesheet" href="crm.css?v=5.48k1">
+<link rel="stylesheet" href="crm.css?v=5.51">
 <link rel="stylesheet" href="links.css?v=5.49">
 <link rel="stylesheet" href="map.css?v=5.24a1">
 <link rel="stylesheet" href="mine.css?v=5.48g2">
 <link rel="stylesheet" href="plc/plc.css?v=5.26f">
-<link rel="stylesheet" href="support.css?v=5.23">
+<link rel="stylesheet" href="support.css?v=5.51">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Для Агента">
 <script src="tg.js?v=5.26g"></script>
 <script src="scrolllock.js?v=5.26" defer></script>
 <link rel="stylesheet" href="voice.css?v=5.48f"><script src="voice.js?v=5.49d" defer></script>
-<link rel="stylesheet" href="agent.css?v=5.49">
+<link rel="stylesheet" href="agent.css?v=5.51">
 </head>
 <body>
 <div id="gate" class="gate"><div class="spinner"></div><p>Загрузка…</p></div>
@@ -58,7 +58,8 @@
           <button class="link agent-only client-ok" data-go="sels" data-tab="own">✉️ Ответы собственников</button>
           <button class="link agent-only client-ok" data-go="sels" data-tab="fb">👍 Отклики клиентов</button>
           <button class="link agent-only client-ok" data-go="sels" data-tab="ex">💎 Подборки эксклюзивов</button>
-          <button class="link agent-only client-ok" data-go="sels" data-tab="pick">🔗 Клиент выбирает</button>
+          <button class="link agent-only client-ok" data-go="sels" data-tab="pick">🎯 Самоподбор клиента</button>
+          <button class="link agent-only" data-go="pick" id="go-pick" title="Текущий фильтр станет рамкой: клиент сам ищет в ней, отмечает ⭐ и задаёт вопросы">➕ Новый самоподбор</button>
           <button class="link agent-only" data-go="selhow">💡 Как собрать подборку</button>
         </div></div>
       <div class="mg" data-g="my"><button type="button" class="link mg-b" aria-expanded="false" aria-haspopup="true">⭐ Моё <span class="mg-a" aria-hidden="true">▾</span></button>
@@ -94,7 +95,6 @@
           <a class="link agent-only" href="pay.html">💳 Оплата и тарифы</a>
           <a class="link agent-only" href="support.html">💬 Помощь</a>
         </div></div>
-      <button class="link agent-only" data-go="pick" id="go-pick" title="Клиент сам отмечает ⭐ и задаёт вопросы по вашей рамке">🔗 Клиент выбирает сам</button>
       <button class="link client-btn" data-go="client" id="go-client">🖥️ С клиентом</button>
       <button class="link agent-only" data-go="admin" id="go-admin" hidden>⚙ Админ</button>
       <button class="link" data-go="pay" id="go-pay" title="Продлить доступ" aria-label="Продлить доступ" hidden>Продлить доступ</button>
@@ -129,7 +129,7 @@
         <div class="fcell w2"><div class="fl" data-h="floor">Этаж</div>
             <div class="pair half"><input id="fmin" type="number" min="1" placeholder="от" inputmode="numeric"><span>—</span><input id="fmax" type="number" min="1" placeholder="до" inputmode="numeric"></div>
             <div class="checks"><label><input type="checkbox" id="nf"> не первый</label><label><input type="checkbox" id="nl"> не последний</label><label data-h="nold"><input type="checkbox" id="nold"> не старый фонд</label></div></div>
-        <div class="fcell w2 agent-only"><div class="fl" data-h="ex">Эксклюзивы</div><div class="checks"><label><input type="checkbox" id="f-ex"> 💎 Показывать эксклюзивы коллег вместе с остальными</label></div></div>
+        <div class="fcell agent-only"><div class="fl" data-h="ex">Эксклюзивы</div><div class="checks"><label title="Эксклюзивы коллег вместе с объявлениями собственников"><input type="checkbox" id="f-ex"> 💎 показывать</label></div></div>
         <details class="fmore w2" id="f-more"><summary>Ещё фильтры <b id="f-more-n" class="fmore-n" hidden></b></summary><div class="fgrid">
         <div class="fcell w2"><div class="fl" data-h="fin">Отделка</div><div class="chips" id="f-fin"></div></div>
         <div class="fcell w2"><div class="fl" data-h="flags">Дом и объявление</div><div class="chips" id="f-flags"></div></div>
@@ -209,7 +209,7 @@
 <script src="filters.js?v=5.49" defer></script>
 <script src="suggest.js?v=5.23" defer></script>
 <script src="offer.js?v=5.23" defer></script>
-<script src="plans.js?v=5.49" defer></script>
+<script src="plans.js?v=5.51" defer></script>
 <script src="mfa.js?v=5.26e" defer></script>
 <script src="admin.js?v=5.48h" defer></script>
 <script src="guest.js?v=5.25a1" defer></script>
@@ -217,9 +217,9 @@
 <script src="invite.js?v=5.25a2" defer></script>
 <script src="profile.js?v=5.46a" defer></script>
 <script src="notify.js?v=5.49b" defer></script>
-<script src="pick.js?v=5.48k4" defer></script>
-<script src="share.js?v=5.48k4" defer></script>
-<script src="crm.js?v=5.49d" defer></script>
+<script src="pick.js?v=5.51" defer></script>
+<script src="share.js?v=5.51" defer></script>
+<script src="crm.js?v=5.51" defer></script>
 <script src="links.js?v=5.49" defer></script>
 <script src="sec/lawreq.js?v=5.39" defer></script>
 <script src="plc/plc.js?v=5.26f" defer></script>
@@ -227,12 +227,12 @@
 <script src="complaints.admin.js?v=5.44" defer></script>
 <script src="msgapp.js?v=5.49a" defer></script>
 <script src="objpop.js?v=5.47" defer></script>
-<script src="nav.js?v=5.49" defer></script>
+<script src="nav.js?v=5.51" defer></script>
 <script src="edit.main.js?v=5.46" defer></script>
 <script src="mine.js?v=5.48g" defer></script>
-<script src="app.js?v=5.50h" defer></script>
-<script src="selai.js?v=5.48k4" defer></script>
-<script src="agent.js?v=5.49b" defer></script>
+<script src="app.js?v=5.51" defer></script>
+<script src="selai.js?v=5.51" defer></script>
+<script src="agent.js?v=5.51" defer></script>
 <script src="tour.js?v=5.49" defer></script>
 <script src="support.js?v=5.23" defer></script>
 </body>

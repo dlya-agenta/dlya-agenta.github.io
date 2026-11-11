@@ -16,7 +16,7 @@
   let tok = null;
   try { tok = JSON.parse(localStorage.getItem('token')); } catch { /* приватный режим */ }
 
-  // v5.48 H: метка браузера для ссылки «Клиент выбирает сам» (≤ 2 устройства на ссылку): 24 случайных знака в localStorage; на остальных подборках сервер её не читает
+  // v5.48 H: метка браузера для ссылки «Самоподбор» (≤ 2 устройства на ссылку): 24 случайных знака в localStorage; на остальных подборках сервер её не читает
   let memDev = null;
   const devId = () => {
     try { const v = localStorage.getItem('pick_dev'); if (/^[a-z0-9]{24}$/.test(v || '')) return v; } catch { /* приватный режим */ }
@@ -113,7 +113,7 @@
     document.addEventListener('mouseout', e => { const g = e.target.closest?.('.s-gal'); if (g && !g.contains(e.relatedTarget) && +g.dataset.k) { g.dataset.k = 0; g.querySelector('.s-ph').scrollTo({ left: 0, behavior: 'instant' }); } });
   }
 
-  function card(x, i, n, pk) {   // pk — карточка ссылки «Клиент выбирает сам» (pick.js): свои кнопки ⭐ ✗ ❓ и «Ответ агента»
+  function card(x, i, n, pk) {   // pk — карточка ссылки «Самоподбор» (pick.js): свои кнопки ⭐ ✗ ❓ и «Ответ агента»
     const ph = gal(x.photos, i);
     const tags = [...x.tags, x.sea_m ? `≈ ${seaTxt(x.sea_m)} до моря` : null].filter(Boolean);
     return `<article class="s-card${x.mark ? ` m-${x.mark}` : ''}${pk ? ' p-card' : ''}" data-num="${x.num}">${ph}
@@ -814,12 +814,12 @@
       const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
       if (window.SELAI?.open) return window.SELAI.open(arg);
       toast('Помощник загружается…');
-      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); });
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
 
     call('sel_agent').then(async d => {
-      if (d.kind === 'pick' && window.PICK?.agent) return window.PICK.agent(d, call);   // v5.48 H9: ссылка «Клиент выбирает сам» — своя страница агента (pick.js)
+      if (d.kind === 'pick' && window.PICK?.agent) return window.PICK.agent(d, call);   // v5.48 H9: ссылка «Самоподбор» — своя страница агента (pick.js)
       data = d; document.title = `${d.kind === 'excl' ? 'Агенты эксклюзивов' : 'Собственники'} — ${d.title || 'подборка'}`;
       d.items.forEach(x => { if (x.st) marks[x.num] = { st: x.st, wrote: true }; });
       draw();

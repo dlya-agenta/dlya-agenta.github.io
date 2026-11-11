@@ -18,6 +18,17 @@
   };
   const KEYC = { gold: ['Золотой', '#b8892f'], orange: ['Оранжевый', '#e07a2e'], sky: ['Небесный', '#3b86bb'], sea: ['Морской', '#0f7c86'],
     sapphire: ['Сапфир', '#1e4db3'], emerald: ['Изумруд', '#1f7a54'], terra: ['Терракота', '#b4532f'], graphite: ['Графит', '#2b3340'] };
+  // v5.51 (Алексей 11.11): 20 вариантов — меняется и плитка, и цвет самого знака: [название, фон («#a>#b» — переход цвета), цвет знака, рамка]; выбор — страница logo-pick.html
+  Object.assign(KEYC, {
+    k1: ['Ночь и золото', '#0f1b2d', '#e2c079', '#e2c079'], k2: ['Белый и небо', '#ffffff', '#2f78aa', '#cfe0ee'], k3: ['Крем и сапфир', '#fbf3e3', '#1e4db3', '#e2c79a'],
+    k4: ['Графит и мята', '#1f2630', '#5eead4', '#5eead4'], k5: ['Изумруд и золото', '#0f5a40', '#f3d27a', '#f3d27a'], k6: ['Терракота и крем', '#b4532f', '#fff4e6', '#f6c9a8'],
+    k7: ['Закат', '#ff8a4c>#e0457b', '#ffffff', '#ffd7c2'], k8: ['Море', '#0ea5b7>#1e4db3', '#ffffff', '#bde9f0'], k9: ['Чёрный и белый', '#0b0b0c', '#ffffff', '#6b6b6b'],
+    k10: ['Песок и шоколад', '#ead6b1', '#5b3a1e', '#c9a876'], k11: ['Лаванда', '#ede9fe', '#6d28d9', '#c4b5fd'], k12: ['Фиолет ИИ', '#8b7bff>#5a43d6', '#ffffff', '#d9d2ff'],
+    k13: ['Коралл', '#f25f5c', '#ffffff', '#ffc9c7'], k14: ['Оливка и крем', '#5b6b3a', '#f4ecd8', '#cfd8a8'], k15: ['Бордо и золото', '#6b1d2e', '#e9c46a', '#e9c46a'],
+    k16: ['Лёд и синий', '#d6ecf9', '#0f2d4a', '#9cc7e4'], k17: ['Золото и графит', '#e2bf6a>#b8892f', '#1b1f27', '#fff1c9'], k18: ['Изумрудный переход', '#10b981>#047857', '#ffffff', '#b7f0d8'],
+    k19: ['Синий и оранжевый', '#1e3a8a', '#fb923c', '#fb923c'], k20: ['Белый минимал', '#f7f7f5', '#2b3340', '#d9d9d4'],
+  });
+
   const ICONS = { lines: 'Тонкие линии', tiles: 'Линии на плитке', none: 'Без значков', emoji: 'Эмодзи (как было)' };
   const HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* приватный режим */ } } };
@@ -44,17 +55,32 @@
   // v5.31c (Алексей 05.11): знак бренда — в цветах «Небо» на всех стилях и темах (не меняется со стилем): у знаков с классами .lg-* цвета вписываются прямо в SVG
   // (style сильнее правил стилей вида `.logo rect {fill}`), плюс тонкая песочная рамка; золотые знаки (gold*) — со своими цветами, как выбрал администратор
   const BRAND = { bg: '#3b86bb', ink: '#fbf3e3', sand: '#e2c79a' };
-  const skyfy = (svg, bg = BRAND.bg) => !/class="lg-/.test(svg) ? svg : svg
-    .replace(/<rect class="lg-bg"([^>]*)\/>/, `<rect$1 style="fill:${bg};stroke:none"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" style="fill:none;stroke:${BRAND.sand};stroke-width:1.2;opacity:.75"/>`)
-    .replace(/class="lg-s"/g, `style="fill:none;stroke:${BRAND.ink};stroke-linecap:round;stroke-linejoin:round"`)
-    .replace(/class="lg-f"/g, `style="fill:${BRAND.ink};stroke:none"`)
-    .replace(/class="lg-t"/g, `style="fill:${BRAND.ink};stroke:none;font-family:Prata,'Playfair Display',Georgia,serif;font-weight:600;letter-spacing:-.4px"`);
-  const markSvg = (id = logo(), c = kc()) => `<svg viewBox="0 0 64 64" aria-hidden="true" style="background:none">${skyfy((LOGOS[id] ?? LOGOS.key).svg, KEYC[c]?.[1] ?? BRAND.bg)}</svg>`;
+  // v5.51: у варианта свой цвет знака и рамки (KEYC[c][2], [3]); фон «#a>#b» — плавный переход цвета (свой id градиента у каждого варианта)
+  const skyfy = (svg, bg = BRAND.bg, ink = BRAND.ink, sand = BRAND.sand, gid = 'kc') => {
+    if (!/class="lg-/.test(svg)) return svg;
+    const g = String(bg).split('>'), fill = g.length > 1 ? `url(#lg-${gid})` : bg;
+    const defs = g.length > 1 ? `<defs><linearGradient id="lg-${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${g[0]}"/><stop offset="1" stop-color="${g[1]}"/></linearGradient></defs>` : '';
+    return defs + svg
+      .replace(/<rect class="lg-bg"([^>]*)\/>/, `<rect$1 style="fill:${fill};stroke:none"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" style="fill:none;stroke:${sand};stroke-width:1.2;opacity:.75"/>`)
+      .replace(/class="lg-s"/g, `style="fill:none;stroke:${ink};stroke-linecap:round;stroke-linejoin:round"`)
+      .replace(/class="lg-f"/g, `style="fill:${ink};stroke:none"`)
+      .replace(/class="lg-t"/g, `style="fill:${ink};stroke:none;font-family:Prata,'Playfair Display',Georgia,serif;font-weight:600;letter-spacing:-.4px"`);
+  };
+  const markSvg = (id = logo(), c = kc()) => { const k = KEYC[c] ?? []; return `<svg viewBox="0 0 64 64" aria-hidden="true" style="background:none">${skyfy((LOGOS[id] ?? LOGOS.key).svg, k[1] ?? BRAND.bg, k[2] ?? BRAND.ink, k[3] ?? BRAND.sand, c)}</svg>`; };
+  // v5.51: значок вкладки браузера — тот же знак выбранного цвета (SVG-значок; PNG для телефона и ярлыка приложения обновляются файлами после выбора)
+  function favicon() {
+    const svg = markSvg().replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace(' aria-hidden="true" style="background:none"', '');
+    let l = document.querySelector('link[rel=icon][type="image/svg+xml"]');
+    if (!l) { l = document.createElement('link'); l.rel = 'icon'; l.type = 'image/svg+xml'; document.head.appendChild(l); }
+    const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    if (l.href !== href) l.href = href;
+  }
   const brandHtml = (id, small = '5 минут — вместо тысячи часов!', fixed = false) => `<div class="gbrand"><span class="logo"${fixed ? ' data-fixed' : ''}>${markSvg(id)}</span><span class="gbrand-t"><b>Для Агента</b><small>${small}</small></span></div>`;
   function paintLogos(el = document) {
     const tag = `${logo()}:${kc()}`;
     el.querySelectorAll('.logo:not([data-fixed])').forEach(s => { if (s.dataset.lg !== tag) { s.innerHTML = markSvg(); s.dataset.lg = tag; } });
     el.querySelectorAll('[data-brand]:empty').forEach(b => { b.innerHTML = brandHtml(logo(), b.dataset.brand || undefined); b.querySelector('.logo').dataset.lg = tag; });
+    if (el === document) try { favicon(); } catch { /* нет head */ }
   }
   // новый файл стилей подключается рядом со старым, старый убирается, когда новый загрузился, — без вспышки «голой» страницы
   function load(x) {

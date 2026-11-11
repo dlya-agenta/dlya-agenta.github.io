@@ -92,7 +92,7 @@ body.client .share-agent { display: none; }
   .sp-acts .sp-cl, .sp-clrow .btn { flex: 1 1 100%; }
 }
 
-/* v5.48 H9: «🔗 Клиент выбирает сам» — окно создания, кнопки отправки, карточка ссылки в «Мои подборки» */
+/* v5.48 H9: «🎯 Самоподбор» — окно создания, кнопки отправки, карточка ссылки в «Мои подборки» */
 .pk-win { display: grid; gap: 12px; min-width: 0; }
 .pk-win .field > input, .pk-win .field > select { width: 100%; box-sizing: border-box; }
 .pk-frame { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); min-width: 0; }

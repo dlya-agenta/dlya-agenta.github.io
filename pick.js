@@ -1,4 +1,4 @@
-// v5.48 H: страница клиента по ссылке «Клиент выбирает сам» (s.html#<код>, kind = 'pick'). Без входа. s.js передаёт сюда ответ sel_public и свою call();
+// v5.48 H: страница клиента по ссылке «Самоподбор» (s.html#<код>, kind = 'pick'). Без входа. s.js передаёт сюда ответ sel_public и свою call();
 // карточку, карту и просмотр фото берём у s.js через window.SEL. Вкладки: «Подбор» (фильтр в рамке агента), «Мой выбор (N)», «Советует агент».
 // Клиент никогда не получает телефон собственника, номер дома, источник — сервер отдаёт только белый список; текст — только через esc().
 (() => {
@@ -244,7 +244,7 @@
     const clientLink = () => `${location.href.split('#')[0]}#${t}`;
     const toast = (m, ms) => S().toast(m, ms);
     let flt = 'all', marks = {}, mod = null;
-    document.title = `Клиент выбирает сам — ${d.title || 'ссылка'}`;
+    document.title = `Самоподбор — ${d.title || 'ссылка'}`;
     const live = () => !!d.live;
     const byNum = new Map();
     const index = () => { byNum.clear(); (d.items ?? []).forEach(x => byNum.set(x.num, x)); };
@@ -311,7 +311,7 @@
       const closed = d.closed_reason && CLOSED[d.closed_reason] ? `<p class="pk-warn" role="status">${eh(CLOSED[d.closed_reason])} Если это ваш клиент — продлите ссылку${(d.devices ?? 0) >= 2 ? ' и сбросьте устройства' : ''}.</p>` : '';
       root.innerHTML = `
         <header class="s-hero pk-hero">
-          <p class="pk-kicker">🔗 Клиент выбирает сам · страница агента</p>
+          <p class="pk-kicker">🎯 Самоподбор · страница агента</p>
           <h1>${eh(d.title || 'Подбор для клиента')}</h1>
           ${d.client ? `<p class="pk-client">Клиент: <a href="./#client=${+d.client.id}">${eh(d.client.name)}</a></p>` : ''}
           ${d.frame_text ? `<p class="pk-frame">Рамка: ${eh(d.frame_text)}</p>` : ''}
@@ -350,7 +350,7 @@
     // v5.48 H2: «🤖 Позвать ИИ» — окно помощника (selai.js); добавленное в «Советует агент» → страница перечитывается
     async function aiOpen() {
       const arg = { sel_id: d.id, t, pick: true };
-      if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+      if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
     if (window.__pkAdded) document.removeEventListener('selai:added', window.__pkAdded);   // один обработчик на страницу

@@ -76,3 +76,22 @@ html.ag-here #ag-fabs, html.sup-on #ag-fabs { display: none; }
 .ag-note > b .ag-spin { width: 14px; height: 14px; border-width: 2px; }
 .ag-note p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 @media (max-width: 760px) { .ag-note { left: 12px; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); } }
+
+/* v5.51 (Алексей 11.11: «значки без текста — основной вид и в веб-версии»): на любой ширине — три круглые кнопки в один ряд внизу справа:
+   🎤 · ✨ · 💬 (Помощь, support.css); подпись — всплывающая подсказка при наведении мыши. Полоса подборки — кнопки над ней. */
+#ag-fabs { flex-direction: row; gap: 10px; right: 70px; bottom: calc(12px + env(safe-area-inset-bottom)); box-shadow: none; }
+body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(76px + env(safe-area-inset-bottom)); }
+.ag-fab { width: 48px; height: 48px; padding: 0; justify-content: center; border-radius: 50%; }
+.ag-fab .vico, .ag-ico { width: 22px; height: 22px; margin: 0; }
+.ag-fab b { display: none; }
+.ag-note { bottom: calc(74px + env(safe-area-inset-bottom)); }
+@media (hover: hover) and (pointer: fine) {
+  .ag-fab b, .sup-fab b { display: block; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 4px); white-space: nowrap; pointer-events: none;
+    padding: 5px 10px; border-radius: 8px; background: #121722; color: #fff; font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    opacity: 0; transition: opacity .15s, transform .15s; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+  .ag-fab:hover b, .ag-fab:focus-visible b, .sup-fab:hover b, .sup-fab:focus-visible b { opacity: 1; transform: translate(-50%, 0); }
+  .sup-fab b { left: auto; right: 0; transform: translate(0, 4px); }
+  .sup-fab:hover b, .sup-fab:focus-visible b { transform: none; }
+}
+body.ex-hassel #ag-fabs { bottom: calc(96px + env(safe-area-inset-bottom)); }
+@media (max-width: 560px) { body.ex-hassel #ag-fabs { bottom: calc(140px + env(safe-area-inset-bottom)); } }

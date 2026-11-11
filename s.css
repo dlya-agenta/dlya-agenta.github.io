@@ -263,7 +263,7 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 /* v5.48 G: видео эксклюзива в подборке */
 .s-video { width: 100%; max-height: 420px; border-radius: 12px; background: #000; margin: 8px 0; display: block; }
 
-/* v5.48 H: страница «Клиент выбирает сам» (pick.js) — вкладки, фильтр, кнопки ⭐ ✗ ❓, ответ агента */
+/* v5.48 H: страница «Самоподбор» (pick.js) — вкладки, фильтр, кнопки ⭐ ✗ ❓, ответ агента */
 .p-until { margin: 0 0 6px; }
 .p-soon { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--bad) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); font-weight: 600; font-size: 14.5px; }
 .p-frame { margin: 0 0 6px; }
@@ -322,7 +322,7 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
   .p-tabs button { flex: 1 1 auto; padding: 10px 8px; font-size: 14px; }
 }
 
-/* v5.48 H9: страница агента ссылки «Клиент выбирает сам» (pick.js, PICK.agent) */
+/* v5.48 H9: страница агента ссылки «Самоподбор» (pick.js, PICK.agent) */
 .pk-hero { display: grid; gap: 10px; }
 .pk-kicker { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
 .pk-frame { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
@@ -379,7 +379,7 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .pk-client { margin: 0; font-size: 14.5px; }
 .pk-nophone { color: var(--bad); }
 .pk-op { margin-top: 4px; padding: 6px 10px; font-size: 13.5px; }
-/* v5.48 H2: легенда карты на странице агента (ссылка «Клиент выбирает сам») */
+/* v5.48 H2: легенда карты на странице агента (ссылка «Самоподбор») */
 .s-map-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 8px 16px 0; list-style: none; font-size: 13px; }
 .s-map-leg li { display: inline-flex; align-items: center; gap: 6px; }
 .s-map-leg i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--card, #fff); box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); flex: none; }

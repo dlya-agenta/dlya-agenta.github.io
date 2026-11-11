@@ -133,7 +133,7 @@ window.CRM = (() => {
     try { C = await ui.call('crm_client', { id }); } catch (e) { body().innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     drawClient();
   }
-  // v5.48 H9: ссылки «Клиент выбирает сам» клиента и подписи у объектов (выбрал сам, вопрос клиента, ответ собственника, ответ клиенту)
+  // v5.48 H9: ссылки «Самоподбор» клиента и подписи у объектов (выбрал сам, вопрос клиента, ответ собственника, ответ клиенту)
   const pickRow = p => `<div class="crm-selrow crm-pkrow" data-pk="${p.id}"><b>${esc(p.title || 'Подбор для клиента')}</b>
     <small class="muted">${p.live ? `активна до ${esc(when(p.until))}` : 'закрыта'} · выбрал: ${p.chosen ?? 0}${p.open_q ? ` · <b class="crm-bad">вопросов без ответа: ${p.open_q}</b>` : ''}</small>
     <span class="crm-sel"><a class="btn primary" href="${esc(p.link)}&a=1" target="_blank" rel="noopener">Открыть</a>${p.live && window.PICK ? `<button type="button" class="btn soft" data-pk-copy="${esc(window.PICK.sendText(p.until, p.link))}">Скопировать</button>` : ''}</span></div>`;

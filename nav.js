@@ -10,7 +10,7 @@
 window.NAV = (() => {
   const G = [
     ['obj', '🏠 Объявления', [['./', '🏠 Все объявления'], ['hub.html#newb', '🏗 Новостройки'], ['arch.html', '🗂 Архив 2 года'], ['hub.html#market', '📈 Цены рынка']]],
-    ['sels', '<span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span>', [['./#sels=all', '📄 Все подборки'], ['./#sels=own', '✉️ Ответы собственников'], ['./#sels=fb', '👍 Отклики клиентов'], ['./#sels=ex', '💎 Подборки эксклюзивов'], ['./#sels=pick', '🔗 Клиент выбирает'], ['./#selhow', '💡 Как собрать подборку']]],
+    ['sels', '<span class="lbl-long">📄 Мои подборки</span><span class="lbl-short">📄 Подборки</span>', [['./#sels=all', '📄 Все подборки'], ['./#sels=own', '✉️ Ответы собственников'], ['./#sels=fb', '👍 Отклики клиентов'], ['./#sels=ex', '💎 Подборки эксклюзивов'], ['./#sels=pick', '🎯 Самоподбор клиента'], ['./#pick', '➕ Новый самоподбор'], ['./#selhow', '💡 Как собрать подборку']]],
     ['my', '⭐ Моё', [['./#favs', '★ Избранное'], ['./#crm', '👥 Клиенты'], ['./#deals', '🤝 Контакт'], ['hub.html#deal', '📑 Сделки'], ['hub.html#fix', '📌 Фиксации']]],
     ['help', '🤖 Помощник', [['hub.html#helper', '🤖 Мой помощник'], ['hub.html#lawyer', '⚖️ Юрист'], ['hub.html#broker', '🏦 Ипотечный брокер'], ['hub.html#kb', '📚 База знаний'],
       ['hub.html#chat', '💬 Чат подписчиков'], ['hub.html#taxes', '🧾 Налоги при продаже'], ['help-helper.html', '📘 Как пользоваться помощником']]],
@@ -210,31 +210,13 @@ window.NAV = (() => {
   // v5.31c: ссылка из бота ./#proxy (вкладка B: «прокси перестал работать») — сразу окно прокси; на главной — после входа (app.js рисует страницу), поэтому с задержкой
   const proxyHash = () => { if (location.hash === '#proxy') setTimeout(openProxy, document.querySelector('.top .who') ? 600 : 1500); };
   addEventListener('hashchange', proxyHash);
-  // v5.47 E (Алексей, п. 17): сайт открыт с главного экрана (режим приложения, iOS) — у Safari нет своих кнопок; добавляем 4 маленьких значка
-  // в шапку рядом с названием: ⟳ обновить, ‹ назад, › вперёд, ⤴ поделиться. Внизу экрана ничего не появляется — подборки, отправка и «Помощь» не перекрыты.
+  // v5.47 E → v5.51: сайт открыт с главного экрана (режим приложения, iOS) — у Safari нет своих кнопок: панель ⌂ ‹ › ⟳ ⤴ внизу (appnav.js).
   // Проверка без телефона: ?pwa=1
   const pwa = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || /[?&]pwa=1\b/.test(location.search);
+  // v5.51: панель режима приложения — внизу экрана, одна на всех страницах (appnav.js); старые значки в шапке убраны
   function appBar() {
-    const top = document.querySelector('.top');
-    if (!pwa() || !top || top.querySelector('.pwa-nav')) return;
-    const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
-    const b = document.createElement('div'); b.className = 'pwa-nav'; b.setAttribute('role', 'toolbar'); b.setAttribute('aria-label', 'Навигация');
-    b.innerHTML = [['back', 'Назад', 'M14.5 5.5 8 12l6.5 6.5'], ['fwd', 'Вперёд', 'M9.5 5.5 16 12l-6.5 6.5'],
-      ['reload', 'Обновить', 'M19 12a7 7 0 1 1-2.05-4.95M19 4.5V8h-3.5'], ['share', 'Поделиться', 'M12 15V4M8 7.5 12 3.5l4 4M6.5 11H5.5v9h13v-9h-1']]
-      .map(([k, t, d]) => `<button type="button" data-pwa="${k}" title="${t}" aria-label="${t}">${svg(d)}</button>`).join('');
-    b.addEventListener('click', async e => {
-      const k = e.target.closest('[data-pwa]')?.dataset.pwa;
-      if (k === 'back') history.back();
-      if (k === 'fwd') history.forward();
-      if (k === 'reload') location.reload();
-      if (k === 'share') {
-        const url = location.href.replace(/[?&]pwa=1\b/, ''), title = document.title;
-        try { if (navigator.share) await navigator.share({ title, url }); else { await navigator.clipboard.writeText(url); window.HUB?.toast?.('Ссылка скопирована'); } } catch { /* отменили */ }
-      }
-    });
-    const brand = top.querySelector(':scope > .brand');
-    brand ? brand.after(b) : top.prepend(b);
-    document.documentElement.classList.add('pwa');
+    if (!pwa() || window.__pwaBar || document.querySelector('script[src*="appnav.js"]')) return;
+    const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.51'; document.head.appendChild(sc);
   }
   const start = () => { build(); wire(); dress(); proxyHash(); appBar(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

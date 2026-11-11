@@ -3,7 +3,7 @@
 // Сервер — hub sel_ai {sel_id} (что понял, альтернативы, текст клиенту; ai: true — переписал ИИ, false — по правилам) и sel_ai_make {sel_id, nums, text} → новая подборка ссылкой.
 (() => {
   if (window.SELAI) return;
-  const V = '5.48k4', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  const V = '5.51', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   if (!document.querySelector('link[data-selai]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `selai.css?v=${V}`; l.dataset.selai = '1'; document.head.appendChild(l); }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
@@ -63,45 +63,55 @@
     b.querySelector('[data-close]').onclick = close;
   }
   const agentLink = (o, f) => (o.t ? `s.html#${encodeURIComponent(o.t)}&a=1` : `s.html#id=${o.sel_id}&a=1`) + (f ? `&f=${f}` : '');
-  const fbLi = (x, icon) => `<li><span class="sai-n">${icon} № ${x.num}</span> ${esc(x.why)}</li>`;
+  const fbLi = (x, icon) => `<li><span class="sai-n">${icon ? icon + ' ' : ''}№ ${x.num}</span><span>${esc(x.why)}</span></li>`;
   const fbList = (xs, icon) => !xs.length ? '<p class="sai-mut">нет</p>' : `<ul class="sai-fb">${xs.slice(0, 4).map(x => fbLi(x, icon)).join('')}</ul>${xs.length > 4
     ? `<details class="sai-det"><summary>ещё ${xs.length - 4}</summary><ul class="sai-fb">${xs.slice(4, 30).map(x => fbLi(x, icon)).join('')}</ul></details>` : ''}`;
+  const qLi = x => `<li><span class="sai-n">№ ${x.num}</span><q>${esc(x.q)}</q></li>`;
+  const qList = xs => `<ul class="sai-q">${xs.slice(0, 4).map(qLi).join('')}</ul>${xs.length > 4 ? `<details class="sai-det"><summary>ещё ${xs.length - 4}</summary><ul class="sai-q">${xs.slice(4, 40).map(qLi).join('')}</ul></details>` : ''}`;
   // v5.48 H2: pick — «вне рамки» у альтернатив за рамкой агента; галочками заранее отмечены только объекты в рамке (первые 6)
+  // v5.51: карточка — фото ровно 4:3 (раньше вертикальные фото растягивали карточку), значки на фото, «нужен ремонт / не указан» не показываем
+  const RP_OK = new Set(['с ремонтом']);
   function card(a, i, pk) {
+    const pa = [a.rooms === 0 ? 'студия' : a.rooms != null ? `${a.rooms}-комн.` : '', a.area ? `${n1(a.area)} м²` : '', a.floor ? `${a.floor} эт.` : ''].filter(Boolean);
     return `<label class="sai-card${a.modern ? ' mod' : ''}${pk && a.outside_frame ? ' out' : ''}"><input type="checkbox" data-num="${a.num}"${i < 6 && !(pk && a.outside_frame) ? ' checked' : ''}>
-      <span class="sai-ph">${a.photo ? `<img src="${esc(a.photo)}" alt="" loading="lazy">` : ''}<em>${a.photos ? `📷 ${a.photos}` : 'фото нет'}</em>${a.modern ? '<b class="sai-badge">современный ремонт</b>' : ''}${pk && a.outside_frame ? '<b class="sai-badge out">вне рамки</b>' : ''}</span>
+      <span class="sai-ph">${a.photo ? `<img src="${esc(a.photo)}" alt="" loading="lazy">` : '<span class="sai-nophoto">фото нет</span>'}
+        <span class="sai-badges">${a.modern ? '<b class="sai-badge"><i>✨ </i>Современный ремонт</b>' : RP_OK.has(a.repair) ? '<b class="sai-badge soft">С ремонтом</b>' : ''}${pk && a.outside_frame ? '<b class="sai-badge out">вне рамки</b>' : ''}</span>
+        ${a.photos ? `<em>📷 ${a.photos}</em>` : ''}<i class="sai-tick" aria-hidden="true"></i></span>
       <span class="sai-ci"><span class="sai-pr">${esc(mln(a.price_client || a.price))}${a.price_client && a.price && a.price_client !== a.price ? ` <small>собств. ${esc(mln(a.price))}</small>` : ''}</span>
-        <span class="sai-pa">${esc([a.rooms === 0 ? 'студия' : a.rooms != null ? `${a.rooms}к` : '', a.area ? `${n1(a.area)} м²` : '', a.floor ? `${a.floor} эт.` : ''].filter(Boolean).join(' · '))}</span>
-        <span class="sai-pl">${esc([a.zk, a.sub, sea(a.sea_m)].filter(Boolean).join(' · '))}</span>
-        ${!a.modern ? `<span class="sai-rp">${esc(a.repair)}</span>` : ''}
-        <span class="sai-why">${esc(a.why)}</span><span class="sai-num">№ ${a.num}</span></span><i class="sai-tick" aria-hidden="true"></i></label>`;
+        <span class="sai-pa">${pa.map(esc).join('<i>·</i>')}</span>
+        <span class="sai-pl">📍 ${esc([a.zk, a.sub].filter(Boolean).join(', ') || 'Сочи')}${a.sea_m ? `<span class="sai-sea">🌊 ${esc(sea(a.sea_m).replace(' до моря', ''))}</span>` : ''}</span>
+        ${a.why ? `<span class="sai-why">${esc(a.why)}</span>` : ''}
+        <span class="sai-foot"><span class="sai-num">№ ${a.num}</span><span class="sai-pick-l"></span></span></span></label>`;
   }
   function render(b, r, o) {
     state = { r, o };
     const q = r.quota, alts = r.alts || [], pk = !!o.pick;
+    const chips = [r.budget?.from || r.budget?.to != null ? `💰 ${r.budget.from ? 'от ' + mln(r.budget.from) : ''}${r.budget.to != null ? ' до ' + mln(r.budget.to) : ''}` : '',
+      r.want?.rooms ? `🛏 ${r.want.rooms}` : '', r.want?.area ? `📐 ${r.want.area}` : '', (r.want?.districts || []).length ? `📍 ${r.want.districts.join(', ')}` : ''].filter(Boolean);
     b.innerHTML = `
-      <section class="sai-s"><h3>Что понял помощник ${r.ai ? '<span class="sai-tag ai">ИИ</span>' : '<span class="sai-tag">по правилам</span>'}</h3>
-        ${!r.ai ? `<p class="sai-note">${r.ai_error ? 'ИИ сейчас не отвечает — ' : ''}разбор сделан по правилам: бюджет, районы, ремонт и вопросы клиента. </p>` : ''}
+      <section class="sai-s sai-s1"><div class="sai-sh"><span class="sai-ico">🧠</span><h3>Что понял помощник</h3>${r.ai ? '<span class="sai-tag ai">ИИ</span>' : '<span class="sai-tag">по правилам</span>'}</div>
+        ${!r.ai ? `<p class="sai-note">${r.ai_error ? 'ИИ сейчас не отвечает — ' : ''}разбор сделан по правилам: бюджет, районы, ремонт и вопросы клиента.</p>` : ''}
         ${r.cached ? `<p class="sai-note">Отклики не менялись — показан прошлый разбор (бесплатно). <button class="sai-lnk" type="button" data-fresh>Разобрать заново</button></p>` : ''}
         <p class="sai-sum">${esc(r.summary)}</p>
-        <div class="sai-chips">${r.budget?.from || r.budget?.to != null ? `<span>💰 ${r.budget.from ? 'от ' + esc(mln(r.budget.from)) : ''}${r.budget.to != null ? ' до ' + esc(mln(r.budget.to)) : ''}</span>` : ''}${r.want?.rooms ? `<span>🛏 ${esc(r.want.rooms)}</span>` : ''}${r.want?.area ? `<span>📐 ${esc(r.want.area)}</span>` : ''}${(r.want?.districts || []).length ? `<span>📍 ${esc(r.want.districts.join(', '))}</span>` : ''}</div>
-        <div class="sai-cols${r.likes.length && r.dislikes.length ? '' : ' one'}">${r.likes.length ? `<div><h4>👍 Подходит (${r.likes.length})</h4>${fbList(r.likes, '👍')}</div>` : ''}${r.dislikes.length ? `<div><h4>👎 Не подходит (${r.dislikes.length})</h4>${fbList(r.dislikes, '👎')}</div>` : ''}</div>
-        ${r.questions.length ? `<h4>💬 Вопросы клиента (${r.questions.length})</h4><ul class="sai-q">${r.questions.map(x => `<li><span class="sai-n">№ ${x.num}</span> «${esc(x.q)}»</li>`).join('')}</ul>
-          <a class="sai-btn" href="${esc(agentLink(o, 'q'))}">✉️ Спросить собственников</a>` : ''}
+        ${chips.length ? `<div class="sai-chips">${chips.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}
+        ${r.likes.length || r.dislikes.length ? `<div class="sai-cols${r.likes.length && r.dislikes.length ? '' : ' one'}">${r.likes.length ? `<div class="sai-box yes"><h4>👍 Подходит <b>${r.likes.length}</b></h4>${fbList(r.likes, '')}</div>` : ''}${r.dislikes.length ? `<div class="sai-box no"><h4>👎 Не подходит <b>${r.dislikes.length}</b></h4>${fbList(r.dislikes, '')}</div>` : ''}</div>` : ''}
+        ${r.questions.length ? `<div class="sai-box qq"><h4>💬 Вопросы клиента <b>${r.questions.length}</b></h4>${qList(r.questions)}
+          <a class="sai-btn sm" href="${esc(agentLink(o, 'q'))}">✉️ Спросить собственников</a></div>` : ''}
       </section>
-      <section class="sai-s"><h3>Предлагаю посмотреть <span class="sai-mut">(${alts.length})</span></h3>
-        ${alts.length ? `<p class="sai-mut">Сначала — с современным ремонтом, затем ближе к бюджету. Отмечены первые 6 — снимите или добавьте галочки.</p><div class="sai-grid">${alts.map((a, i) => card(a, i, pk)).join('')}</div>`
+      <section class="sai-s"><div class="sai-sh"><span class="sai-ico">🏠</span><h3>Предлагаю посмотреть</h3><span class="sai-tag">${alts.length}</span></div>
+        ${alts.length ? `<p class="sai-mut">Сначала — с современным ремонтом, затем ближе к бюджету. Отмечены первые 6 — нажмите на карточку, чтобы убрать или добавить.</p><div class="sai-grid">${alts.map((a, i) => card(a, i, pk)).join('')}</div>`
           : '<p class="sai-note">Похожих вариантов в базе сейчас нет. Попробуйте позже или расширьте район в новой подборке.</p>'}
       </section>
-      <section class="sai-s"><h3>Текст клиенту</h3>
-        <textarea class="sai-ta" rows="10" spellcheck="true">${esc(r.text_client)}</textarea>
-        <div class="sai-row sai-act">${alts.length && pk ? '<button class="sai-btn pri" type="button" data-add>➕ Добавить клиенту <span data-cnt></span></button>' : ''}
-          ${alts.length ? `<button class="sai-btn${pk ? '' : ' pri'}" type="button" data-make>📄 Собрать доп. подборку${pk ? '' : ' <span data-cnt></span>'}</button>` : ''}
-          <button class="sai-btn" type="button" data-copy>📋 Скопировать текст</button></div>
+      <section class="sai-s"><div class="sai-sh"><span class="sai-ico">✉️</span><h3>Текст клиенту</h3><span class="sai-mut sai-hint">можно поправить перед отправкой</span></div>
+        <div class="sai-msg"><textarea class="sai-ta" rows="12" spellcheck="true">${esc(r.text_client)}</textarea></div>
         <div class="sai-done" hidden></div>
         ${q ? `<p class="sai-mut sai-q2">Разборов в этом месяце: ${q.used} из ${q.lim >= 9999 ? '∞' : q.lim}</p>` : ''}
-      </section>`;
-    const cnt = () => { const n = b.querySelectorAll('.sai-card input:checked:not(:disabled)').length; const c = b.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`; const mk = b.querySelector('[data-make]'); if (mk) mk.disabled = !n; const ad = b.querySelector('[data-add]'); if (ad) ad.disabled = !n; };
+      </section>
+      <div class="sai-bar2"><span class="sai-sel">Выбрано: <b data-cnt2>0</b></span>
+        <div class="sai-row sai-act">${alts.length && pk ? '<button class="sai-btn pri" type="button" data-add>➕ Добавить клиенту <span data-cnt></span></button>' : ''}
+          ${alts.length ? `<button class="sai-btn${pk ? '' : ' pri'}" type="button" data-make>📄 Собрать доп. подборку${pk ? '' : ' <span data-cnt></span>'}</button>` : ''}
+          <button class="sai-btn" type="button" data-copy>📋 Скопировать текст</button></div></div>`;
+    const cnt = () => { const n = b.querySelectorAll('.sai-card input:checked:not(:disabled)').length; const c = b.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`; const c2 = b.querySelector('[data-cnt2]'); if (c2) c2.textContent = n; const mk = b.querySelector('[data-make]'); if (mk) mk.disabled = !n; const ad = b.querySelector('[data-add]'); if (ad) ad.disabled = !n; };
     b.querySelectorAll('.sai-card input').forEach(i => i.onchange = cnt); cnt();
     b.querySelectorAll('.sai-ph img').forEach(im => im.addEventListener('error', () => im.remove(), { once: true }));   // без onerror в разметке — его режет CSP сайта
     b.querySelector('[data-fresh]')?.addEventListener('click', () => run(o, true));
@@ -109,7 +119,7 @@
     b.querySelector('[data-make]')?.addEventListener('click', () => make(b, o));
     b.querySelector('[data-add]')?.addEventListener('click', () => addToClient(b, o));
   }
-  // v5.48 H2: ссылка «Клиент выбирает сам» — выбранные альтернативы в «Советует агент» (hub sel_ai_add); страница агента перечитывается по событию selai:added
+  // v5.48 H2: ссылка «Самоподбор» — выбранные альтернативы в «Советует агент» (hub sel_ai_add); страница агента перечитывается по событию selai:added
   async function addToClient(b, o) {
     const boxes = [...b.querySelectorAll('.sai-card input:checked:not(:disabled)')], nums = boxes.map(i => +i.dataset.num), btn = b.querySelector('[data-add]');
     if (!nums.length) return toast('Отметьте варианты');

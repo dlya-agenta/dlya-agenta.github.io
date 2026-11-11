@@ -1,75 +1,110 @@
-/* v5.31b: окно «🤖 Помощник по откликам» (selai.js). Цвета — из стиля сайта (--card, --text, --accent…), запасные — на случай страницы без стиля.
-   Компьютер — окно 960 px по центру, телефон — во весь экран; анимируются только transform и opacity. */
+/* v5.31b → v5.51: окно «🤖 Помощник по откликам» (selai.js). Цвета — из стиля сайта (--card, --text, --accent…), запасные — на случай страницы без стиля.
+   v5.51 (Алексей 11.11 «ужасно выглядит»): разделы карточками со значком, отклики — цветные блоки, карточки объектов ровные (фото 4:3, высота по содержимому),
+   текст клиенту — как сообщение, кнопки — закреплённой строкой снизу. Компьютер — окно 1040 px, телефон — во весь экран. */
 .sai-lock, .sai-lock body { overflow: hidden !important; }
-.sai-ov { position: fixed; inset: 0; z-index: 2147483000; background: rgba(10, 16, 24, .48); display: flex; align-items: center; justify-content: center; padding: 24px;
-  animation: sai-fade .18s ease-out; -webkit-tap-highlight-color: transparent; }
+.sai-ov { position: fixed; inset: 0; z-index: 2147483000; background: rgba(8, 12, 20, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 24px; animation: sai-fade .18s ease-out; -webkit-tap-highlight-color: transparent; }
 .sai-ov.sai-out { opacity: 0; transition: opacity .18s; }
 @keyframes sai-fade { from { opacity: 0; } }
 @keyframes sai-up { from { transform: translateY(18px); opacity: 0; } }
 .sai { --sai-card: var(--card, #fff); --sai-text: var(--text, #1f2a33); --sai-mut: var(--muted, #61707b); --sai-line: var(--line, rgba(0, 0, 0, .1)); --sai-acc: var(--accent, #2f78aa);
-  --sai-acc-t: var(--accent-text, #fff); --sai-soft: var(--card2, var(--soft, #f3f5f7)); --sai-ok: var(--ok, #1f7a52);
-  width: min(960px, 100%); max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; background: var(--sai-card); color: var(--sai-text);
-  border-radius: calc(var(--radius, 14px) + 4px); box-shadow: 0 24px 70px rgba(0, 0, 0, .35); animation: sai-up .22s ease-out; transition: transform .2s; overflow: hidden;
-  font: 15px/1.45 var(--font, inherit); }
-.sai-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px 20px; border-bottom: 1px solid var(--sai-line); position: relative; flex: none; }
+  --sai-acc-t: var(--accent-text, #fff); --sai-soft: var(--soft, color-mix(in srgb, var(--sai-text) 6%, var(--sai-card))); --sai-ok: var(--ok, #1f7a52); --sai-bad: var(--bad, #c2410c);
+  --sai-acc-soft: color-mix(in srgb, var(--sai-acc) 12%, var(--sai-card));
+  width: min(1040px, 100%); max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; background: var(--sai-card); color: var(--sai-text);
+  border: 1px solid var(--sai-line); border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .4); animation: sai-up .22s ease-out; transition: transform .2s; overflow: hidden;
+  font: 15px/1.5 var(--font, inherit); }
+.sai-h { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px 22px; border-bottom: 1px solid var(--sai-line); position: relative; flex: none;
+  background: linear-gradient(180deg, var(--sai-acc-soft), transparent); }
 .sai-grab { display: none; }
 .sai-ht { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.sai-ht b { font-size: 17px; }
-.sai-ht small { color: var(--sai-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sai-x { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--sai-soft); color: var(--sai-text); font-size: 17px; cursor: pointer; }
-.sai-x:hover { filter: brightness(.95); }
-.sai-b { overflow: auto; padding: 4px 20px 20px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.sai-s { padding: 14px 0 6px; border-bottom: 1px solid var(--sai-line); }
-.sai-s:last-child { border-bottom: 0; }
-.sai h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sai h4 { margin: 12px 0 6px; font-size: 14px; }
-.sai-mut { color: var(--sai-mut); font-weight: 400; font-size: 13.5px; margin: 4px 0 10px; }
-.sai-note { background: var(--sai-soft); border-radius: 10px; padding: 8px 12px; font-size: 13.5px; color: var(--sai-mut); margin: 4px 0 10px; }
-.sai-tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--sai-soft); color: var(--sai-mut); letter-spacing: .02em; }
-.sai-tag.ai { background: var(--sai-acc); color: var(--sai-acc-t); }
-.sai-sum { margin: 6px 0 10px; }
-.sai-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.sai-chips span { background: var(--sai-soft); border-radius: 99px; padding: 4px 10px; font-size: 13px; }
-.sai-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
-.sai-fb, .sai-q { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
-.sai-fb li, .sai-q li { padding: 4px 0; border-bottom: 1px dashed var(--sai-line); }
-.sai-fb li:last-child, .sai-q li:last-child { border-bottom: 0; }
-.sai-n { font-weight: 700; white-space: nowrap; }
+.sai-ht b { font-size: 18px; letter-spacing: -.01em; }
+.sai-ht small { color: var(--sai-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.sai-x { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--sai-line); background: var(--sai-card); color: var(--sai-text); font-size: 16px; cursor: pointer; }
+.sai-x:hover { border-color: var(--sai-acc); }
+.sai-b { overflow: auto; padding: 6px 22px 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 14px; }
+.sai-b > .sai-s:first-child { margin-top: 12px; }
+.sai-s { padding: 16px 18px 14px; border: 1px solid var(--sai-line); border-radius: 16px; background: var(--sai-card); }
+.sai-sh { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; flex-wrap: wrap; }
+.sai-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--sai-acc-soft); font-size: 17px; flex: none; }
+.sai h3 { margin: 0; font-size: 16.5px; font-weight: 700; }
+.sai h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.sai h4 b { font-size: 12px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; display: inline-grid; place-items: center; background: var(--sai-card); border: 1px solid var(--sai-line); }
+.sai-mut { color: var(--sai-mut); font-weight: 400; font-size: 13.5px; margin: 0 0 12px; }
+.sai-hint { margin: 0; }
+.sai-note { background: var(--sai-soft); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; color: var(--sai-mut); margin: 0 0 10px; }
+.sai-tag { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--sai-soft); color: var(--sai-mut); letter-spacing: .02em; }
+.sai-tag.ai { background: linear-gradient(135deg, #7c5cff, #4f8cff); color: #fff; }
+.sai-sum { margin: 0 0 12px; font-size: 15px; line-height: 1.55; }
+.sai-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.sai-chips span { background: var(--sai-acc-soft); color: var(--sai-text); border-radius: 99px; padding: 5px 11px; font-size: 13px; font-weight: 600; }
+.sai-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .sai-cols.one { grid-template-columns: 1fr; }
-.sai-det summary { cursor: pointer; color: var(--link, var(--sai-acc)); font-size: 13.5px; padding: 4px 0; }
+.sai-box { border-radius: 12px; padding: 12px 14px; background: var(--sai-soft); border-left: 3px solid var(--sai-line); }
+.sai-box.yes { border-left-color: var(--sai-ok); background: color-mix(in srgb, var(--sai-ok) 9%, var(--sai-card)); }
+.sai-box.no { border-left-color: var(--sai-bad); background: color-mix(in srgb, var(--sai-bad) 8%, var(--sai-card)); }
+.sai-box.qq { border-left-color: var(--sai-acc); background: var(--sai-acc-soft); }
+.sai-fb, .sai-q { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.sai-fb li, .sai-q li { padding: 6px 0; border-top: 1px solid color-mix(in srgb, var(--sai-line) 70%, transparent); display: flex; gap: 10px; align-items: baseline; }
+.sai-fb li:first-child, .sai-q li:first-child { border-top: 0; padding-top: 0; }
+.sai-n { font-weight: 700; white-space: nowrap; font-size: 12.5px; color: var(--sai-mut); flex: none; }
+.sai-q q { font-style: italic; }
 .sai-q { margin-bottom: 10px; }
-.sai-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
-.sai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--sai-line);
-  background: var(--sai-card); color: var(--sai-text); font: inherit; font-weight: 600; font-size: 14px; text-decoration: none; cursor: pointer; }
+.sai-det summary { cursor: pointer; color: var(--link, var(--sai-acc)); font-size: 13.5px; padding: 6px 0 0; }
+.sai-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 9px 16px; border-radius: 12px; border: 1px solid var(--sai-line);
+  background: var(--sai-card); color: var(--sai-text); font: inherit; font-weight: 600; font-size: 14px; text-decoration: none; cursor: pointer; transition: border-color .15s, transform .1s; }
+.sai-btn.sm { min-height: 36px; padding: 6px 12px; font-size: 13.5px; }
 .sai-btn:hover { border-color: var(--sai-acc); }
-.sai-btn.pri { background: var(--sai-acc); border-color: var(--sai-acc); color: var(--sai-acc-t); }
-.sai-btn:disabled { opacity: .55; cursor: default; }
+.sai-btn:active { transform: translateY(1px); }
+.sai-btn.pri { background: var(--sai-acc); border-color: var(--sai-acc); color: var(--sai-acc-t); box-shadow: 0 6px 18px color-mix(in srgb, var(--sai-acc) 35%, transparent); }
+.sai-btn:disabled { opacity: .5; cursor: default; box-shadow: none; }
 .sai-lnk { border: 0; background: none; color: var(--link, var(--sai-acc)); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
-.sai-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.sai-card { position: relative; display: flex; flex-direction: column; border: 1.5px solid var(--sai-line); border-radius: 12px; overflow: hidden; cursor: pointer; background: var(--sai-card); transition: border-color .15s, opacity .15s; }
+/* карточки объектов: высота — по содержимому (align-items: start), фото — ровно 4:3 */
+.sai-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; align-items: start; }
+.sai-card { position: relative; display: flex; flex-direction: column; border: 1.5px solid var(--sai-line); border-radius: 14px; overflow: hidden; cursor: pointer; background: var(--sai-card);
+  transition: border-color .15s, opacity .15s, box-shadow .15s, transform .15s; }
+.sai-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0, 0, 0, .18); }
 .sai-card input { position: absolute; opacity: 0; pointer-events: none; }
-.sai-card:has(input:not(:checked)) { opacity: .62; }
-.sai-card:has(input:checked) { border-color: var(--sai-acc); }
+.sai-card:has(input:not(:checked)) { opacity: .6; }
+.sai-card:has(input:checked) { border-color: var(--sai-acc); box-shadow: 0 0 0 1px var(--sai-acc) inset; }
 .sai-card:has(input:focus-visible) { outline: 2px solid var(--sai-acc); outline-offset: 2px; }
-.sai-tick { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(255, 255, 255, .92); border: 1.5px solid rgba(0, 0, 0, .25); }
-.sai-card:has(input:checked) .sai-tick { background: var(--sai-acc); border-color: var(--sai-acc); }
+.sai-ph { position: relative; display: block; flex: none; width: 100%; aspect-ratio: 4 / 3; min-height: 0; overflow: hidden; background: var(--sai-soft); }
+.sai-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.sai-nophoto { position: absolute; inset: 0; display: grid; place-items: center; color: var(--sai-mut); font-size: 13px; }
+.sai-ph::after { content: ''; position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(transparent, rgba(0, 0, 0, .45)); pointer-events: none; }
+.sai-ph em { position: absolute; left: 8px; bottom: 8px; z-index: 1; font-style: normal; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: rgba(0, 0, 0, .55); color: #fff; }
+.sai-badges { position: absolute; left: 8px; top: 8px; right: 42px; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; }
+.sai-badge i { font-style: normal; }
+.sai-badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--sai-ok); color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+.sai-badge.soft { background: rgba(0, 0, 0, .55); }
+.sai-badge.out { background: #b45309; }
+.sai-tick { position: absolute; top: 8px; right: 8px; z-index: 1; width: 26px; height: 26px; border-radius: 50%; background: rgba(255, 255, 255, .92); border: 1.5px solid rgba(0, 0, 0, .25); }
+.sai-card:has(input:checked) .sai-tick { background: var(--sai-acc); border-color: #fff; }
 .sai-card:has(input:checked) .sai-tick::after { content: ''; position: absolute; left: 8px; top: 4px; width: 6px; height: 11px; border: solid var(--sai-acc-t); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
-.sai-ph { position: relative; aspect-ratio: 4 / 3; background: var(--sai-soft); display: block; }
-.sai-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sai-ph em { position: absolute; left: 8px; bottom: 8px; font-style: normal; font-size: 11.5px; padding: 2px 7px; border-radius: 6px; background: rgba(0, 0, 0, .55); color: #fff; }
-.sai-badge { position: absolute; left: 8px; top: 8px; font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: var(--sai-ok); color: #fff; }
-.sai-ci { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px 11px; font-size: 13px; }
-.sai-pr { font-size: 16px; font-weight: 800; color: var(--sai-acc); }
-.sai-pr small { font-size: 11.5px; font-weight: 500; color: var(--sai-mut); }
-.sai-pa { font-weight: 600; }
-.sai-pl, .sai-rp, .sai-num { color: var(--sai-mut); }
-.sai-why { margin-top: 4px; line-height: 1.35; }
-.sai-num { font-size: 12px; margin-top: 4px; }
-.sai-ta { width: 100%; box-sizing: border-box; min-height: 200px; resize: vertical; border: 1px solid var(--sai-line); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14.5px;
-  background: var(--sai-card); color: var(--sai-text); }
+.sai-ci { display: flex; flex-direction: column; gap: 4px; padding: 11px 13px 12px; font-size: 13.5px; min-width: 0; }
+.sai-pr { font-size: 18px; font-weight: 800; color: var(--sai-acc); letter-spacing: -.01em; }
+.sai-pr small { font-size: 12px; font-weight: 500; color: var(--sai-mut); letter-spacing: 0; }
+.sai-pa { font-weight: 700; }
+.sai-pa i { font-style: normal; color: var(--sai-mut); margin: 0 5px; }
+.sai-pl { color: var(--sai-mut); display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.sai-why { margin-top: 4px; padding: 8px 10px; border-radius: 10px; background: var(--sai-soft); font-size: 13px; line-height: 1.45; }
+.sai-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.sai-num { font-size: 12px; color: var(--sai-mut); font-weight: 600; }
+.sai-pick-l::after { content: 'не выбран'; font-size: 12px; color: var(--sai-mut); }
+.sai-card:has(input:checked) .sai-pick-l::after { content: '✓ в подборке'; color: var(--sai-acc); font-weight: 700; }
+/* текст клиенту — как сообщение в мессенджере */
+.sai-msg { border-radius: 14px; padding: 12px; background: var(--sai-soft); }
+.sai-ta { display: block; width: 100%; box-sizing: border-box; min-height: 240px; resize: vertical; border: 1px solid var(--sai-line); border-radius: 12px 12px 4px 12px; padding: 12px 14px;
+  font: inherit; font-size: 14.5px; line-height: 1.55; background: var(--sai-card); color: var(--sai-text); }
 .sai-ta:focus { outline: 2px solid var(--sai-acc); outline-offset: 0; border-color: transparent; }
-.sai-done { margin-top: 10px; padding: 12px; border-radius: 12px; background: var(--ok-soft, rgba(31, 122, 82, .1)); }
+/* закреплённая строка с кнопками внизу окна */
+.sai-bar2 { position: sticky; bottom: 0; z-index: 2; margin: 0 -22px; padding: 12px 22px calc(12px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--sai-card) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid var(--sai-line); }
+.sai-sel { color: var(--sai-mut); font-size: 13.5px; margin-right: auto; }
+.sai-sel b { color: var(--sai-text); }
+.sai-done { margin-top: 12px; padding: 14px; border-radius: 12px; background: var(--ok-soft, color-mix(in srgb, var(--sai-ok) 12%, var(--sai-card))); }
 .sai-done p { margin: 0 0 8px; }
+.sai-done .sai-row { margin-top: 10px; }
 .sai-link { width: 100%; box-sizing: border-box; border: 1px solid var(--sai-line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13.5px; background: var(--sai-card); color: var(--sai-text); }
 .sai-q2 { margin-top: 12px; }
 .sai-load { text-align: center; padding: 34px 10px 30px; }
@@ -89,24 +124,37 @@
   padding: 10px 16px; border-radius: 10px; font-size: 14px; transition: transform .2s, opacity .2s; max-width: calc(100vw - 32px); }
 .sai-toast.on { transform: translate(-50%, 0); opacity: 1; }
 @media (prefers-color-scheme: dark) {
-  .sai-ov { background: rgba(0, 0, 0, .62); }
-  .sai-tick { background: rgba(20, 26, 34, .85); border-color: rgba(255, 255, 255, .35); }
+  .sai-ov { background: rgba(0, 0, 0, .66); }
+  .sai-tick { background: rgba(20, 26, 34, .85); border-color: rgba(255, 255, 255, .45); }
   .sai-toast { background: #e9eef3; color: #111; }
 }
 @media (max-width: 700px) {
   .sai-ov { padding: 0; align-items: stretch; }
-  .sai { width: 100%; max-height: none; height: 100%; border-radius: 0; animation: sai-up .22s ease-out; }
+  .sai { width: 100%; max-height: none; height: 100%; border-radius: 0; border: 0; }
   .sai-h { padding: 14px 12px 10px 16px; padding-top: max(14px, env(safe-area-inset-top)); }
   .sai-grab { display: block; position: absolute; left: 50%; top: 5px; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: var(--sai-line); }
-  .sai-b { padding: 2px 14px calc(18px + env(safe-area-inset-bottom)); }
+  .sai-b { padding: 2px 12px 0; gap: 10px; }
+  .sai-s { padding: 12px 12px 10px; border-radius: 14px; }
   .sai-cols { grid-template-columns: 1fr; }
   .sai-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .sai-ci { padding: 7px 8px 9px; font-size: 12.5px; }
-  .sai-pr { font-size: 15px; }
-  .sai-act .sai-btn { flex: 1 1 100%; }
+  .sai-ci { padding: 8px 9px 10px; font-size: 12.5px; }
+  .sai-pr { font-size: 15.5px; }
+  .sai-why { padding: 6px 8px; font-size: 12.5px; }
+  .sai-pick-l { display: none; }
+  .sai-badges { left: 6px; top: 6px; right: 36px; }
+  .sai-badge { font-size: 10px; padding: 2px 7px; white-space: nowrap; }
+  .sai-badge i { display: none; }
+  .sai-tick { top: 6px; right: 6px; width: 24px; height: 24px; }
+  .sai-card:has(input:checked) .sai-tick::after { left: 7px; top: 3px; }
+  .sai-pr small { display: block; }
+  .sai-pa { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .sai-pa i { margin: 0 3px; }
+  .sai-bar2 { margin: 0 -12px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .sai-sel { flex: 1 1 100%; }
+  .sai-act { width: 100%; }
+  .sai-act .sai-btn { flex: 1 1 calc(50% - 4px); }
 }
-/* v5.48 H2: ссылка «Клиент выбирает сам» — альтернативы вне рамки агента и уже добавленные клиенту */
-.sai-badge.out { background: #b45309; color: #fff; top: 36px; }
+/* v5.48 H2: ссылка «Самоподбор» — альтернативы вне рамки агента и уже добавленные клиенту */
 .sai-card.out { border-style: dashed; }
 .sai-card.added { opacity: 1 !important; }
 .sai-card.added .sai-num::after { content: ' · добавлено'; color: var(--sai-acc); font-weight: 700; }

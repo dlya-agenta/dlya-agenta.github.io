@@ -23,7 +23,7 @@ const ROOMS = [[0, 'Студия'], [1, '1'], [2, '2'], [3, '3'], [4, '4+']];
 // v5.20: «С ремонтом» из фильтра убран (просьба Алексея); сохранённый fin:'repair' отбрасывается при загрузке
 const FIN = [['clean', 'Чистовая'], ['rough', 'Черновая']];
 // v5.50h (Алексей 11.11): «Современный ремонт» — без слов «по фото»; «старый ремонт» в карточке не показываем (оценка остаётся в базе — для фильтров и подбора)
-const REPF = { modern: ['Современный ремонт', 'ok'], good: ['📷 Хороший ремонт — по фото', ''], none: ['📷 По фото: без ремонта', 'warn'] };
+const REPF = { modern: ['Современный ремонт', 'ok'], good: ['Хороший ремонт', ''], none: ['Без ремонта', 'warn'] };
 const FINL = { designer: 'С ремонтом', euro: 'С ремонтом', modern: 'С ремонтом', repair: 'С ремонтом', clean: 'Чистовая', whitebox: 'White box', rough: 'Черновая' };
 const MAXSEL = 20, MAXPDF = 10;   // v5.23: подборка ссылкой — до 20 объектов, PDF и «PDF + ссылка» — до 10
 const isNew = x => x.lite ? !!x.nw : x.created_at && Date.now() - Date.parse(x.created_at) < 30 * 864e5;   // «Новое» — за последний месяц (у точки карты — флаг nw)
@@ -306,7 +306,7 @@ async function start() {
   document.querySelectorAll('[data-go="deals"]').forEach(b => b.hidden = !meta.features.deals);
   document.querySelectorAll('[data-go="sels"]').forEach(b => b.hidden = !meta.features.selections);
   document.querySelectorAll('[data-go="crm"]').forEach(b => b.hidden = !meta.features.crm || me.guest);
-  document.querySelectorAll('[data-go="pick"]').forEach(b => b.hidden = meta.features.pick === false || me.guest);   // v5.48 H9: «🔗 Клиент выбирает сам» (features.pick)
+  document.querySelectorAll('[data-go="pick"]').forEach(b => b.hidden = meta.features.pick === false || me.guest);   // v5.48 H9: «🎯 Самоподбор» (features.pick)
   mgSync();
   // «Реклама», «Рассылки» и «Архив 2 года» видны всем: без PRO/MAX вместо содержимого — описание и «Оформить PRO» (PLANS.locked)
   clientUi();
@@ -325,6 +325,7 @@ async function start() {
   selMake();   // «Реклама»: …/#rk, #rk=daily
   if (/^#sels=(all|own|fb|ex|pick|main)$/.test(location.hash) && !me.guest) showSelections(location.hash.slice(6));   // v5.23: «Мои подборки» с вкладкой из меню других страниц
   if (/^#o=\d{6,7}$/.test(location.hash)) openItem(+location.hash.slice(3));
+  if (location.hash === '#pick' && !me.guest && meta.features.pick !== false) { history.replaceState(null, '', location.pathname + location.search); pickSheet({ f }); }   // v5.51: «➕ Новый самоподбор» из меню других страниц
   window.TOUR?.auto(me);   // v5.49 (п. 6): краткий курс — после регистрации сам, остальным один раз предложить
   HUB.rate(); HUB.ping();   // курс ЦБ для цен в рублях; «на сайте» раз в минуту — для сводки админки (онлайн, устройства)
   PLANS.seatNote();   // в очереди на место в PRO/MAX и место освободилось
@@ -438,7 +439,7 @@ if (window.VOICE?.ok) {
   $('#q-mic').hidden = false;
   $('#q-mic').onclick = e => window.VOICE.start($('#q'), e.currentTarget, { onDone: t => { if (window.AGENT) { $('#q').value = ''; window.AGENT.ask(t); } else { store.set('helper_q', t); location.href = 'hub.html#helper'; } } });
 }
-$('#sea').innerHTML = '<option value="">Любое расстояние</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+$('#sea').innerHTML = '<option value="">Любое</option>' + SEA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 // на телефоне фильтры — окно на весь экран (страница под ним не прокручивается)
 // v5.16: на компьютере фильтр слева уезжает влево плавно; карта подстраивает размер после раскладки
 function openF(on) {
@@ -747,7 +748,7 @@ function tags(x) {
     x.sea_m != null && x.sea_m <= 5000 ? `<span class="tag sea" title="По прямой до берега">≈ ${seaTxt(x.sea_m)} до моря</span>` : '',
     x.ad_state === 'unique' ? '<span class="tag ok agent-only">Уникальна</span>' : '',
     // v5.49 (п. 12): два разных признака ремонта — «С ремонтом» выше по словам объявления, а этот — проверка ремонта по фото (только агенту)
-    REPF[x.repair] ? `<span class="tag agent-only ${REPF[x.repair][1]}" title="Проверено по фото объявления">${REPF[x.repair][0]}</span>` : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
+    REPF[x.repair] ? `<span class="tag agent-only ${REPF[x.repair][1]}" title="Оценка ремонта">${REPF[x.repair][0]}</span>` : ''].join('');   // v5.24a: «Есть в рекламе» не показываем никому — есть «Проверить в рекламе»
 }
 // микрорайон, а если его нет — район («Светлана», «Адлерский р-н»)
 const placeOf = x => x.sub || (x.district ? (/ский$/.test(x.district) ? `${x.district} р-н` : x.district) : (x.mkr ? String(x.mkr).replace(/\s+мкр$/, '') : ''));
@@ -1346,7 +1347,7 @@ async function onSelPage(e) {
     return;
   }
   const co = e.target.closest('[data-client-open]'); if (co && meta?.features.crm) { e.preventDefault(); CRM.openClient(+co.dataset.clientOpen); return; }
-  if (window.PICK?.onCopy(e, toast)) return;   // v5.48 H9: «Скопировать» у ссылки «Клиент выбирает сам»
+  if (window.PICK?.onCopy(e, toast)) return;   // v5.48 H9: «Скопировать» у ссылки «Самоподбор»
   const pe = e.target.closest('[data-pext]');
   if (pe) {
     pe.disabled = true;
@@ -1368,7 +1369,7 @@ async function onSelPage(e) {
   const ai = e.target.closest('[data-selai]');
   if (ai) {
     const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null, ...(ai.dataset.pick ? { pick: true } : {}) };
-    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.48k4'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
     if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
   }
 }
@@ -1657,7 +1658,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   }
   if (['sels', 'selhow', 'rk', 'mail', 'admin', 'pay', 'prof', 'crm'].includes(g) || (g === 'arch' && !me.can_arch)) sheetGo = g;   // окно меню открыто — подсвечен его пункт
   if (g === 'client') clientSheet();
-  if (g === 'pick') pickSheet({ f });   // v5.48 H9: «🔗 Клиент выбирает сам» — текущий фильтр становится рамкой
+  if (g === 'pick') pickSheet({ f });   // v5.48 H9: «🎯 Самоподбор» — текущий фильтр становится рамкой
   if (g === 'sels') showSelections(b.dataset.tab || 'all');   // v5.23c: «Мои подборки» — своя группа меню: все / ответы собственников / отклики клиентов
   if (g === 'selhow') selHow();
   if (g === 'crm') CRM.open();   // клиенты и задачи (site/crm.js)
@@ -1729,7 +1730,7 @@ function clientUi() {
   b.classList.toggle('on', client.on);
   b.textContent = client.on ? '🖥️ С клиентом ✓' : '🖥️ С клиентом';
 }
-// ---------- v5.48 H9: «🔗 Клиент выбирает сам» — окно создания ссылки (из главной и из карточки клиента CRM) ----------
+// ---------- v5.48 H9: «🎯 Самоподбор» — окно создания ссылки (из главной и из карточки клиента CRM) ----------
 // Рамка — то, что берёт сервер: тип, районы/ЖК, комнаты, цена (млн ₽ собственника), площадь. Число объектов в рамке — обычным поиском (k=1, без комиссии):
 // отдельного «только посчитать» нет. Больше 500 — создать нельзя (сервер скажет то же). Цены фильтра главной в режиме «С клиентом» — с комиссией: пересчитываем в цены собственника.
 const PK_MAX = 500;
@@ -1759,8 +1760,8 @@ function pickSheet(pre = {}) {
   // районы — тот же список, что у кнопки «Район» на главной (meta.regions): районы верхнего уровня + уже выбранные микрорайоны
   const dKeys = [...new Set([...(meta.regions ?? []).map(r => r.k), ...(fr.d ?? [])])];
   let clients = [], tm = 0, seq = 0, count = null, ready = false;
-  sheet('🔗 Клиент выбирает сам', `<div class="pk-win">
-    <p class="hint">Клиент сам ищет в рамке вашего фильтра, отмечает ⭐ «Хочу посмотреть» и задаёт вопросы. Вы видите выбор в «Мои подборки → Клиент выбирает». Ссылка действует 24 часа и продлевается; телефоны, адреса и цены собственника клиенту не видны.</p>
+  sheet('🎯 Самоподбор', `<div class="pk-win">
+    <p class="hint">Клиент сам ищет в рамке вашего фильтра, отмечает ⭐ «Хочу посмотреть» и задаёт вопросы. Вы видите выбор в «Мои подборки → Самоподбор». Ссылка действует 24 часа и продлевается; телефоны, адреса и цены собственника клиенту не видны.</p>
     ${pre.hint ? `<p class="hint pk-wish">Пожелания клиента: ${esc(pre.hint)}</p>` : ''}
     <label class="field">Имя клиента или название<input id="pk-t" maxlength="80" autocomplete="off" placeholder="Например: Иван, 2к в Хосте" value="${esc(pre.title ?? '')}"></label>
     <label class="field">Комиссия сверху цены: <b id="pk-mv">${client.cm}%</b><input id="pk-m" type="range" min="0" max="10" step="0.5" value="${client.cm}"></label>

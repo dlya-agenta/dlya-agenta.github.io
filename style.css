@@ -1062,3 +1062,10 @@ html.embed .sheet-box { width: 100%; max-width: none; max-height: none; height: 
   html.pwa .top > .pwa-nav svg { width: 22px; height: 22px; }
 }
 .objpop .op-x[hidden] { display: none; }
+/* v5.51 (Алексей 11.11: «поля ввода шире, чем нужно»): на компьютере короткие поля — по длине содержимого: телефон, число, сумма, дата, почта — до 340 px;
+   имя и бюджет в окне подборки — до 420 px; поиск и описания остаются во всю ширину. */
+@media (min-width: 761px) {
+  input:is([type=tel], [type=number], [type=email], [type=date], [type=time], [type=datetime-local], [inputmode=numeric], [inputmode=decimal], [inputmode=tel]):not(.pair input):not([type=range]) { max-width: 340px; }
+  #s-name, #s-phone, #s-budget, #pk-c { max-width: 420px; }
+  #s-commission, .sheet input[type=range] { max-width: 520px; }
+}

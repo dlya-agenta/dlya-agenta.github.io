@@ -6,7 +6,10 @@
 .sup-fab span { font-size: 17px; }
 .sup-dot { position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--bad, #d23c3c); border: 2px solid var(--card, #fff); }
 body:has(#selbar:not([hidden])) .sup-fab { bottom: calc(76px + env(safe-area-inset-bottom)); }   /* не закрывать панель подборки */
-@media (max-width: 560px) { .sup-fab { padding: 12px; } .sup-fab b { display: none; } .sup-fab span { font-size: 20px; } }
+/* v5.51: на любой ширине — круглый значок 48 px без текста (подпись — подсказкой при наведении, agent.css) */
+.sup-fab { width: 48px; height: 48px; padding: 0; justify-content: center; }
+.sup-fab b { display: none; }
+.sup-fab span { font-size: 21px; }
 html.sup-on body { overflow: hidden; }
 
 .sup-wrap { position: fixed; inset: 0; z-index: 3600; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-end; justify-content: flex-end; }
