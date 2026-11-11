@@ -14,7 +14,7 @@ window.TGZKADM = (() => {
   const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   const rub = v => v ? `${Number(v).toLocaleString('ru-RU')} ₽` : 'цена не указана';
   const RUN = { new: 'ждёт сервер', run: 'идёт', done: 'готово', error: 'ошибка' };
-  const WHY = { dup_nophoto: 'Похоже на объект базы (тот же ЖК, этаж и площадь), а фото для сверки нет', unsure: 'ИИ не уверен, что продаёт собственник' };
+  const WHY = { dup_nophoto: 'Похоже на объект базы (тот же ЖК, этаж и площадь), а фото для сверки нет', unsure: 'ИИ не уверен, что продаёт собственник', template: 'Шаблон «Соседи, продаю… обременений нет, агентов не беспокоить» без площади и цены — так пишут агенты сразу в нескольких ЖК' };
   const VER = { owner: 'собственник', agent: 'агент', unsure: 'неясно' };
   const what = p => p ? [p.rooms === 0 ? 'студия' : p.rooms ? `${p.rooms}-комн.` : '', p.area ? `${p.area} м²` : '', p.floor ? `${p.floor}/${p.floors ?? '?'} эт.` : ''].filter(Boolean).join(', ') : '';
   const stats = s => s ? `<button type="button" class="lnk tz-chats-b">чатов ${s.chats ?? 0}</button> · найдено ${s.candidates ?? 0} · добавлено ${s.added ?? 0} · дублей ${s.dup ?? 0} · агентов ${s.agent ?? 0} · на модерацию ${s.mod ?? 0} · снято ${s.gone ?? 0}` : '';

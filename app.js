@@ -779,7 +779,7 @@ function card(x, mini = false) {
   return `<article class="card${mini ? ' mc' : ''}${x.seen ? ' seen' : ''}${sel.has(x.num) ? ' picked' : ''}${x.excl ? ' xcard' : ''}${x.arc ? ' arcard' : ''}" data-num="${x.num}">
     ${gallery(x)}
     <div class="body">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена по запросу'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
       ${xLine(x)}${arcLine(x)}
       ${zk ? `<div class="zk" data-open>${esc(zk)}</div>` : mini ? '' : '<div class="zk zk-none" aria-hidden="true"></div>'}
       <div class="title" data-open>${esc(what(x))}</div>
@@ -1046,7 +1046,7 @@ function itemView(x, k) {
       ${n > 1 ? `<div class="iv-thumbs">${Array.from({ length: n }, (_, i) => `<button type="button" class="iv-th${i === k ? ' on' : ''}" data-th="${i}" aria-label="Фото ${i + 1}"><span class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, i))}" alt="" loading="lazy"></span></button>`).join('')}</div>` : ''}
     </div>
     <div class="iv-info">
-      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена не указана'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
+      <div class="price${x.ad_state === 'unique' && !client.on ? ' uniq' : ''}"><b>${price ? rub(price) : 'Цена по запросу'}</b><small>${ppm}</small>${myMark(x)}${lockHtml(x)}</div>
       ${xLine(x)}
       ${zk ? `<div class="zk">${esc(zk)}</div>` : ''}
       <div class="iv-title">${esc(what(x))}</div>
