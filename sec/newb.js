@@ -9,6 +9,7 @@
   async function open(arg, ctx, query = {}) {
     el = ctx.el; caps = ctx.caps;
     if (arg) return card(+arg);
+    location.replace('nb.html'); return;   // v5.59 (Алексей 11.11): прежний список заменён разделом nb.html; карточки по номеру и фиксации остаются
     const r = await H.call('nb_list', query);
     const devs = new Set(r.partners.map(p => p.developer));
     el.innerHTML = `<h2>🏗 Новостройки</h2>

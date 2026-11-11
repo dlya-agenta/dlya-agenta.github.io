@@ -113,7 +113,7 @@
     <section class="hub-sec"><h3>Чат подписчиков</h3><p>Жалобы, замечания и баны.</p><p><a class="btn primary" href="hub.html#chat">Открыть чат и модерацию</a></p></section>
     <section class="hub-sec"><h3>Эксклюзивы</h3><p>Подписчики размещают свою вторичку без документов (v5.19); срок размещения 30 дней с продлением.</p><p><a class="btn soft" href="excl.html">Открыть эксклюзивы</a></p></section>`);
     window.CMPADM?.render($('#cmp')); window.TGZKADM?.render($('#tz')); }   // v5.24a: жалобы (complaints.admin.js)
-  function content() { body(`<section class="hub-sec"><h3>Новостройки</h3><p>Карточки ЖК: телефон отдела продаж, правила фиксации, кабинет партнёра, официальные фото, новости.</p><p><a class="btn primary" href="hub.html#newb">Открыть новостройки</a></p></section>
+  function content() { body(`<section class="hub-sec"><h3>Новостройки</h3><p>Карточки ЖК: телефон отдела продаж, правила фиксации, кабинет партнёра, официальные фото, новости.</p><p><a class="btn primary" href="nb.html">Открыть новостройки</a></p></section>
     <section class="hub-sec"><h3>Тарифы, цены и тексты</h3><p>Тарифы и что в них входит — в «Участники и настройки» (блок «Тарифы»). Документы: <a href="prices.html" target="_blank">тарифы</a>, <a href="oferta.html" target="_blank">оферта</a>, <a href="rules.html" target="_blank">правила</a>, <a href="privacy.html" target="_blank">политика</a>.</p></section>`); }
   // ---------- Стиль сайта (v5.16; v5.17 — логотип и значки меню; v5.21 — «Небо» и «Дюна» вместо «Резиденции»): выбор админа — по умолчанию для всех;
   // участник может выбрать себе другой стиль кнопкой «Стиль»; «Примерить у себя» меняет только этот экран ----------
