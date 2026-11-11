@@ -316,7 +316,7 @@ async function start() {
   $('#q').value = text; $('#sort').value = sort;
   openF(!mobile() && !fclosed); sideUi();
   FUI.help(); renderFilters(); selbar(); applyLay();
-  if (location.hash === '#arc') { history.replaceState(null, '', location.pathname + location.search); if (me.can_arch) f.arc = 'only'; else setTimeout(() => PLANS.locked('arch'), 300); renderFilters(); }   // v5.59: «🗂 Архив» из меню других страниц
+  if (location.hash === '#arc') { history.replaceState(null, '', location.pathname + location.search); if (me.can_arch) f.arc = 1; else setTimeout(() => PLANS.locked('arch'), 300); renderFilters(); }   // v5.59: «🗂 Архив» из меню других страниц
   if (!EMBED) search();
   if (location.hash === '#admin' && me.role === 'admin') { sheetGo = 'admin'; admin(); }   // прямая ссылка на админ-панель: …/#admin
   if (/^#client=\d+$/.test(location.hash) && meta.features.crm && !me.guest) { sheetGo = 'crm'; CRM.openClient(+location.hash.slice(8)); history.replaceState(null, '', location.pathname + location.search); }   // v5.48 H9: «Клиент: Имя» со страницы ссылки
@@ -380,11 +380,11 @@ function renderFilters() {
   $('#f-ext').onchange = () => { f.ext = $('#f-ext').checked || undefined; fchg(); };
   // v5.59 (Алексей 11.11): снятые с продажи из Архива (3 года) — в обычной выдаче по галочке; по умолчанию сняты; без Архива в тарифе — «Что даёт PRO»
   if ($('#f-arc')) {
-    $('#f-arc').checked = !!f.arc; $('#f-arco').checked = f.arc === 'only';
-    const arcSet = only => { if (!me?.can_arch) { $('#f-arc').checked = $('#f-arco').checked = false; f.arc = undefined; return PLANS.locked('arch'); }
-      f.arc = only ? 'only' : $('#f-arc').checked ? 1 : undefined; fchg(); };
-    $('#f-arc').onchange = () => { if (!$('#f-arc').checked) $('#f-arco').checked = false; arcSet($('#f-arco').checked); };
-    $('#f-arco').onchange = () => { if ($('#f-arco').checked) $('#f-arc').checked = true; arcSet($('#f-arco').checked); };
+    // Алексей 11.11: только по галочке агента, тарифы PRO и выше (и Main); вкладки «Архив» больше нет
+    if (f.arc === 'only') f.arc = 1;
+    $('#f-arc').checked = !!f.arc;
+    $('#f-arc').onchange = () => { if (!me?.can_arch) { $('#f-arc').checked = false; f.arc = undefined; return PLANS.locked('arch'); }
+      f.arc = $('#f-arc').checked ? 1 : undefined; fchg(); };
   }
   // поле, в котором сейчас печатают, не трогаем: иначе цена «12» на полуслове превращалась в «12.000.000»
   const put = (k, v) => { const el = $('#' + k); if (el !== document.activeElement) el.value = v; };
@@ -693,7 +693,7 @@ async function search(more = false) {
     if (!more) window.AGENT?.searched({ text, f: FUI.clean(f), count: total, understood: r.understood || '' });   // v5.48 F: «ищет одно и то же» → подбор с ИИ
     r.items.forEach(x => items.set(x.num, myNorm(x)));
     // объявления старше 6 месяцев — после актуальных, перед первым из них разделитель (один на всю выдачу)
-    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const a = x.arc && !arcShown && f.arc !== 'only'; if (a) arcShown = oldShown = true; const d = x.old && !oldShown; if (d) oldShown = true; return (a ? FUI.arcLine() : d ? FUI.oldLine() : '') + card(x); }).join(''));
+    $('#list').insertAdjacentHTML('beforeend', r.items.map(x => { const a = x.arc && !arcShown; if (a) arcShown = oldShown = true; const d = x.old && !oldShown; if (d) oldShown = true; return (a ? FUI.arcLine() : d ? FUI.oldLine() : '') + card(x); }).join(''));
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
     if (favMode === 'deals' && window.MINE) $('#status').insertAdjacentHTML('beforeend', ' · <button type="button" class="lnk" data-myrmlist>🗑 Убранные у меня</button>');   // v5.48 G
@@ -1733,7 +1733,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   // Реклама, Рассылки, Архив — в PRO и MAX; без них — описание и «Оформить PRO»
   if (g === 'rk') { if (!window.RK) return toast('Раздел «Реклама» не загрузился — возможно, его режет блокировщик рекламы в браузере', 6000); if (me.can_rk) RK.open(); else PLANS.locked('rk'); }   // «Реклама» — site/plc/plc.js (шаг 4.1; v5.26f: папка была reklama/ — её вырезают блокировщики рекламы в Safari, сайт на iPhone не запускался)
   if (g === 'mail') { if (me.can_mail) location.href = 'mail.html'; else PLANS.locked('mail'); }   // рассылки — своя страница mail.html (шаг 4.2)
-  if (g === 'arch') { if (me.can_arch) { f.arc = 'only'; fchg(); toast('🗂 Архив: только снятые с продажи за 3 года. Снять галочку «только снятые» — вместе с объектами в продаже', 5000); } else PLANS.locked('arch'); }   // v5.59: Архив — снятые из базы в основном поиске (раньше arch.html тянул 15+ тыс. с источника)
+  if (g === 'arch') { if (me.can_arch) { f.arc = 1; fchg(); toast('🗂 Снятые с продажи — в самом низу выдачи', 4000); } else PLANS.locked('arch'); }   // v5.59: Архив — снятые из базы в основном поиске (раньше arch.html тянул 15+ тыс. с источника)
   if (g === 'prof') PROFILE.open();   // профиль: тариф, номера, контакты, устройства
   if (g === 'admin') admin();
   if (g === 'mod') modSheet();   // v5.37a: группа Main — жалобы на объявления
