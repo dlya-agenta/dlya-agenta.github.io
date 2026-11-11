@@ -223,7 +223,7 @@ window.NAV = (() => {
   // v5.51: панель режима приложения — внизу экрана, одна на всех страницах (appnav.js); старые значки в шапке убраны
   function appBar() {
     if (!pwa() || window.__pwaBar || document.querySelector('script[src*="appnav.js"]')) return;
-    const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.54c'; document.head.appendChild(sc);
+    const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.55'; document.head.appendChild(sc);
   }
   // v5.52 (п. 2 Алексея): единый стиль — ui.css последним на всех страницах и одна подпись в шапке
   function uiKit() {

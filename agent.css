@@ -95,3 +95,16 @@ body:has(#selbar:not([hidden])) #ag-fabs { bottom: calc(76px + env(safe-area-ins
 }
 body.ex-hassel #ag-fabs { bottom: calc(96px + env(safe-area-inset-bottom)); }
 @media (max-width: 560px) { body.ex-hassel #ag-fabs { bottom: calc(140px + env(safe-area-inset-bottom)); } }
+
+/* v5.55 (Алексей 11.11): 🎤 ✨ 💬 — одной плотной группой; микрофон — цвет стиля (запись — красный), ✨ — в тон стилю */
+:root { --fab: 46px; --fab-gap: 6px; }
+#ag-fabs { gap: var(--fab-gap); right: calc(12px + var(--fab) + var(--fab-gap)); }
+.ag-fab, .sup-fab { width: var(--fab); height: var(--fab); box-shadow: 0 4px 14px rgba(10, 14, 22, .22); }
+.ag-mic { background: var(--accent, #1f6fb2); color: var(--accent-text, #fff); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent, #1f6fb2) 38%, transparent); }
+.ag-mic.on { background: #e5484d; color: #fff; }
+.ag-open { background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #1f6fb2) 30%, #8b7bff), color-mix(in srgb, var(--accent, #1f6fb2) 22%, #5a43d6)); }
+.sup-fab { outline: 1px solid var(--line, #e3e6eb); }
+/* выбраны объекты — группа вплотную над полосой выбора (раньше в режиме приложения поднималась дважды и висела высоко) */
+@media (max-width: 760px) {
+  body:has(#selbar:not([hidden])) :is(#ag-fabs, .sup-fab) { bottom: calc(var(--selbar-top, 150px) + 8px) !important; translate: none !important; }
+}

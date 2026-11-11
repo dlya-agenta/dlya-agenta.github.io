@@ -13,10 +13,10 @@
     document.querySelectorAll('.top > .pwa-nav, .pwa-fix').forEach(x => x.remove());   // старые кнопки в шапке (кэш старого nav.js)
     const st = document.createElement('style');
     st.textContent = `:root{--pwa-h:calc(58px + env(safe-area-inset-bottom))}
-      .pwa-bot{position:fixed;left:0;right:0;bottom:0;z-index:1500;display:flex;justify-content:space-around;align-items:stretch;gap:2px;height:58px;padding:0 6px env(safe-area-inset-bottom);
+      .pwa-bot{position:fixed;left:0;right:0;bottom:0;z-index:1500;display:flex;justify-content:center;align-items:stretch;gap:2px;height:calc(58px + env(safe-area-inset-bottom));box-sizing:border-box;padding:0 6px env(safe-area-inset-bottom);
         background:color-mix(in srgb,var(--card,#fff) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line,rgba(127,127,127,.25));
         color:var(--text,#111);transition:transform .2s ease;font:500 10.5px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-      .pwa-bot button{flex:1;max-width:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;margin:4px 0;background:transparent;color:inherit;cursor:pointer;padding:0;font:inherit;-webkit-tap-highlight-color:transparent}
+      .pwa-bot button{flex:0 1 68px;max-width:68px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;margin:4px 0;background:transparent;color:inherit;cursor:pointer;padding:0;font:inherit;-webkit-tap-highlight-color:transparent}
       .pwa-bot button:active{background:color-mix(in srgb,currentColor 12%,transparent)}
       .pwa-bot button[data-pwa=home]{color:var(--link,var(--accent,#2f6fdc))}
       .pwa-bot svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -25,10 +25,10 @@
       @media (max-width:760px){html.pwa-b .filters{padding-bottom:calc(150px + env(safe-area-inset-bottom))!important}html.pwa-b .ffoot{translate:0 -58px}html.pwa-b.pwa-kb .ffoot{translate:none}}
       html.pwa-b.pwa-kb .pwa-bot{transform:translateY(110%)}
       html.pwa-b.pwa-kb :is(${UP.join(',')}){translate:none}
-      @media (min-width:761px){.pwa-bot{left:50%;right:auto;transform:translateX(-50%);width:min(520px,100%);bottom:10px;border:1px solid var(--line,rgba(127,127,127,.25));border-radius:18px;padding:0 6px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+      @media (min-width:761px){.pwa-bot{left:50%;right:auto;transform:translateX(-50%);width:auto;height:58px;bottom:10px;border:1px solid var(--line,rgba(127,127,127,.25));border-radius:18px;padding:0 6px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
         html.pwa-b.pwa-kb .pwa-bot{transform:translateX(-50%)}}`;
     document.head.appendChild(st);
-    const svg = d => `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none;width:23px;height:23px"><path d="${d}" fill="none" stroke="currentColor"/></svg>`;   // v5.54c: размер и цвет — в самом значке (на iPhone значки не показывались)
+    const svg = d => `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none;width:23px;height:23px"><path d="${d}" fill="none" stroke="currentColor"/></svg>`;   // v5.55: панель — высота с нижним отступом iPhone (значки не вылезают), кнопки плотно по центру; v5.54c: размер и цвет — в самом значке (на iPhone значки не показывались)
     const b = document.createElement('nav'); b.className = 'pwa-bot'; b.setAttribute('aria-label', 'Навигация приложения');
     b.innerHTML = [['back', 'Назад', 'M14.5 5.5 8 12l6.5 6.5'], ['fwd', 'Вперёд', 'M9.5 5.5 16 12l-6.5 6.5'], ['home', 'Главная', 'M4 11.5 12 5l8 6.5M6.5 10v9h11v-9'],
       ['reload', 'Обновить', 'M19 12a7 7 0 1 1-2.05-4.95M19 4.5V8h-3.5'], ['share', 'Поделиться', 'M12 15V4M8 7.5 12 3.5l4 4M6.5 11H5.5v9h13v-9h-1']]
