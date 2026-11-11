@@ -218,7 +218,12 @@ window.NAV = (() => {
     if (!pwa() || window.__pwaBar || document.querySelector('script[src*="appnav.js"]')) return;
     const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.51'; document.head.appendChild(sc);
   }
-  const start = () => { build(); wire(); dress(); proxyHash(); appBar(); };
+  // v5.52 (п. 2 Алексея): единый стиль — ui.css последним на всех страницах и одна подпись в шапке
+  function uiKit() {
+    if (!document.querySelector('link[href^="ui.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'ui.css?v=5.52'; document.head.appendChild(l); }
+    document.querySelectorAll('.top .brand small').forEach(s => { s.textContent = '5 минут — вместо тысячи часов!'; });
+  }
+  const start = () => { uiKit(); build(); wire(); dress(); proxyHash(); appBar(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   return { close, open, sync, wire, iconize, tools, groups: G, openProxy };
 })();

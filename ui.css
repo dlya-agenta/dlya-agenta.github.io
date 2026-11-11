@@ -1,0 +1,26 @@
+/* v5.52 (п. 2 Алексея 11.11): единый стиль страниц — подключает nav.js последним на всех страницах.
+   Только размеры и форма (цвета — от выбранного стиля design-*.css): заголовок раздела 26 px, главные кнопки 42 px,
+   чипы фильтров 34 px, блоки — одна рамка и скругление. Шапка — одна подпись «5 минут — вместо тысячи часов!» (nav.js). */
+:is(.sp-head h1, .hub-main > h2, .hub-main > .dl-head h2, .dl-head h2, .ex-head h2, .pay-head h1, main > h1, main > h2:first-child) {
+  font-size: 26px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; margin: 0 0 6px; }
+:is(.hub-main, .ex-head, .dl-head) :is(h1, h2) svg { width: 22px; height: 22px; }
+/* главные кнопки страниц и окон — одна высота */
+:is(.dl-head, .ex-head, .bal-top, .hub-sec, .sheet-foot, .sp-acts, .crm-bar, .ex-acts, .pk-foot, .pk-send, .ffoot, .pay-card, .pcard) > .btn:not(.sp-sm),
+.btn.primary.pgo, .ex-add { min-height: 42px; box-sizing: border-box; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.sp-acts .btn:not(.sp-sm), .sp-pair .btn { height: 42px; }
+/* чипы фильтров — одна высота на всех страницах */
+.chip, .chip-l span { min-height: 34px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; padding-top: 0; padding-bottom: 0; font-size: 14px; }
+/* блоки и карточки разделов — одна рамка, скругление по стилю, без тяжёлой тени */
+:is(.hub-sec, .sp-card, .ex-empty, .sp-empty, .pcard, .crm-card) { border-radius: var(--radius, 14px); }
+:is(.hub-sec, .sp-card, .pcard) { border: 1px solid var(--line); }
+/* подписи разделов под заголовком */
+:is(.sp-head, .ex-head, .hub-main) > p.muted, .ex-sub { font-size: 14px; margin: 0 0 12px; }
+@media (max-width: 480px) {
+  :is(.sp-head h1, .hub-main > h2, .dl-head h2, .ex-head h2, main > h1) { font-size: 22px; }
+  :is(.dl-head, .ex-head, .bal-top, .sheet-foot, .crm-bar) > .btn { min-height: 44px; }
+}
+/* переключатели в строке заголовка — той же высоты, что главная кнопка рядом */
+.ex-tabs .chip { min-height: 42px; padding: 0 14px; }
+.ex-tabs { align-items: center; }
+/* пустой список (сделки, подборки…) — текст во всю ширину, а не в первой колонке сетки */
+:is(.dl-list, .sp-list, .ex-list) > p:only-child { grid-column: 1 / -1; }
