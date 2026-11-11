@@ -1059,7 +1059,7 @@ async function phaiInit(num, el, started = null) {
   let r; try { r = started ?? await call('photo_ai_info', { num }); } catch { box.hidden = true; return; }
   const run = r.job && (r.job.status === 'queued' || r.job.status === 'run');
   clearTimeout(phaiT.get(num));
-  if (r.can) box.innerHTML = `<button type="button" class="btn ghost sm" data-phai title="Займёт около ${r.eta_min} мин · сегодня осталось ${r.left} из ${r.limit}">✨ Улучшить фото <small>≈ ${r.eta_min} мин · ${r.left}/${r.limit}</small></button>`;
+  if (r.can) box.innerHTML = `<button type="button" class="btn ghost sm" data-phai title="Займёт около ${r.eta_min} мин · сегодня осталось ${r.left} из ${r.limit}">✨ Улучшить фото <small>≈ ${r.eta_min} мин · сегодня ${r.left} из ${r.limit}</small></button>`;
   else if (run) box.innerHTML = `<span class="iv-phst">⏳ ${r.job.status === 'run' ? 'Обрабатываю фото' : 'Фото в очереди'} — ≈ ${r.eta_min} мин. Можно закрыть окно: фото заменятся сами</span>`;
   else if (r.job?.status === 'done' && r.done != null && Date.now() - Date.parse(r.job.done_at || 0) < 864e5) box.innerHTML = `<span class="iv-phst ok">✓ Фото улучшены: ${r.done}${r.done ? '' : ' (улучшать нечего — водяные знаки или фото уже хорошие)'}</span>`;
   else box.innerHTML = `<button type="button" class="btn ghost sm" disabled title="${esc(r.why)}">✨ Улучшить фото</button><small class="iv-phwhy">${esc(r.why)}</small>`;

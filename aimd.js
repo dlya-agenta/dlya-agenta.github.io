@@ -49,7 +49,9 @@
       if (!l.trim()) { close(); continue; }
       if ((m = /^\s*([+＋])\s+(.*)/.exec(l))) { close(); out.push(`<p class="ai-pl">${inl(m[2])}</p>`); continue; }
       if ((m = /^\s*[−–]\s+(.*)/.exec(l))) { close(); out.push(`<p class="ai-mn">${inl(m[1])}</p>`); continue; }
-      if (/^\s*([-*•])\s+/.test(l)) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inl(l.replace(/^\s*[-*•]\s+/, ''))}</li>`); continue; }
+      if (/^\s*([-*•])\s+/.test(l)) { const tx = l.replace(/^\s*[-*•]\s+/, '');
+        if ((m = /^([+＋]|[−–-])\s+(.*)/.exec(tx))) { close(); out.push(`<p class="${/[+＋]/.test(m[1]) ? 'ai-pl' : 'ai-mn'}">${inl(m[2])}</p>`); continue; }   // «- + плюс» / «- − минус»
+        if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inl(tx)}</li>`); continue; }
       if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inl(m[1])}</li>`); continue; }
       close(); out.push(`<p>${inl(l)}</p>`);
     }
@@ -83,7 +85,7 @@
         const h = `<div class="ai-lk" data-copy="${esc(u)}" title="Нажмите — скопировать ссылку">${lab ? `<b>${esc(lab)}</b>` : ''}<code>${esc(u)}</code><span class="ai-cp">📋 Копировать</span><a href="${esc(u)}" target="_blank" rel="noopener" class="ai-op" title="Открыть">↗</a></div>`;
         if (sec) sec.body += h; else out.push(h); continue; }
       if (/^>\s?/.test(t)) { flush(); const q = []; for (; i < L.length && /^\s*>\s?/.test(L[i]); i++) q.push(L[i].trim().replace(/^>\s?/, '')); i--;
-        const raw = q.join('\n').replace(/\*\*/g, '').trim(), h = `<blockquote class="ai-q" data-copy="${esc(raw)}" title="Нажмите — скопировать текст">${q.map(x => `<p>${inl(x)}</p>`).join('')}<span class="ai-cp">📋 Нажмите, чтобы скопировать</span></blockquote>`;
+        const raw = q.join('\n').replace(/\*\*/g, '').trim(), h = `<blockquote class="ai-q" data-copy="${esc(raw)}" title="Нажмите — скопировать текст">${q.map(x => x.trim() ? `<p>${inl(x)}</p>` : '').join('')}<span class="ai-cp">📋 Нажмите, чтобы скопировать</span></blockquote>`;
         if (sec) sec.body += h; else out.push(h); continue; }
       if ((m = /^(?:\*\*)?(Итог|Вывод|Коротко|Главное)(?:\*\*)?\s*[:：](?:\*\*)?\s*(.*)/i.exec(t)) && !sec) { flush(); out.push(`<p class="ai-sum"><b>${esc(m[1])}:</b> ${inl(m[2].replace(/^\*\*\s*/, ''))}</p>`); continue; }
       if (/^(⚠️|⚠|❗)/.test(t)) { endSec(); const s = t.replace(/^(⚠️|⚠|❗)\s*/, ''), k = s.indexOf(':');
