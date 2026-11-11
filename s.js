@@ -814,7 +814,7 @@
       const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
       if (window.SELAI?.open) return window.SELAI.open(arg);
       toast('Помощник загружается…');
-      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53a'; el.onload = el.onerror = ok; document.head.appendChild(el); });
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
 
