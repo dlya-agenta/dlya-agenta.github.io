@@ -570,7 +570,7 @@
         const box = el.querySelector('#d-msgs');
         box.hidden = false;
         box.insertAdjacentHTML('beforeend', msgHtml('user', text) + msgHtml('ai', r.answer));
-        box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        window.SHOWSTART ? SHOWSTART(box) : box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });   // v5.54c: начало ответа
         el.querySelector('#d-ai').value = '';
       } catch (er) { H.toast(er.name === 'TimeoutError' ? 'ИИ думает слишком долго — попробуйте ещё раз' : er.message, 6000); }
       b.disabled = false; b.textContent = 'Спросить'; return;

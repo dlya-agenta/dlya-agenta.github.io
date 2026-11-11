@@ -72,7 +72,7 @@
         <p class="hint" id="l-wait" hidden>⏳ Думаю… до минуты. Не закрывайте страницу.</p>
         <p class="hint">Ответ ИИ — справка, не юридическая консультация.</p></section>`;
     const box = p.querySelector('#l-msgs'), q = p.querySelector('#l-q'), go = p.querySelector('#l-go');
-    box.scrollTop = box.scrollHeight;
+    window.SHOWLAST ? SHOWLAST(box, '.hub-msg:not(.ai)') : box.scrollTop = box.scrollHeight;   // v5.54c: последний ответ — с начала
     async function ask() {
       const text = q.value.trim();
       if (text.length < 10) { H.toast('Напишите или скажите вопрос подробнее'); q.focus(); return; }
@@ -86,7 +86,7 @@
         box.querySelector('.law-typing')?.remove();
         box.insertAdjacentHTML('beforeend', msg('ai', r.answer));
         S.st.msgs.push({ who: 'user', text }, { who: 'ai', text: r.answer });
-        box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.SHOWSTART ? SHOWSTART(box) : box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
         q.value = ''; setQ(r.quota);
       } catch (e) {
         box.querySelector('.law-typing')?.remove(); box.lastElementChild?.remove();

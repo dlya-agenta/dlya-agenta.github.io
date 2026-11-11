@@ -28,7 +28,7 @@
       @media (min-width:761px){.pwa-bot{left:50%;right:auto;transform:translateX(-50%);width:min(520px,100%);bottom:10px;border:1px solid var(--line,rgba(127,127,127,.25));border-radius:18px;padding:0 6px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
         html.pwa-b.pwa-kb .pwa-bot{transform:translateX(-50%)}}`;
     document.head.appendChild(st);
-    const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+    const svg = d => `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none;width:23px;height:23px"><path d="${d}" fill="none" stroke="currentColor"/></svg>`;   // v5.54c: размер и цвет — в самом значке (на iPhone значки не показывались)
     const b = document.createElement('nav'); b.className = 'pwa-bot'; b.setAttribute('aria-label', 'Навигация приложения');
     b.innerHTML = [['back', 'Назад', 'M14.5 5.5 8 12l6.5 6.5'], ['fwd', 'Вперёд', 'M9.5 5.5 16 12l-6.5 6.5'], ['home', 'Главная', 'M4 11.5 12 5l8 6.5M6.5 10v9h11v-9'],
       ['reload', 'Обновить', 'M19 12a7 7 0 1 1-2.05-4.95M19 4.5V8h-3.5'], ['share', 'Поделиться', 'M12 15V4M8 7.5 12 3.5l4 4M6.5 11H5.5v9h13v-9h-1']]

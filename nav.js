@@ -223,13 +223,24 @@ window.NAV = (() => {
   // v5.51: панель режима приложения — внизу экрана, одна на всех страницах (appnav.js); старые значки в шапке убраны
   function appBar() {
     if (!pwa() || window.__pwaBar || document.querySelector('script[src*="appnav.js"]')) return;
-    const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.51'; document.head.appendChild(sc);
+    const sc = document.createElement('script'); sc.src = 'appnav.js?v=5.54c'; document.head.appendChild(sc);
   }
   // v5.52 (п. 2 Алексея): единый стиль — ui.css последним на всех страницах и одна подпись в шапке
   function uiKit() {
     if (!document.querySelector('link[href^="ui.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'ui.css?v=5.54'; document.head.appendChild(l); }
     document.querySelectorAll('.top .brand small').forEach(s => { s.textContent = '5 минут — вместо тысячи часов!'; });
   }
+  // v5.54c (Алексей 11.11): «показывать начало ответа» во всех диалогах — ответ ИИ/автоответ встаёт началом под шапку, а не концом.
+  // SHOWSTART(box, el): el — ответ (по умолчанию последний в box); box со своей прокруткой — внутри него, иначе — страница с учётом закреплённой шапки.
+  // SHOWLAST(box, mine): последний ответ не свой — его начало; свой (только что отправили) — низ, как обычно.
+  window.SHOWSTART = (box, el, smooth = true) => {
+    el ||= box?.lastElementChild; if (!el) return;
+    const sc = box && box.scrollHeight > box.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(box).overflowY) ? box : null;
+    if (sc) { sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 8, behavior: smooth ? 'smooth' : 'instant' }); return; }
+    let h = 0; document.querySelectorAll('.top, .ag-bar, .h-sticky-top').forEach(t => { const cs = getComputedStyle(t), r = t.getBoundingClientRect(); if (/sticky|fixed/.test(cs.position) && r.top <= 1 && r.height < innerHeight / 2) h = Math.max(h, r.bottom); });
+    scrollBy({ top: el.getBoundingClientRect().top - h - 10, behavior: smooth ? 'smooth' : 'instant' });
+  };
+  window.SHOWLAST = (box, mine) => { const el = box?.lastElementChild; if (!el) return; if (mine && el.matches(mine)) { box.scrollTop = box.scrollHeight; return; } window.SHOWSTART(box, el, false); };
   const start = () => { uiKit(); build(); wire(); dress(); proxyHash(); appBar(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   return { close, open, sync, wire, iconize, tools, groups: G, openProxy };

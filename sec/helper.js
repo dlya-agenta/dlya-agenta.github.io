@@ -150,7 +150,7 @@
       clientContext = r.context; audience = r.context?.audience ?? 'new'; clientId = r.context?.client?.id ?? null; renderContext();
       const byNum = new Map(r.items.map(x => [x.num, x]));
       box.innerHTML = r.turns.map(t => turnHtml({ id: t.id, q: t.q, via: t.via, understood: t.note, alt: t.alt, count: t.total, reply: t.reply, actions: t.actions, steps: t.steps, items: t.ids.map(n => byNum.has(n)?{...byNum.get(n),archived:t.f?._archive_nums?.includes(n)}:null).filter(Boolean) })).join('') || '<p class="muted">Напишите или скажите, что нужно сделать.</p>';
-      box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5
+      window.SHOWSTART ? SHOWSTART(box, null, false) : box.lastElementChild?.scrollIntoView({ block: 'start' });   // v5.42A п. 5, v5.54c: начало ответа под шапкой
       const w = r.turns.find(t => t.via === 'wait');   // v5.48 F: ответ ещё готовится (запрос был на другой странице) — ждём здесь
       if (w && !ask.busy) resume(w);
     } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
@@ -279,7 +279,7 @@
       box.querySelector('.hub-pending')?.remove();
       if (!el.isConnected || box !== el.querySelector('#h-turns')) return;
       box.insertAdjacentHTML('beforeend', turnHtml({ ...r, q }, r.offer));
-      box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.SHOWSTART ? SHOWSTART(box) : box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => el.querySelector('#h-q')?.focus({ preventScroll: true }), 400);   // v5.42A п. 5: уточнить сразу, поле внизу
       el.querySelector('.hub-body .hint').innerHTML = quotaLine(st.quota);
       // v5.49 (п. 4): окно могло быть свёрнуто (запрос голосом) — родителю короткий ответ для карточки «Готово · Посмотреть»
@@ -311,7 +311,7 @@
       ask.busy = true; rf.disabled = true;
       try { const r = await H.call('help_refine', {dialog_id:cur,op:rf.dataset.refine});
         el.querySelector('#h-turns').insertAdjacentHTML('beforeend',turnHtml({...r,q:rf.textContent}));
-        el.querySelector('#h-turns').lastElementChild.scrollIntoView({block:'start'});
+        (window.SHOWSTART ? SHOWSTART(el.querySelector('#h-turns')) : el.querySelector('#h-turns').lastElementChild.scrollIntoView({block:'start'}));
       } catch(er) { H.toast(er.message); } finally {ask.busy=false;rf.disabled=false;} return;
     }
     const mode = t.closest('[data-audience]');

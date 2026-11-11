@@ -3,7 +3,7 @@
 // на других страницах — главная в рамке (./?embed=1#o=N): то же окно с фото, телефоном и кнопками; закрыли окно — рамка закрывается.
 (() => {
   const RE = /(№\s?|#)(\d{6,7})(?!\d)/g;
-  const SKIP = 'a, button, input, textarea, select, option, script, style, code, pre, svg, [contenteditable], .objpop, .sheet-title, #sheet-title, .no-objlink';
+  const SKIP = 'a, button, input, textarea, select, option, script, style, code, pre, svg, [contenteditable], .objpop, .op-hov, .sheet-title, #sheet-title, .no-objlink';
   function link(root) {
     if (!root || root.nodeType !== 1 && root.nodeType !== 3) return;
     const texts = [];
@@ -61,8 +61,11 @@
   // (фото, цена, что за объект, адрес, «Открыть», «📍 На карте»). Данные — из карточек на странице, остальное — действием items (до 60, без «просмотрено»).
   const PH = 'https://arojogajdamsyrrpcmso.supabase.co/storage/v1/object/public/photos/w', MEDIA = 'https://zpkqduhbymvadtwgcyhp.supabase.co/storage/v1/object/public/photos/w';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const info = new Map(), wait = new Map(); let qn = new Set(), qt = 0;
-  const photoOf = x => x?.pics?.[0] || (x?.web_photos ? `${x.web_photos_v === 3 ? MEDIA : PH}/${x.num}/0.jpg` : x?.photo || null);
+  const info = new Map(), dom = new Map(), wait = new Map(); let qn = new Set(), qt = 0;   // info — с сервера (items), dom — из карточек на странице
+  // адреса кадров — как в карточках (sec/helper.js phUrl); нижние 5 % кадра срезаются в CSS — там водяные знаки площадок
+  const photoAt = (x, k) => x?.pics?.[k] || (x?.web_photos ? (x.web_photos_v === 3 ? `${MEDIA}/${x.num}/${k}.jpg` : k < 4 ? `${PH}/${x.num}/${k}.jpg` : `${MEDIA}/${x.num}/${k}.webp`) : !k ? x?.photo || null : null);
+  const photoOf = x => photoAt(x, 0);
+  const photosOf = x => { const n = Math.min(15, Math.max(x?.pics?.length || 0, x?.web_photos || 0)); return n ? Array.from({ length: n }, (_, k) => photoAt(x, k)).filter(Boolean) : [photoOf(x)].filter(Boolean); };
   function fetchInfo(nums) {
     const need = nums.filter(n => !info.has(n)); need.forEach(n => qn.add(n));
     const all = nums.map(n => info.has(n) ? Promise.resolve(info.get(n)) : (wait.get(n) ?? wait.set(n, new Promise(ok => { const t = setInterval(() => { if (info.has(n)) { clearInterval(t); ok(info.get(n)); } }, 120); setTimeout(() => { clearInterval(t); ok(info.get(n) ?? null); }, 9000); })).get(n)));
@@ -84,7 +87,7 @@
       const zk = (c.querySelector('.zk')?.textContent || '').trim();
       const ph = c.querySelector('.strip img, .sai-strip img, img')?.getAttribute('src');
       const x = { num, addr, zk, photo: ph, price_t: c.querySelector('.price b, .sai-pr')?.textContent?.trim(), title_t: c.querySelector('.title, .sai-pa')?.textContent?.trim() };
-      if (!info.get(num)) info.set(num, { ...(info.get(num) ?? {}), ...x });
+      dom.set(num, { ...(dom.get(num) ?? {}), ...x });
       out.push(x);
     });
     return out;
@@ -131,9 +134,9 @@
       if (lis.length < 2) return;
       const nums = [];
       lis.forEach(li => { if (li.querySelector(':scope > .objm-th')) return; const n = +li.querySelector('a.objlink[data-obj]').dataset.obj; nums.push(n);
-        li.insertAdjacentHTML('afterbegin', `<img class="objm-th" data-obj="${n}" alt="" loading="lazy" referrerpolicy="no-referrer">`); li.classList.add('objm-li'); });
+        li.insertAdjacentHTML('afterbegin', `<span class="objm-th" data-obj="${n}"><img alt="" loading="lazy" referrerpolicy="no-referrer"></span>`); li.classList.add('objm-li'); });
       if (!nums.length) return;
-      fetchInfo([...new Set(nums)]).then(() => lis.forEach(li => { const im = li.querySelector(':scope > .objm-th'); if (!im || im.src) return; const u = photoOf(info.get(+im.dataset.obj)); if (u) im.src = u; else im.classList.add('none'); }));
+      fetchInfo([...new Set(nums)]).then(() => lis.forEach(li => { const th = li.querySelector(':scope > .objm-th'), im = th?.querySelector('img'); if (!im || im.src) return; const u = dom.get(+th.dataset.obj)?.photo || photoOf(info.get(+th.dataset.obj)); if (u) im.src = u; else th.classList.add('none'); }));
     });
   }
   const SCOPES = [['.hub-turn', '.hub-reply'], ['.sai-ov', '.sai-sum, .sai-box, .sai-why'], ['.ag-msgs, .chat, .law-chat', '.msg, .m-text, .bubble']];
@@ -156,14 +159,23 @@
       hov.style.left = x + 'px'; hov.style.top = y + 'px'; };
     place();
     hov.addEventListener('mouseenter', () => clearTimeout(hovT)); hov.addEventListener('mouseleave', hide);
-    fetchInfo([n]).then(([x]) => {
+    fetchInfo([n]).then(([x0]) => {
       if (!hov || hovN !== n) return;
+      const x = x0 ? { ...(dom.get(n) ?? {}), ...x0 } : dom.get(n) ?? null;
       if (!x) { hov.innerHTML = `<div class="op-hw">№ ${n} — объявление снято или недоступно</div>`; return; }
-      const ph = photoOf(x), price = x.price ? `${Math.round(x.price).toLocaleString('ru-RU')} ₽` : x.price_t || '';
+      const phs = photosOf(x), price = x.price ? `${Math.round(x.price).toLocaleString('ru-RU')} ₽` : x.price_t || '';
       const ad = [x.street || x.address || x.addr, x.sub || x.district].filter(Boolean).join(' · ');
-      hov.innerHTML = `${ph ? `<img src="${esc(ph)}" alt="" referrerpolicy="no-referrer">` : ''}<div class="op-hb"><b>${esc(price)}</b><span>${esc(what(x))}</span>${x.zk || x.complex ? `<span class="op-hz">${esc(x.zk || x.complex)}</span>` : ''}
+      hov.innerHTML = `${phs.length ? `<div class="op-hph" data-n="${phs.length}"><img src="${esc(phs[0])}" alt="" referrerpolicy="no-referrer">${phs.length > 1 ? `<span class="op-hd">${phs.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</span><span class="op-hc">1 / ${phs.length}</span>` : ''}</div>` : ''}<div class="op-hb"><b>${esc(price)}</b><span>${esc(what(x))}</span>${x.zk || x.complex ? `<span class="op-hz">${esc(x.zk || x.complex)}</span>` : ''}
         ${ad ? `<span class="op-ha">📍 ${esc(ad)}</span>` : ''}<span class="op-hf"><button type="button" class="op-hbtn" data-obj="${n}">Открыть</button><button type="button" class="op-hbtn soft" data-mm data-num="${n}"${x.lat != null ? ` data-lat="${x.lat}" data-lng="${x.lng}"` : ''} data-place="${esc(ad)}">📍 На карте</button><small>№ ${n}</small></span></div>`;
       place();
+      // быстрое листание, как в выдаче: ведёте мышкой по фото — кадры меняются, полоски внизу; кадра нет — пропускается
+      const box = hov.querySelector('.op-hph'); if (!box || phs.length < 2) return;
+      const im = box.querySelector('img'), bad = new Set();
+      phs.slice(1, 6).forEach(u => { const p = new Image(); p.referrerPolicy = 'no-referrer'; p.src = u; });
+      const go = k => { if (box.dataset.k == k) return; box.dataset.k = k; im.src = phs[k]; box.querySelectorAll('.op-hd i').forEach((d, i) => d.classList.toggle('on', i === k)); box.querySelector('.op-hc').textContent = `${k + 1} / ${phs.length}`; };
+      im.addEventListener('error', () => { const k = +box.dataset.k || 0; bad.add(k); const nx = phs.findIndex((_, i) => i > k && !bad.has(i)); if (nx > 0) go(nx); });
+      box.addEventListener('mousemove', e => { const r = box.getBoundingClientRect(); let k = Math.max(0, Math.min(phs.length - 1, Math.floor((e.clientX - r.left) / r.width * phs.length))); while (bad.has(k) && k > 0) k--; go(k); });
+      box.addEventListener('mouseleave', () => go(0));
     });
   }
   if (matchMedia('(hover: hover)').matches) {
@@ -172,11 +184,13 @@
   }
   document.addEventListener('click', e => { if (hov && !e.target.closest('.op-hov')) { hov.remove(); hov = null; hovN = 0; } else if (e.target.closest('.op-hov [data-obj], .op-hov [data-mm]')) setTimeout(() => { hov?.remove(); hov = null; hovN = 0; }, 0); }, true);
   const css = `.op-hov{position:fixed;z-index:2147483600;width:290px;background:var(--card,#fff);color:var(--text,#121722);border:1px solid var(--line,#e3e7ee);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.28);overflow:hidden;font-size:13.5px;line-height:1.35}
-    .op-hov img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--soft,#eef2f7)}.op-hw{padding:14px;color:var(--muted,#6b7280)}
+    .op-hph{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--soft,#eef2f7);cursor:ew-resize}.op-hph img{display:block;width:100%;height:calc(100% / .95);object-fit:cover;object-position:center top}
+    .op-hd{position:absolute;left:8px;right:8px;bottom:7px;display:flex;gap:3px;pointer-events:none}.op-hd i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.45)}.op-hd i.on{background:#fff}
+    .op-hc{position:absolute;right:8px;top:8px;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;pointer-events:none}.op-hw{padding:14px;color:var(--muted,#6b7280)}
     .op-hb{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px}.op-hb b{font-size:17px}.op-hz{font-weight:600}.op-ha{color:var(--muted,#6b7280)}
     .op-hf{display:flex;align-items:center;gap:6px;margin-top:6px}.op-hf small{margin-left:auto;color:var(--muted,#6b7280)}
     .op-hbtn{border:0;border-radius:8px;padding:7px 11px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent,#1f6fb2);color:var(--accent-text,#fff)}.op-hbtn.soft{background:var(--soft,#eef2f7);color:var(--link,#1f6fb2)}
-    li.objm-li{list-style-position:outside}.objm-th{float:left;width:56px;height:42px;object-fit:cover;border-radius:7px;margin:2px 10px 4px 0;background:var(--soft,#eef2f7);cursor:pointer}.objm-th.none{visibility:hidden}
+    li.objm-li{list-style-position:outside}.objm-th{float:left;width:56px;height:42px;overflow:hidden;border-radius:7px;margin:2px 10px 4px 0;background:var(--soft,#eef2f7);cursor:pointer}.objm-th img{display:block;width:100%;height:calc(100% / .95);object-fit:cover;object-position:center top}.objm-th.none{visibility:hidden}
     li.objm-li::after{content:'';display:block;clear:both}a.objm{white-space:normal}`;
   const st = document.createElement('style'); st.textContent = css; (document.head || document.documentElement).appendChild(st);
   // строка адреса → карта (minimap.js) — подгрузить на любой странице с объявлениями

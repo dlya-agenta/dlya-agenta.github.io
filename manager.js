@@ -202,7 +202,7 @@
     const ta = $('#mg-text'); ta.value = draft;
     paintPend(); autosize(ta);
     bind();
-    const c = $('#mg-chat'); if (c) c.scrollTop = c.scrollHeight;
+    const c = $('#mg-chat'); if (c) window.SHOWLAST ? SHOWLAST(c, '.mg-owner') : c.scrollTop = c.scrollHeight;   // v5.54c: ответ — с начала
     atBottom = true; unseen = 0;
   }
 
@@ -306,7 +306,7 @@
     if (!c || !fresh.length) return;
     if (!c.querySelector('.mg-msg')) c.innerHTML = '';
     for (const m of fresh) c.insertAdjacentHTML('beforeend', msgHtml(m));
-    if (atBottom) c.scrollTop = c.scrollHeight;
+    if (atBottom) { const last = c.lastElementChild; if (window.SHOWSTART && last && !last.matches('.mg-owner')) SHOWSTART(c, last); else c.scrollTop = c.scrollHeight; }
     else { unseen += fresh.length; const j = $('#mg-jump'); if (j) { j.hidden = false; j.textContent = `↓ ${unseen} новых`; } }
   }
 

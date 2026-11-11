@@ -169,7 +169,7 @@ window.SUPPORT = (() => {
         ${t.status !== 'done' ? '<button type="button" class="btn ghost sup-solved" data-sup="solved">✅ Вопрос решён</button>' : ''}
       </form>`);
     files = []; drawFiles();
-    const body = $('.sup-chat'); if (body) body.scrollTop = body.scrollHeight;
+    const body = $('.sup-chat'); if (body) window.SHOWLAST ? SHOWLAST(body, '.sup-user, .sup-typing') : body.scrollTop = body.scrollHeight;   // v5.54c: ответ — с начала
   }
   // ждём ответ: пока ИИ отвечает — каждые 4 с (до ~3 минут), потом раз в 30 с, пока окно открыто
   function watch() {
