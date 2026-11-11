@@ -139,11 +139,8 @@
           <h4>${esc(l.name)}${tags(l.id === cur.default, D?.get() === l.id)}</h4><p class="hint">${esc(l.text)}</p>
           <p class="dz-act"><button class="btn ghost" data-try="${l.id}">Примерить у себя</button>${l.id === cur.default ? '' : `<button class="btn primary" data-def="${l.id}">Сделать для всех</button>`}</p></article>`).join('')}</div></section>
       <section class="hub-sec"><h3>Логотип «Для Агента» — «Ключ-дом»</h3>
-        <p class="hint">Знак один — «Ключ-дом»: в шапке всех страниц, на входе, в подборке клиенту. Выберите цвет знака (v5.47, просьба Алексея). «Примерить у себя» меняет только ваш экран.</p>
-        <div class="lg-prev kc-prev">${D.brandHtml('key', undefined, true)}</div>
-        <div class="kc-grid">${Object.entries(D?.keyColors ?? {}).map(([id, [name]], i) => `<article class="kc-card${id === (cur.keycolor ?? 'sky') ? ' on' : ''}">
-          <span class="logo" data-fixed>${D.markSvg('key', id)}</span><b>${i + 1}. ${esc(name)}</b>${tags(id === (cur.keycolor ?? 'sky'), D.keyColor() === id)}
-          <p class="dz-act"><button class="btn ghost" data-try-kc="${id}">Примерить</button>${id === (cur.keycolor ?? 'sky') ? '' : `<button class="btn primary" data-def-kc="${id}">Для всех</button>`}</p></article>`).join('')}</div></section>
+        <p class="hint">Выбран Алексеем 11.11 (v5.51b): №8 «Море» — на всех стилях, в ярлыке приложения и значке вкладки; у стиля «Премиум» — свой №17 «Золото и графит». Другие варианты убраны.</p>
+        <div class="kc-grid">${Object.entries(D?.keyColors ?? {}).map(([id, [name]]) => `<article class="kc-card on"><span class="logo" data-fixed>${D.markSvg('key', id)}</span><b>${esc(name)}</b></article>`).join('')}</div></section>
       <section class="hub-sec"><h3>Значки в меню</h3>
         <p class="hint">Вместо эмодзи («смайликов») — рисованные значки в цвет текста. У «Кабинета» и «С клиентом» теперь разные значки: портфель и экран показа.</p>
         <div class="dz-grid">${Object.entries(D?.icons ?? {}).map(([id, name]) => `<article class="dz-card${id === cur.icons ? ' on' : ''}">

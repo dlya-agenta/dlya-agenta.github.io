@@ -16,19 +16,9 @@
     key: { name: 'Ключ-дом', text: 'Ключ, у которого головка — домик: «ключ к сделке». Хорошо смотрится маленьким на телефоне.',
       svg: '<rect class="lg-bg" width="64" height="64" rx="16"/><path class="lg-s" d="M9.5 31 20.5 21l11 10v13.5h-22z" stroke-width="3.2"/><circle class="lg-f" cx="20.5" cy="34.5" r="2.8"/><path class="lg-s" d="M31.5 38h23M49 38v6.5M43.5 38v4.5" stroke-width="3.2"/>' },
   };
-  const KEYC = { gold: ['Золотой', '#b8892f'], orange: ['Оранжевый', '#e07a2e'], sky: ['Небесный', '#3b86bb'], sea: ['Морской', '#0f7c86'],
-    sapphire: ['Сапфир', '#1e4db3'], emerald: ['Изумруд', '#1f7a54'], terra: ['Терракота', '#b4532f'], graphite: ['Графит', '#2b3340'] };
-  // v5.51 (Алексей 11.11): 20 вариантов — меняется и плитка, и цвет самого знака: [название, фон («#a>#b» — переход цвета), цвет знака, рамка]; выбор — страница logo-pick.html
-  Object.assign(KEYC, {
-    k1: ['Ночь и золото', '#0f1b2d', '#e2c079', '#e2c079'], k2: ['Белый и небо', '#ffffff', '#2f78aa', '#cfe0ee'], k3: ['Крем и сапфир', '#fbf3e3', '#1e4db3', '#e2c79a'],
-    k4: ['Графит и мята', '#1f2630', '#5eead4', '#5eead4'], k5: ['Изумруд и золото', '#0f5a40', '#f3d27a', '#f3d27a'], k6: ['Терракота и крем', '#b4532f', '#fff4e6', '#f6c9a8'],
-    k7: ['Закат', '#ff8a4c>#e0457b', '#ffffff', '#ffd7c2'], k8: ['Море', '#0ea5b7>#1e4db3', '#ffffff', '#bde9f0'], k9: ['Чёрный и белый', '#0b0b0c', '#ffffff', '#6b6b6b'],
-    k10: ['Песок и шоколад', '#ead6b1', '#5b3a1e', '#c9a876'], k11: ['Лаванда', '#ede9fe', '#6d28d9', '#c4b5fd'], k12: ['Фиолет ИИ', '#8b7bff>#5a43d6', '#ffffff', '#d9d2ff'],
-    k13: ['Коралл', '#f25f5c', '#ffffff', '#ffc9c7'], k14: ['Оливка и крем', '#5b6b3a', '#f4ecd8', '#cfd8a8'], k15: ['Бордо и золото', '#6b1d2e', '#e9c46a', '#e9c46a'],
-    k16: ['Лёд и синий', '#d6ecf9', '#0f2d4a', '#9cc7e4'], k17: ['Золото и графит', '#e2bf6a>#b8892f', '#1b1f27', '#fff1c9'], k18: ['Изумрудный переход', '#10b981>#047857', '#ffffff', '#b7f0d8'],
-    k19: ['Синий и оранжевый', '#1e3a8a', '#fb923c', '#fb923c'], k20: ['Белый минимал', '#f7f7f5', '#2b3340', '#d9d9d4'],
-  });
-
+  // v5.51b (Алексей 11.11): знак один — №8 «Море» (переход бирюзовый → синий, белый знак) на всех стилях; у «Премиума» свой — №17 «Золото и графит».
+  // Остальные варианты убраны; сохранённый раньше личный или общий цвет (gold, sky, k1…) больше не действует — показывается №8.
+  const KEYC = { k8: ['Море', '#0ea5b7>#1e4db3', '#ffffff', '#bde9f0'], k17: ['Золото и графит (Премиум)', '#e2bf6a>#b8892f', '#1b1f27', '#fff1c9'] };
   const ICONS = { lines: 'Тонкие линии', tiles: 'Линии на плитке', none: 'Без значков', emoji: 'Эмодзи (как было)' };
   const HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* приватный режим */ } } };
@@ -43,8 +33,8 @@
   if (okKc(qs.get('keycolor'))) ls.set('keycolor', qs.get('keycolor'));
   let def = ok(ls.get('design_def')) ?? 'sky', mine = ok(ls.get('design')), d = mine ?? def;
   let logoDef = okLogo(ls.get('logo_def')) ?? 'key', iconsDef = okIcons(ls.get('icons_def')) ?? 'lines';
-  let kcDef = okKc(ls.get('keycolor_def')) ?? 'sky';
-  const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef, kc = () => okKc(ls.get('keycolor')) ?? kcDef;
+  let kcDef = 'k8';
+  const logo = () => okLogo(ls.get('logo')) ?? logoDef, icons = () => okIcons(ls.get('icons')) ?? iconsDef, kc = () => d === 'premium' ? 'k17' : 'k8';
   document.write(`<link rel="stylesheet" id="design-css" href="design-${d}.css?v=${V}">`);
   const root = document.documentElement;
   const apply = () => { root.dataset.design = d; root.dataset.logo = logo(); root.dataset.icons = icons(); };
@@ -85,7 +75,7 @@
   // новый файл стилей подключается рядом со старым, старый убирается, когда новый загрузился, — без вспышки «голой» страницы
   function load(x) {
     if (!ok(x) || x === d) return;
-    d = x; apply();
+    d = x; apply(); paintLogos();
     const was = document.getElementById('design-css'), l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = `design-${d}.css?v=${V}`;
     l.onload = l.onerror = () => { was?.remove(); l.id = 'design-css'; applyTheme(); };

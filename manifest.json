@@ -11,19 +11,19 @@
   "theme_color": "#fbf7ef",
   "icons": [
     {
-      "src": "icons/192.png?v=5.31c1",
+      "src": "icons/192.png?v=5.51b",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/512.png?v=5.31c1",
+      "src": "icons/512.png?v=5.51b",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/maskable-512.png?v=5.31c1",
+      "src": "icons/maskable-512.png?v=5.51b",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -37,7 +37,7 @@
       "url": "./?agent=open",
       "icons": [
         {
-          "src": "icons/192.png?v=5.31c1",
+          "src": "icons/192.png?v=5.51b",
           "sizes": "192x192"
         }
       ]
@@ -49,7 +49,7 @@
       "url": "./?agent=voice",
       "icons": [
         {
-          "src": "icons/192.png?v=5.31c1",
+          "src": "icons/192.png?v=5.51b",
           "sizes": "192x192"
         }
       ]
@@ -60,7 +60,7 @@
       "url": "./#sels=all",
       "icons": [
         {
-          "src": "icons/192.png?v=5.31c1",
+          "src": "icons/192.png?v=5.51b",
           "sizes": "192x192"
         }
       ]
@@ -71,7 +71,7 @@
       "url": "./#crm",
       "icons": [
         {
-          "src": "icons/192.png?v=5.31c1",
+          "src": "icons/192.png?v=5.51b",
           "sizes": "192x192"
         }
       ]
