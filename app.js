@@ -1036,7 +1036,7 @@ function itemView(x, k) {
   k = Math.min(Math.max(0, k), Math.max(0, n - 1));
   return `<article class="card itemv" data-num="${x.num}" data-k="${k}">
     <div class="iv-media">
-      <div class="iv-main">${n ? `<div class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" data-big title="Открыть на весь экран"></div>` : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>'}
+      <div class="iv-main">${n ? `<div class="vc"><img referrerpolicy="no-referrer" src="${esc(photoUrl(x, k))}" alt="" data-big title="Открыть на весь экран"></div>` : (x.source === 'tg' ? '<div class="none closed"><b>Закрытая продажа</b><br>уточняйте детали у собственника</div>' : '<div class="none">Фото загружаются<br>(обновляются каждую ночь)</div>')}
         ${isNew(x) ? '<span class="newmark">Новое</span>' : ''}
         ${n > 1 ? '<button class="nav l" data-step="-1" aria-label="Предыдущее фото">‹</button><button class="nav r" data-step="1" aria-label="Следующее фото">›</button>' : ''}
         ${n ? `<span class="iv-count">${k + 1} / ${n}</span>` : ''}
