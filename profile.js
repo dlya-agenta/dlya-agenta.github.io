@@ -9,7 +9,9 @@ window.PROFILE = (() => {
   const when = s => s ? new Date(s).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   let ui = null;   // { call, sheet, toast, logout, saved }
 
-  const devs = list => list.length ? list.map(x => `<div class="opt dev"><span><b>${esc(x.label)}</b>${x.me ? ' <span class="tag ok">Это устройство</span>' : ''}<br>
+  // v5.54 (Алексей 11.11): только 5 последних подключений — свежие сверху, это устройство всегда в списке
+  const last5 = list => { const L = [...list].sort((a, b) => (Date.parse(b.last_seen || b.created_at) || 0) - (Date.parse(a.last_seen || a.created_at) || 0)); const top = L.slice(0, 5); const me = L.find(x => x.me); if (me && !top.includes(me)) top[4] = me; return top; };
+  const devs = list => list.length ? last5(list).map(x => `<div class="opt dev"><span><b>${esc(x.label)}</b>${x.me ? ' <span class="tag ok">Это устройство</span>' : ''}<br>
       <small class="muted">вход ${when(x.created_at)} · в сети ${when(x.last_seen)}</small></span>
       <button class="btn ghost" data-out="${esc(x.id)}" data-me="${x.me ? 1 : ''}">Выйти</button></div>`).join('')
     : '<p class="muted">Активных входов нет.</p>';
@@ -49,10 +51,10 @@ window.PROFILE = (() => {
       <div class="group">Оформление</div>
       <div id="dz-box">${window.DESIGN?.pickerHtml ? window.DESIGN.pickerHtml() : ''}</div>
       <p class="hint">Стиль и тема — только у вас на этом устройстве. Тот же выбор — в меню под «Профилем» → «🎨 Стиль».</p>
-      <div class="group agent-only">Свой прокси</div>
-      <div class="agent-only prof-proxy"><button type="button" class="btn soft" data-proxy>🌐 Прокси для мессенджеров</button>
-        <small class="muted">Свой постоянный адрес для WhatsApp, Telegram и MAX — чтобы вход не слетал.</small></div>
-      <div class="group">Активные устройства${r.max_devices ? ` — можно ${r.max_devices}` : ''}</div>
+      <div class="group agent-only">Подключения</div>
+      <div class="agent-only prof-proxy"><a class="btn soft" href="hub.html#msg">🔌 Мессенджеры, соцсети, реклама</a><button type="button" class="btn soft" data-proxy>🌐 Прокси</button>
+        <small class="muted">Вход в Telegram, MAX, WhatsApp, ВКонтакте, Instagram, YouTube и кабинет рекламы — с инструкцией «Как войти»; свой постоянный прокси — чтобы вход не слетал.</small></div>
+      <div class="group">Последние подключения${r.max_devices ? ` · можно ${r.max_devices} устройств${r.max_devices === 1 ? 'о' : r.max_devices < 5 ? 'а' : ''}` : ''}</div>
       <div id="devs">${devs(r.devices)}</div>
       ${r.max_devices ? `<p class="hint">${r.max_devices === 1 ? 'Вход на другом устройстве сразу выходит из этого.' : `Вход на ${r.max_devices + 1}-м устройстве выходит из самого старого.`}</p>` : ''}
       <div id="partner-box"></div>

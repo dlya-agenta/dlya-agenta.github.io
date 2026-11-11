@@ -14,7 +14,7 @@ window.NAV = (() => {
     ['my', '⭐ Моё', [['./#favs', '★ Избранное'], ['./#crm', '👥 Клиенты'], ['./#deals', '🤝 Контакт'], ['hub.html#deal', '📑 Сделки'], ['hub.html#fix', '📌 Фиксации']]],
     ['help', '🤖 Помощник', [['hub.html#helper', '🤖 Мой помощник'], ['hub.html#lawyer', '⚖️ Юрист'], ['hub.html#broker', '🏦 Ипотечный брокер'], ['hub.html#kb', '📚 База знаний'],
       ['hub.html#chat', '💬 Чат подписчиков'], ['hub.html#taxes', '🧾 Налоги при продаже'], ['help-helper.html', '📘 Как пользоваться помощником']]],
-    ['promo', '📣 Продвижение', [['hub.html#msg', '🔗 Мессенджеры и соцсети'], ['./#rk', '📣 Реклама'], ['mail.html', '✉️ Рассылки'], ['hub.html#video', '🎬 Видеомонтаж-СММ']]],
+    ['promo', '📣 Продвижение', [['hub.html#msg', '🔌 Подключения'], ['./#rk', '📣 Реклама'], ['mail.html', '✉️ Рассылки'], ['hub.html#video', '🎬 Видеомонтаж-СММ']]],
     ['excl', '💎 Эксклюзивы', 'excl.html'],
     ['cab', '💼 Кабинет', [['hub.html#balance', '💰 Баланс'], ['partner.html', '🤝 Партнёрская программа'], ['pay.html', '💳 Оплата и тарифы'], ['support.html', '💬 Помощь'], ['./#tour', '🎓 Краткий курс (1 мин)']]],
   ];
@@ -48,8 +48,15 @@ window.NAV = (() => {
   // компьютер — выпадающее меню у «Профиля», телефон — раздел «👤 Профиль» в «☰ Меню» (плитки «Мой профиль», «Стиль», «Прокси», «Выйти»). Отдельной кнопки «Стиль» в шапке нет нигде.
   // Кнопки переносятся сами (обработчики app.js и design.js остаются на них)
   const wide = matchMedia('(min-width: 761px)');
-  const PROF_ITEMS = ':scope [data-style], :scope [data-proxy], :scope [data-prof-tile], :scope #logout, :scope [data-logout]';
+  const PROF_ITEMS = ':scope [data-style], :scope [data-conns], :scope [data-proxy], :scope [data-prof-tile], :scope #logout, :scope [data-logout]';
   let placing = false;
+  // v5.54: «🔌 Подключения» — мессенджеры, соцсети, реклама и прокси в одной вкладке (hub.html#msg), рядом со «Стилем» и «Прокси»
+  function connsBtn(menu) {
+    let b = document.querySelector('.top [data-conns]'), px = document.querySelector('.top [data-proxy]');
+    if (!b) { b = document.createElement('a'); b.className = 'link agent-only'; b.dataset.conns = ''; b.href = 'hub.html#msg'; b.textContent = '🔌 Подключения'; b.title = 'Мессенджеры, соцсети, реклама и прокси — вход и настройки'; menu.appendChild(b); }
+    if (px && b.hidden !== px.hidden) b.hidden = px.hidden;
+    return b;
+  }
   function proxyBtn(menu, who) {
     let b = document.querySelector('.top [data-proxy]');
     if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'link agent-only'; b.dataset.proxy = ''; b.textContent = '🌐 Прокси'; b.title = 'Свой прокси для WhatsApp, Telegram и MAX'; menu.appendChild(b); }
@@ -68,7 +75,7 @@ window.NAV = (() => {
     if (!menu || !who) return;
     placing = true;
     try {
-      proxyBtn(menu, who);
+      proxyBtn(menu, who); connsBtn(menu);
       let mob = menu.querySelector(':scope > .mg-prof');
       if (wide.matches) {
         if (!box) {
@@ -89,7 +96,7 @@ window.NAV = (() => {
           mob = menu.querySelector(':scope > .mg-prof'); wire(menu);
         }
         const p = mob.querySelector('.mg-p');
-        menu.querySelectorAll(':scope > [data-style], :scope > [data-proxy], :scope > #logout, :scope > [data-logout]').forEach(b => { b.classList.add('link'); p.appendChild(b); });
+        menu.querySelectorAll(':scope > [data-style], :scope > [data-conns], :scope > [data-proxy], :scope > #logout, :scope > [data-logout]').forEach(b => { b.classList.add('link'); p.appendChild(b); });
         if (menu.lastElementChild !== mob) menu.appendChild(mob);   // раздел профиля — последним
         order(p);
       }
@@ -97,7 +104,7 @@ window.NAV = (() => {
   }
   // порядок под «Профилем»: Мой профиль → Стиль → Прокси → Выйти
   function order(p) {
-    const want = ['[data-prof-tile]', '[data-style]', '[data-proxy]', '#logout, [data-logout]'].map(q => p.querySelector(`:scope > :is(${q})`)).filter(Boolean);
+    const want = ['[data-prof-tile]', '[data-style]', '[data-conns]', '[data-proxy]', '#logout, [data-logout]'].map(q => p.querySelector(`:scope > :is(${q})`)).filter(Boolean);
     if (want.some((b, i) => p.children[i] !== b)) want.forEach(b => p.appendChild(b));
   }
   // «🌐 Прокси» (контракт с вкладкой B): окно рисует site/proxy.js — window.PROXY.open(); скрипта нет — подгружаем и открываем
