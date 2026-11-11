@@ -1075,3 +1075,9 @@ html.embed .sheet-box { width: 100%; max-width: none; max-height: none; height: 
 .list:not(.l1) .card .tags > * { flex: none; }
 .list .card .descr p { min-height: calc(1.45em * 3); }
 .list .card .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v5.58a: «✨ Улучшить фото» в объявлении */
+.iv-phai { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.iv-phai small { font-weight: 500; opacity: .75; margin-left: 4px; }
+.iv-phst { font-size: 13px; padding: 6px 10px; border-radius: 9px; background: var(--soft); }
+.iv-phst.ok { color: #1f9d5c; }
+.iv-phwhy { font-size: 12px; color: var(--muted); }

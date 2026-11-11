@@ -988,6 +988,7 @@ async function openItem(num, k = 0) {
     }, { passive: true });
   }
   $('#sheet-body').scrollTop = 0;
+  phaiInit(num, el);   // v5.58a: «✨ Улучшить фото»
   window.LINKS?.full?.(num, el.querySelector('[data-ivlk]'));   // v5.24a: отметки целиком (собственник, подборки, клиенты) и «снять» — здесь, на карточке — только значки
   simLoad(num);
   const inList = document.querySelector(`#list .card[data-num="${num}"]`);
@@ -1049,12 +1050,40 @@ function itemView(x, k) {
     </div>
   </article>`;
 }
+// v5.58a (Алексей 11.11): «✨ Улучшить фото» — GPT Image по клику (очередь photo_ai_jobs → обработчик на Mac, те же проверки, что ночью).
+// Подписчик 1 объявление в день, PRO 3, MAX 6. Кнопка активна, только если программа загрузки фото ещё не обрабатывала (photo_ai пусто).
+// Фото ложатся на те же места — меняются везде, в том числе в уже отправленных подборках (у открывших раньше — в течение часа, кэш браузера).
+const phaiT = new Map();
+async function phaiInit(num, el, started = null) {
+  const box = el.querySelector(`[data-phai-box="${num}"]`); if (!box) return;
+  let r; try { r = started ?? await call('photo_ai_info', { num }); } catch { box.hidden = true; return; }
+  const run = r.job && (r.job.status === 'queued' || r.job.status === 'run');
+  clearTimeout(phaiT.get(num));
+  if (r.can) box.innerHTML = `<button type="button" class="btn ghost sm" data-phai title="Займёт около ${r.eta_min} мин · сегодня осталось ${r.left} из ${r.limit}">✨ Улучшить фото <small>≈ ${r.eta_min} мин · ${r.left}/${r.limit}</small></button>`;
+  else if (run) box.innerHTML = `<span class="iv-phst">⏳ ${r.job.status === 'run' ? 'Обрабатываю фото' : 'Фото в очереди'} — ≈ ${r.eta_min} мин. Можно закрыть окно: фото заменятся сами</span>`;
+  else if (r.job?.status === 'done' && r.done != null && Date.now() - Date.parse(r.job.done_at || 0) < 864e5) box.innerHTML = `<span class="iv-phst ok">✓ Фото улучшены: ${r.done}${r.done ? '' : ' (улучшать нечего — водяные знаки или фото уже хорошие)'}</span>`;
+  else box.innerHTML = `<button type="button" class="btn ghost sm" disabled title="${esc(r.why)}">✨ Улучшить фото</button><small class="iv-phwhy">${esc(r.why)}</small>`;
+  if (run) phaiT.set(num, setTimeout(async () => {
+    if (!el.isConnected) return;
+    const n = await call('photo_ai_info', { num }).catch(() => null); if (!n) return;
+    if (n.job?.status === 'done') { const ts = Date.now(); el.querySelectorAll('img').forEach(im => { if (/\/photos\/w\//.test(im.src)) im.src = im.src.replace(/[?&]ai=\d+/, '') + (im.src.includes('?') ? '&' : '?') + 'ai=' + ts; }); toast(`Фото № ${num} улучшены: ${n.done ?? 0}`); }
+    phaiInit(num, el, n);
+  }, 20000));
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-phai]:not([disabled])'); if (!b) return;
+  const box = b.closest('[data-phai-box]'), num = +box.dataset.phaiBox, el = box.closest('.itemv') || document.getElementById('sheet-body');
+  b.disabled = true; b.textContent = 'Ставлю в очередь…';
+  try { const r = await call('photo_ai_start', { num }); if (!r.ok) throw new Error(r.message || 'Не получилось'); toast(`Фото поставлены на улучшение — около ${r.eta_min} мин`); phaiInit(num, el, r); }
+  catch (err) { toast(err.message); phaiInit(num, el); }
+});
 // v5.24a: внутри объявления — то, что раньше было значками на фото: «Контакт», «В рассылку», отметки (снять), «⚠ Пожаловаться», модерация админа
 const dealTxt = on => on ? '✓ В «Контакте» · <u>убрать</u>' : '🤝 В контакт';
 function ivTools(x) {
   const adm = me?.role === 'admin' || !!me?.main, agent = me && !me.guest;   // v5.37a: «Модерация» в объявлении — и группе Main
   const row = [meta.features.deals && agent && !x.excl ? `<button type="button" class="btn ghost sm ivdeal${x.deal ? ' on' : ''}" data-deal title="«Контакт» — договорились с собственником (ставится само, когда собственник ответил «актуально»)">${dealTxt(x.deal)}</button>` : '',
     meta.features.mail && agent && !x.mine ? `<button type="button" class="btn ghost sm" data-mail="${x.num}" title="Объявление появится в «Списке рассылки» (Продвижение → Рассылки)">✉️ В рассылку</button>` : '',
+    agent && !x.excl && !x.mine && nPhotos(x) ? `<span class="iv-phai" data-phai-box="${x.num}"><button type="button" class="btn ghost sm" data-phai disabled title="Улучшить фото объявления через ИИ (GPT Image)">✨ Улучшить фото…</button></span>` : '',
     agent && window.LAWREQ && !x.excl ? '<button type="button" class="btn ghost sm" data-lawreq title="Юрист подготовит списки документов для задатка и для сделки — отправите сами или запросите у собственника">⚖️ Проверка</button>' : '',   // v5.38r
     agent && !adm && !x.excl ? '<button type="button" class="btn ghost sm iv-cmp" data-cmp title="Объявление не снимется сразу — его проверит администратор">⚠ Пожаловаться</button>' : '',
     // v5.48 G: «моя правка» и «убрать у себя» — только этому агенту и его клиентам, объявление в базе не меняется

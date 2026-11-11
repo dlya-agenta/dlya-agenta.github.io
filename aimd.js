@@ -78,6 +78,13 @@
         else out.push(`<p class="md-h">${inl(m[1])}</p>`);
         continue;
       }
+      // v5.58a (Алексей 11.11): ссылки сервиса и текст для клиента — цитатой, нажатие копирует
+      if (!t.startsWith('>') && (m = /^(.*?)(https:\/\/dlya-agenta\.github\.io\/\S+?)[.,;)»]*\s*$/.exec(t))) { flush(); const lab = m[1].replace(/[\s:—–-]+$/, '').replace(/\*\*/g, '').trim(), u = m[2];
+        const h = `<div class="ai-lk" data-copy="${esc(u)}" title="Нажмите — скопировать ссылку">${lab ? `<b>${esc(lab)}</b>` : ''}<code>${esc(u)}</code><span class="ai-cp">📋 Копировать</span><a href="${esc(u)}" target="_blank" rel="noopener" class="ai-op" title="Открыть">↗</a></div>`;
+        if (sec) sec.body += h; else out.push(h); continue; }
+      if (/^>\s?/.test(t)) { flush(); const q = []; for (; i < L.length && /^\s*>\s?/.test(L[i]); i++) q.push(L[i].trim().replace(/^>\s?/, '')); i--;
+        const raw = q.join('\n').replace(/\*\*/g, '').trim(), h = `<blockquote class="ai-q" data-copy="${esc(raw)}" title="Нажмите — скопировать текст">${q.map(x => `<p>${inl(x)}</p>`).join('')}<span class="ai-cp">📋 Нажмите, чтобы скопировать</span></blockquote>`;
+        if (sec) sec.body += h; else out.push(h); continue; }
       if ((m = /^(?:\*\*)?(Итог|Вывод|Коротко|Главное)(?:\*\*)?\s*[:：](?:\*\*)?\s*(.*)/i.exec(t)) && !sec) { flush(); out.push(`<p class="ai-sum"><b>${esc(m[1])}:</b> ${inl(m[2].replace(/^\*\*\s*/, ''))}</p>`); continue; }
       if (/^(⚠️|⚠|❗)/.test(t)) { endSec(); const s = t.replace(/^(⚠️|⚠|❗)\s*/, ''), k = s.indexOf(':');
         out.push(`<div class="ai-note">⚠️ ${k > 0 && k < 40 ? `<b>${inl(s.slice(0, k).replace(/\*\*/g, ''))}</b>${inl(s.slice(k + 1))}` : inl(s)}</div>`); continue; }
@@ -119,7 +126,17 @@
   .s-an{margin:14px 0;padding:14px 16px;border-radius:16px;border:1px solid var(--line,#e3e7ee);background:var(--card,#fff)}.s-an h2{font-size:18px;margin:0 0 10px}.s-an-hl{outline:3px solid #f5b301;outline-offset:3px;transition:outline-color .4s}
   .s-an-box{border:1px solid var(--line,#e3e7ee);border-radius:12px;padding:10px 12px;margin:8px 0;background:color-mix(in srgb,var(--accent,#3b82f6) 6%,transparent)}.s-an-d summary{cursor:pointer;color:var(--link,#1f6fb2);margin-top:6px}
   .s-an-d textarea{width:100%;box-sizing:border-box;margin-top:6px;font:13px/1.45 ui-monospace,Menlo,monospace}.s-an-pv{margin-top:8px;max-height:420px;overflow:auto}
+  .ai-lk,.ai-q{position:relative;cursor:copy;border-left:4px solid var(--accent,#3b82f6);background:color-mix(in srgb,var(--accent,#3b82f6) 8%,transparent);border-radius:10px;padding:9px 12px;margin:0;transition:background .2s}
+  .ai-lk{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.ai-lk code{font:13px/1.4 ui-monospace,Menlo,monospace;word-break:break-all;background:none;padding:0;flex:1 1 260px}
+  .ai-lk:hover,.ai-q:hover{background:color-mix(in srgb,var(--accent,#3b82f6) 15%,transparent)}.ai-cp{font-size:12px;font-weight:600;color:var(--link,#1f6fb2);white-space:nowrap}
+  .ai-q p{margin:0 0 4px}.ai-q .ai-cp{display:block;margin-top:4px}.ai-op{text-decoration:none;font-weight:700;padding:0 4px}.ai-copied{background:rgba(31,157,92,.18)!important}.ai-copied .ai-cp{color:#1f9d5c}
   .ai-note{padding:10px 12px;border-radius:12px;background:rgba(224,164,0,.12);border:1px solid rgba(224,164,0,.35)}`;
   const st = document.createElement('style'); st.textContent = css; (document.head || document.documentElement).appendChild(st);
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('.ai-lk, .ai-q'); if (!b || e.target.closest('.ai-op, a.objlink')) return;
+    const t = b.dataset.copy || ''; if (!t) return;
+    const ok = () => { const c = b.querySelector('.ai-cp'), was = c?.textContent; b.classList.add('ai-copied'); if (c) c.textContent = '✓ Скопировано'; setTimeout(() => { b.classList.remove('ai-copied'); if (c) c.textContent = was; }, 1600); };
+    (navigator.clipboard?.writeText(t) ?? Promise.reject()).then(ok, () => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); ok(); } catch { /* */ } a.remove(); });
+  });
   window.AIMD = { md };
 })();
