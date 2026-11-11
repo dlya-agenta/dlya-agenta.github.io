@@ -655,12 +655,15 @@ function what(x) {
 // фото 1–4 — JPEG в основном хранилище, 5–10 — WebP во втором (бесплатно по 1 ГБ)
 // фото ещё не скачаны в своё хранилище — по ссылкам объявления (pics; на карте — ph строкой)
 // схема 3 (web_photos_v = 3, на карте ph = 3): все фото — JPEG во втором проекте
-const photoUrl = (x, k) => x.pics ? x.pics[k] : typeof x.ph === 'string' ? x.ph : x.web_photos_v === 3 || x.ph === 3 ? `${meta.media}/${x.num}/${k}.jpg`
+// v5.58h: фото улучшены ИИ (photo_ai_at) — к адресу ?a=<время>: браузер не покажет прежние из кэша вкладки
+const photoUrl = (x, k) => x.pics ? x.pics[k] : photoAiV(x, photoUrl0(x, k));
+const photoAiV = (x, u) => x.photo_ai_at && u && !u.includes('?') ? `${u}?a=${Math.floor(Date.parse(x.photo_ai_at) / 1000)}` : u;
+const photoUrl0 = (x, k) => typeof x.ph === 'string' ? x.ph : x.web_photos_v === 3 || x.ph === 3 ? `${meta.media}/${x.num}/${k}.jpg`
   : k < 4 || !meta.media ? `${meta.photos}/${x.num}/${k}.jpg` : `${meta.media}/${x.num}/${k}.webp`;
 const nPhotos = x => x.web_photos || x.pics?.length || 0;
 // v5.48 G: «моя правка» — убранные агентом фото не показываем ему (all_pics — все, для окна правки)
 function myNorm(x) {
-  if (x?.my_hide?.length && !x.all_pics) { const all = Array.from({ length: nPhotos(x) }, (_, k) => photoUrl(x, k)); x.all_pics = all; x.pics = all.filter(u => !x.my_hide.includes(u)); x.web_photos = 0; }
+  if (x?.my_hide?.length && !x.all_pics) { const all = Array.from({ length: nPhotos(x) }, (_, k) => photoUrl(x, k)); x.all_pics = all; x.pics = all.filter(u => !x.my_hide.includes(u.replace(/\?a=\d+$/, ''))); x.web_photos = 0; }
   return x;
 }
 

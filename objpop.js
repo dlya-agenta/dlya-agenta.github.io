@@ -63,7 +63,8 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const info = new Map(), dom = new Map(), wait = new Map(); let qn = new Set(), qt = 0;   // info — с сервера (items), dom — из карточек на странице
   // адреса кадров — как в карточках (sec/helper.js phUrl); нижние 5 % кадра срезаются в CSS — там водяные знаки площадок
-  const photoAt = (x, k) => x?.pics?.[k] || (x?.web_photos ? (x.web_photos_v === 3 ? `${MEDIA}/${x.num}/${k}.jpg` : k < 4 ? `${PH}/${x.num}/${k}.jpg` : `${MEDIA}/${x.num}/${k}.webp`) : !k ? x?.photo || null : null);
+  const aiV = (x, u) => x?.photo_ai_at && u && !u.includes('?') ? `${u}?a=${Math.floor(Date.parse(x.photo_ai_at) / 1000)}` : u;   // v5.58h: улучшенные фото — новый адрес
+  const photoAt = (x, k) => x?.pics?.[k] || aiV(x, x?.web_photos ? (x.web_photos_v === 3 ? `${MEDIA}/${x.num}/${k}.jpg` : k < 4 ? `${PH}/${x.num}/${k}.jpg` : `${MEDIA}/${x.num}/${k}.webp`) : !k ? x?.photo || null : null);
   const photoOf = x => photoAt(x, 0);
   const photosOf = x => { const n = Math.min(15, Math.max(x?.pics?.length || 0, x?.web_photos || 0)); return n ? Array.from({ length: n }, (_, k) => photoAt(x, k)).filter(Boolean) : [photoOf(x)].filter(Boolean); };
   function fetchInfo(nums) {
