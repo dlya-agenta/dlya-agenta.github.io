@@ -4,7 +4,7 @@
 // В режиме «С клиентом» кнопка скрыта (agent-only). support.html — то же окно на всю страницу (?t=<№> — сразу обращение), админка — support.admin.js (#admin).
 window.SUPPORT = (() => {
   // v5.58: ответы ИИ в «Помощи» — тем же оформлением, что у Помощника (aimd.js), на любой странице
-  if (!window.AIMD && !document.querySelector('script[src^="aimd.js"]')) { const sc = document.createElement('script'); sc.src = 'aimd.js?v=5.58e'; sc.defer = true; document.head.appendChild(sc); }
+  if (!window.AIMD && !document.querySelector('script[src^="aimd.js"]')) { const sc = document.createElement('script'); sc.src = 'aimd.js?v=5.58g'; sc.defer = true; document.head.appendChild(sc); }
   const API = String(window.API || 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/web').replace(/\/web$/, '/support');
   const CAT = { pay: 'Оплата', access: 'Доступ', bug: 'Ошибка', idea: 'Предложение' };
   const ST = { new: 'Новое', work: 'В работе', done: '✅ Решено', admin: '❗ На проверку Admin' };

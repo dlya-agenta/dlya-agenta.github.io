@@ -17,6 +17,7 @@
   const verdict = d => d <= -5 ? '💚 Дешевле рынка' : d >= 5 ? '🔴 Дороже рынка' : '🟡 В рынке';
   const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
 
+  let TOP = new Set();
   function table(rows) {
     const head = rows[0], body = rows.slice(1).filter(r => r.some(Boolean));
     const ci = re => head.findIndex(h => re.test(h));
@@ -24,7 +25,7 @@
     const cmp = iD >= 0 && body.length >= 1 && body.every(r => NUM.test(r[0] ?? ''));
     if (!cmp) return `<div class="ai-tw"><table class="ai-t"><thead><tr>${head.map(h => `<th>${inl(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r => `<tr>${head.map((_, k) => `<td>${inl(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     const objs = body.map(r => { const n = +NUM.exec(r[0])[1], d = pctOf(r[iD]);
-      const o = { num: n, top: /⭐/.test(r[0]), what: r[0].replace(/⭐\s*/g, '').replace(NUM, '').replace(/^[\s—–:,-]+/, '').trim(), diff: d, ppm: iP >= 0 ? r[iP] : '', market: iM >= 0 && iM !== iP ? r[iM] : '', with: iW >= 0 ? r[iW] : '', price: iC >= 0 ? r[iC] : '' };
+      const o = { num: n, top: /⭐/.test(r[0]) || TOP.has(n), what: r[0].replace(/⭐\s*/g, '').replace(NUM, '').replace(/^[\s—–:,-]+/, '').trim(), diff: d, ppm: iP >= 0 ? r[iP] : '', market: iM >= 0 && iM !== iP ? r[iM] : '', with: iW >= 0 ? r[iW] : '', price: iC >= 0 ? r[iC] : '' };
       CMP.set(n, o); return o; });
     const sorted = [...objs].filter(o => o.diff != null).sort((a, b) => a.diff - b.diff);
     const chips = sorted.length >= 2 ? `<div class="ai-vd">${sorted.slice(0, 4).map(o => `<div class="ai-vc ${cls(o.diff)}${o.top ? ' ai-topc' : ''}">${th(o.num)}<div><i>${o.top ? '⭐ ' : ''}${verdict(o.diff)}</i><b>${objA(o.num)} <span>${o.diff > 0 ? '+' : o.diff < 0 ? '−' : ''}${Math.abs(o.diff).toString().replace('.', ',')} %</span></b></div></div>`).join('')}</div>` : '';
@@ -61,6 +62,8 @@
 
   function md(text) {
     const L = String(text ?? '').replace(/\r/g, '').split('\n'), out = [];
+    // ⭐ в заголовке разбора — тот же объект и в таблице/плашках отмечен как топ-3
+    TOP = new Set([...String(text ?? '').matchAll(/^\s*#{1,6}\s*⭐\s*(\d{6,7})/gm)].map(m => +m[1]));
     let buf = [], sec = null, nsec = 0;
     const flush = () => { if (!buf.length) return; const h = blocks(buf); buf = []; if (sec) sec.body += h; else out.push(h); };
     const endSec = () => { flush(); if (!sec) return; nsec++;
@@ -83,6 +86,8 @@
         else out.push(`<p class="md-h">${inl(m[1])}</p>`);
         continue;
       }
+      // v5.58f: раздел «🔒 Для агента» заканчивается перед ссылками, цитатой и «Клиенту / Готовый текст»
+      if (sec?.agent && (/https:\/\/dlya-agenta\.github\.io\//.test(t) || /^>/.test(t) || /^(?:\*\*)?(?:Клиенту|Агенту|Готовый текст|Текст (?:для )?клиент|Сообщение клиент)/i.test(t))) endSec();
       // v5.58a (Алексей 11.11): ссылки сервиса и текст для клиента — цитатой, нажатие копирует
       if (!t.startsWith('>') && (m = /^(.*?)(https:\/\/dlya-agenta\.github\.io\/\S+?)[.,;)»]*\s*$/.exec(t))) { flush(); const lab = m[1].replace(/[\s:—–-]+$/, '').replace(/\*\*/g, '').trim(), u = m[2];
         const h = `<div class="ai-lk" data-copy="${esc(u)}" title="Нажмите — скопировать ссылку">${lab ? `<b>${esc(lab)}</b>` : ''}<code>${esc(u)}</code><span class="ai-cp">📋 Копировать</span><a href="${esc(u)}" target="_blank" rel="noopener" class="ai-op" title="Открыть">↗</a></div>`;
@@ -149,7 +154,7 @@
   });
   // v5.58e: та же разбивка, что на сервере (selection-edits.ts splitAnalysis): клиенту / «🔒 для агента»
   const AGENT_HEAD = /🔒|отбраковк|для агента|агенту|торг|переговор|что предлагаю дальше|предлагаю дальше|следующ(?:ие|ий) шаг/i;
-  const AGENT_LINE = /^\s*(?:[-*•]\s*)?🔒|^\s*(?:\*\*)?(?:Что предлагаю дальше|Предлагаю дальше|Можно дальше)|объясняйте|не показыва|показывать не перв|отсека(?:ть|йте)|аргумент (?:в|для) торг|для вас как агента|клиенту не говор|комисси/i;
+  const AGENT_LINE = /^\s*(?:[-*•]\s*)?🔒|^\s*(?:\*\*)?(?:Что предлагаю дальше|Предлагаю дальше|Можно дальше)|объясняйте|не показыва|показывать (?:не )?перв|показывайте|продаваем|торг (?:просится|обязател|нужен|обоснован)|просите \d|обоснование|для клиента:|контраст|отсека(?:ть|йте)|аргумент (?:в|для) торг|для вас как агента|клиенту не говор|комисси/i;
   const split = t => { const cl = [], ag = []; let inA = false;
     for (const l of String(t ?? '').replace(/\r/g, '').split('\n')) { const h = /^\s*#{1,6}\s+(.*)/.exec(l) || /^\s*\*\*([^*]{3,80})\*\*\s*:?\s*$/.exec(l); if (h) inA = AGENT_HEAD.test(h[1]);
       (inA || AGENT_LINE.test(l) ? ag : cl).push(inA || AGENT_LINE.test(l) ? l.replace(/^(\s*(?:[-*•]\s*)?)🔒\s*/, '$1') : l); }
