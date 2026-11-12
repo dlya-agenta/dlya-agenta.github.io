@@ -164,8 +164,15 @@ window.NOTIFY = (() => {
         c.innerHTML = `<p>${esc(n.text)}</p><div class="note-foot"><button class="btn soft" data-tact="done">✅ Выполнено</button><button class="btn ghost" data-tact="h">+1 час</button>`
           + `<button class="btn ghost" data-tact="d">Завтра</button><button class="btn ghost" data-topen>Открыть</button></div>`;
       } else c.innerHTML = `<p>${esc(n.text)}</p><div class="note-foot">${n.url ? `<a class="btn soft" href="${esc(n.url)}" target="_blank" rel="noopener" data-seen>Открыть</a>` : ''}<button class="btn ghost" data-seen>Понятно</button></div>`;
+      if (n.kind !== 'task') c.dataset.auto = '1';   // v5.64: обычное оповещение — уходит через 10 с после прокрутки страницы
       box.prepend(c);
     }
+    if (!poll.sc) { poll.sc = true; addEventListener('scroll', () => {
+      document.querySelectorAll('#notes .note-card[data-auto]:not([data-t])').forEach(c => {
+        c.dataset.t = '1';
+        setTimeout(() => { c.style.transition = 'opacity .4s'; c.style.opacity = '0'; setTimeout(() => { ui.call('notes_seen', { ids: [+c.dataset.id] }).catch(() => {}); c.remove(); }, 400); }, 10000);
+      });
+    }, { passive: true }); }
     box.onclick = e => {
       const ta = e.target.closest('[data-tact]'), to = e.target.closest('[data-topen]');
       if (ta || to) {   // задача: действие на сервере (там же прочитаны её напоминания) или открыть её в «Клиентах»

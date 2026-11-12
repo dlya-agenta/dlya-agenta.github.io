@@ -528,6 +528,18 @@ function changed() {
   view === 'map' ? loadMap() : search();
 }
 function leaveFav() { favMode = null; beforeFav = null; tabs(); }
+// v5.64: «💎 Эксклюзивы» — тот же поиск, фильтр и карточки, что у объявлений собственников; выход — «Все объявления»
+function exclMode() {
+  history.replaceState(null, '', location.pathname);
+  if (favMode === 'excl') return;
+  if (favMode) { ({ f, text } = beforeFav); leaveFav(); }
+  beforeFav = { f, text }; favMode = 'excl'; tabs();
+  f = { ...f, ex: true, exo: true }; changed();
+}
+addEventListener('hashchange', () => { if (location.hash === '#excl' && me) exclMode(); });
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-exall]')) { e.preventDefault(); if (favMode === 'excl') { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); } }
+});
 function applyLay() {
   const l = lay();
   $('#list').classList.remove('l1', 'l3', 'l6'); $('#list').classList.add('l' + l);
@@ -697,6 +709,7 @@ async function search(more = false) {
     offset += r.items.length;
     $('#status').textContent = (total ? `Найдено: ${total.toLocaleString('ru-RU')}` : 'Ничего не нашлось') + (r.understood ? ` · понял запрос так: ${r.understood}` : '') + (r.note ? ` · ${r.note}` : '');
     if (favMode === 'deals' && window.MINE) $('#status').insertAdjacentHTML('beforeend', ' · <button type="button" class="lnk" data-myrmlist>🗑 Убранные у меня</button>');   // v5.48 G
+    if (f.exo) $('#status').insertAdjacentHTML('afterbegin', '<b>💎 Эксклюзивы коллег</b> · <a class="lnk" href="excl.html#my">Мои размещения</a> · <a class="lnk" href="excl.html#new">＋ Разместить</a> · <a class="lnk" href="excl.html#my" title="Файл из расширения «Для Агента»">⬆ Загрузить файл</a> · <button type="button" class="lnk" data-exall>Все объявления</button> · ');
     if (favMode === 'hidden') $('#status').insertAdjacentHTML('afterbegin', `<span class="hidtg">${[['hide', '🙈 Скрытые'], ['del', '🗑 Удалённые']]
       .map(([k, t]) => `<button type="button" class="seg${f.hid === k ? ' on' : ''}" data-hid="${k}">${t}</button>`).join('')}</span> `);
     if (!more) noneBox(total ? null : r);
@@ -1709,13 +1722,14 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
 
 // ---------- меню ----------
 // «Избранное» и «Контакт» — свои списки поверх поиска; повторное нажатие возвращает прежние фильтры
-const LISTS = { favs: ['fav', 'Показано избранное — к поиску вернёт «Все объявления» или повторное нажатие на «★ Избранное»'],
+const LISTS = { excl: ['exo', 'Эксклюзивы коллег — фильтр как на главной'], favs: ['fav', 'Показано избранное — к поиску вернёт «Все объявления» или повторное нажатие на «★ Избранное»'],
   deals: ['deal', '«Контакт»: собственники, ответившие на рассылку, и отмеченные вами. Фильтр слева работает внутри «Контакта»; к поиску вернёт «Все объявления»'],
   // v5.22: только админ — скрытые (👁) и удалённые (🗑) объявления; «Вернуть» на карточке, переключатель «Скрытые / Удалённые» над списком
   hidden: ['hid', 'Скрытые и удалённые объявления — видите только вы. «Вернуть» на карточке возвращает объявление в поиск'] };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   const g = b.dataset.go;
   menuOpen(false); mgClose();   // на телефоне меню — панель под «☰ Меню»: выбрали раздел — закрыть
+  if (g === 'excl') { exclMode(); return; }   // v5.64
   if (g === 'all' && favMode) { ({ f, text } = beforeFav); $('#q').value = text; leaveFav(); changed(); }   // «Все объявления» — назад к поиску
   if (LISTS[g]) {
     const was = favMode;
@@ -1762,6 +1776,7 @@ function mgSync() {
     g.querySelector('.mg-b').classList.toggle('on', items.some(i => i.classList.contains('on')));
   });
   // ссылки меню с других страниц: ./#favs, ./#sels, ./#selhow, ./#prof — открыть этот раздел (один раз, после загрузки)
+  if (location.hash === '#excl' && me) exclMode();   // v5.64: раздел «💎 Эксклюзивы» — главный поиск, только эксклюзивы
   const h = /^#(favs|sels|selhow|prof|deals)$/.exec(location.hash);   // #sels=all|own|fb открывает start() (вкладка B)
   if (h && !mgSync.done && me) { mgSync.done = true; history.replaceState(null, '', location.pathname); setTimeout(() => document.querySelector(`.top [data-go="${h[1]}"]`)?.click(), 300); }
 }
