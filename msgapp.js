@@ -91,7 +91,7 @@ window.MSGAPP = (() => {
   let extC = (() => { try { return JSON.parse(sessionStorage.getItem('daExtC') || 'null'); } catch { return null; } })();
   async function extState() {
     if (!tok() || !window.API) return null;
-    if (extC && Date.now() - extC.t < 3 * 60e3) return extC.v;
+    if (extC && Date.now() - extC.t < (extC.v ? 3 * 60e3 : 20e3)) return extC.v;   // «нет расширения» помним 20 с: могли только что включить
     let v = null; try { v = (await auto('own_ext_state')).ext; } catch { v = null; }
     extC = { t: Date.now(), v: v && (v.on || Date.now() - Date.parse(v.seen_at) < 864e5) ? v : null };
     try { sessionStorage.setItem('daExtC', JSON.stringify(extC)); } catch { /* приватный режим */ }
