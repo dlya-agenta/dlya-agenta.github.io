@@ -639,7 +639,7 @@
           <label class="field">ЖК<input name="complex" list="ex-zk2" maxlength="80" value="${esc(x.complex ?? '')}" autocomplete="off"><datalist id="ex-zk2">${(ref?.complexes ?? []).map(z => `<option value="${esc(z)}">`).join('')}</datalist></label>
           <label class="field">До моря, м<input name="sea_m" type="number" min="0" step="10" inputmode="numeric" value="${esc(x.sea_m ?? '')}" placeholder="например, 800"></label>
           <label class="field ex-w2">Адрес — для точки на карте<input name="address" maxlength="200" value="${esc(x.address ?? '')}" placeholder="Улица, дом — например: Парковая, 34" autocomplete="off"></label>
-        </div><p class="hint">Точный адрес коллегам не показываем — на карте точка примерно (±100 м), в карточке — район, микрорайон и ЖК.</p></section>
+        </div><p class="hint">Адрес и точку на карте видят все агенты, ваш контакт — агенты с оплаченной подпиской.</p></section>
       <section class="ex-fs"><h4>Цена и комиссия</h4><div class="ex-g">
           <label class="field">Цена, ₽ *<input name="price" inputmode="numeric" autocomplete="off" value="${x.price ? dots(x.price) : ''}" placeholder="12 500 000"></label>
           <label class="field">Комиссия коллеге<span class="ex-comm-in"><input name="comm_v" inputmode="decimal" value="${esc(x.comm_pct ?? (x.comm_rub ? dots(x.comm_rub) : ''))}" placeholder="2">
