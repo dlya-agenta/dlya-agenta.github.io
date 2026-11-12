@@ -1,6 +1,6 @@
 {
- "rev": "2026-11-12c",
- "ver": "0.7.15",
+ "rev": "2026-11-12d",
+ "ver": "0.7.16",
  "zip": "https://dlya-agenta.github.io/dlya-agenta-ext.zip",
  "page": "https://dlya-agenta.github.io/ext.html",
  "note": "Отправка через WhatsApp, Telegram и MAX из сайта; MAX — «Найти по номеру».",
@@ -12,8 +12,10 @@
   "box": "#main footer div[contenteditable=\"true\"]",
   "send": "#main footer button[aria-label=\"Отправить\"], #main footer button[aria-label=\"Send\"], #main footer span[data-icon=\"send\"], #main footer span[data-icon=\"wds-ic-send-filled\"]",
   "previewSend": "[aria-label*=\"выбранный объект\"], [aria-label*=\"выбранных объект\"], [aria-label*=\"selected item\"], div[role=\"button\"][aria-label=\"Отправить\"], div[role=\"button\"][aria-label=\"Send\"], span[data-icon=\"wds-ic-send-filled\"], span[data-icon=\"send\"]",
-  "msgs": "#main div.message-in, #main div.message-out",
-  "out": "message-out",
+  "attach": "button[aria-label=\"Прикрепить\"], button[aria-label=\"Attach\"]",
+  "photoBtn": "button[aria-label=\"Фото и видео\"], button[aria-label=\"Photos & videos\"]",
+  "msgs": "#main [data-id]",
+  "outLabel": "Доставлено|Прочитано|Отправлено|Ожидает|Delivered|Read|Sent|Pending|^s*Вы:",
   "pre": "[data-pre-plain-text]",
   "text": "span.selectable-text, .copyable-text span"
  },
