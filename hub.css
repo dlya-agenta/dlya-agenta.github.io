@@ -331,3 +331,7 @@ html .ex-box .chip { border-style: dashed; border-color: color-mix(in srgb, var(
 html .ex-box .chip::before { content: '↳ '; color: var(--muted); }
 html .ex-box .chip:hover { border-color: var(--accent); border-style: solid; }
 .hub-turn { border-top: 1.5px solid var(--line2); }
+/* v5.67a: «💻 Отправить всем через мой браузер» в окне «Написать собственникам» */
+.hub-extsend { display: grid; gap: 6px; margin: 8px 0 10px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--accent, #2563eb) 45%, var(--line)); background: color-mix(in srgb, var(--accent, #2563eb) 6%, var(--card)); }
+.hub-ext-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.hub-extsend .ok { color: var(--ok); }

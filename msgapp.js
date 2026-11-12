@@ -68,7 +68,10 @@ window.MSGAPP = (() => {
     let left = false;
     const off = () => { left = true; };
     addEventListener('blur', off, { once: true }); document.addEventListener('visibilitychange', off, { once: true });
-    location.href = url;
+    // v5.67a: внутри окна ИИ-Агента (iframe) переход на whatsapp:// / tg:// / max:// браузер блокирует («Этот контент заблокирован») —
+    // открываем приложение из главного окна сайта (тот же сайт — доступ есть)
+    let top = window; try { if (window.top !== window && window.top.location.host === location.host) top = window.top; } catch { top = window; }
+    top.location.href = url;
     setTimeout(() => {
       removeEventListener('blur', off); document.removeEventListener('visibilitychange', off);
       if (!left && !document.hidden) toast(`Приложение ${SV[svc]} не открылось — похоже, оно не установлено.${svc === 'max' ? ' Номер уже скопирован.' : ''}
@@ -76,7 +79,7 @@ window.MSGAPP = (() => {
     }, 1600);
   }
   // v5.67: расширение на связи? (в этом браузере — метка data-da-ext; иначе — сервер: компьютер отметился за 3 минуты); кэш на минуту
-  const here = () => !!document.documentElement.dataset.daExt;
+  const here = () => { try { return !!(document.documentElement.dataset.daExt || (window.top !== window && window.top.document.documentElement.dataset.daExt)); } catch { return false; } };   // и в окне ИИ-Агента (iframe)
   const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
   const AUTO = () => String(window.API || '').replace(/\/web$/, '/auto');
   async function auto(action, extra = {}) {
@@ -113,7 +116,7 @@ window.MSGAPP = (() => {
       w.disabled = true; w.querySelector('small').textContent = 'Ставлю в очередь…';
       try {
         const r = await auto('own_ext_msg', { svc, phone, text });
-        if (here()) window.postMessage({ da: 'sendPoll' }, location.origin);
+        if (here()) (window.top || window).postMessage({ da: 'sendPoll' }, location.origin);
         d.remove();
         toast(r.on ? `💻 Сообщение уходит из вашего ${SV[svc]} в браузере — 10–40 секунд.` : `💻 Сообщение в очереди: уйдёт, когда компьютер с расширением будет на связи.`, 6000);
       } catch (err) { w.disabled = false; w.querySelector('small').textContent = err.message; }
@@ -180,5 +183,5 @@ window.MSGAPP = (() => {
 .ma-toast[hidden]{display:none}
 .ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay };
+  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay, auto };
 })();

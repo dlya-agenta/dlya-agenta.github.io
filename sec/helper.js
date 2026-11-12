@@ -417,18 +417,43 @@
       const b = e.target.closest('[data-send]'); b.disabled = true; b.textContent = 'Открываю телефоны…';
       try {
         const r = await H.call('help_owners', { nums, text: d.querySelector('#o-text').value });
-        d.querySelector('#o-res').innerHTML = r.items.map(x => `<div class="hub-own"><b>№ ${x.num}</b> ${x.ok ? `${esc(x.name ?? '')} <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${H.msgLinks(x.phone, r.text)}` : `<span class="err">${esc(x.message ?? 'нет номера')}</span>`}</div>`).join('');
+        const ok = r.items.filter(x => x.ok).map(x => x.num);
+        d.querySelector('#o-res').innerHTML = (ok.length ? extBox(ok, r.text) : '') + r.items.map(x => `<div class="hub-own"><b>№ ${x.num}</b> ${x.ok ? `${esc(x.name ?? '')} <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${H.msgLinks(x.phone, r.text)}` : `<span class="err">${esc(x.message ?? 'нет номера')}</span>`}</div>`).join('');
         b.textContent = 'Готово';
+        extInit(d, () => d.querySelector('#o-text').value.trim() || r.text);
       } catch (er) { H.toast(er.message, 6000); b.disabled = false; b.textContent = 'Открыть телефоны и подготовить'; }
+    };
+  }
+  // v5.67a: «💻 Отправить всем через мой браузер» — расширение «Для Агента» на компьютере агента (auto own_ext_send: открытые телефоны, отметки, проверки ответов)
+  const extBox = (nums, text) => `<div class="hub-extsend" data-ext-nums="${nums.join(',')}"><b>💻 Отправить всем через мой браузер</b>
+    <span class="hint" data-ext-st>Проверяю расширение…</span>
+    <span class="hub-ext-btns">${[['wa', 'WhatsApp'], ['tg', 'Telegram'], ['max', 'MAX']].map(([k, t]) => `<button type="button" class="btn soft" data-ext-svc="${k}" disabled>${t}</button>`).join('')}</span></div>`;
+  async function extInit(d, getText) {
+    const box = d.querySelector('.hub-extsend'); if (!box) return;
+    const st = box.querySelector('[data-ext-st]');
+    const ex = await (window.MSGAPP?.extState?.() ?? null);
+    if (!ex) { st.innerHTML = 'Нужно расширение «Для Агента» в браузере компьютера — <a href="ext.html" target="_blank">установить за 2 минуты</a>. Пока — кнопками у каждого собственника.'; return; }
+    st.textContent = ex.on ? 'Компьютер с расширением на связи — сообщения уйдут сами, по одному с паузой, ответы проверю сам.' : 'Компьютер с расширением сейчас не на связи — сообщения уйдут, когда он включится.';
+    box.querySelectorAll('[data-ext-svc]').forEach(b => { b.disabled = false; const s = ex.svcs?.[b.dataset.extSvc]; if (s === 'ok') b.textContent += ' ✓'; if (s === 'auth') b.title = 'Войдите в этот мессенджер в браузере с расширением'; });
+    box.onclick = async e => {
+      const b = e.target.closest('[data-ext-svc]'); if (!b) return;
+      box.querySelectorAll('[data-ext-svc]').forEach(x => x.disabled = true);
+      try {
+        const r = await window.MSGAPP.auto('own_ext_send', { svc: b.dataset.extSvc, text: getText(), nums: box.dataset.extNums.split(',').map(Number) });
+        try { (window.top || window).postMessage({ da: 'sendPoll' }, location.origin); } catch { /* нет */ }
+        st.innerHTML = `<b class="ok">✓ В очереди: ${r.planned}</b>${r.need_open ? ` · у ${r.need_open} телефон не открыт` : ''}${r.cut ? ` · ${r.cut} — завтра (предел в сутки)` : ''}. ${r.on ? 'Уходят из вашего браузера по одному.' : 'Уйдут, когда компьютер будет на связи.'}`;
+      } catch (er) { st.innerHTML = `<span class="err">${esc(er.message)}</span>`; box.querySelectorAll('[data-ext-svc]').forEach(x => x.disabled = false); }
     };
   }
   function ownersOut(items, text) {
     const d = document.createElement('div'); d.className = 'sheet';
+    const okNums = items.filter(x => x.ok).map(x => x.num);
     d.innerHTML = `<div class="sheet-box"><div class="sheet-head"><b>Написать собственникам</b><button class="btn ghost" data-x>✕</button></div>
-      <div class="sheet-body"><p class="hint">Текст: ${esc(text)}</p>${items.map(x => `<div class="hub-own"><b>№ ${x.num}</b> ${x.ok ? `${esc(x.name ?? '')} <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${H.msgLinks(x.phone, text)}` : `<span class="err">${esc(x.message ?? 'нет номера')}</span>`}</div>`).join('')}</div>
+      <div class="sheet-body"><p class="hint">Текст: ${esc(text)}</p>${okNums.length ? extBox(okNums, text) : ''}${items.map(x => `<div class="hub-own"><b>№ ${x.num}</b> ${x.ok ? `${esc(x.name ?? '')} <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${H.msgLinks(x.phone, text)}` : `<span class="err">${esc(x.message ?? 'нет номера')}</span>`}</div>`).join('')}</div>
       <div class="sheet-foot"><button class="btn ghost" data-x>Закрыть</button></div></div>`;
     document.body.appendChild(d);
     d.onclick = e => { if (e.target === d || e.target.closest('[data-x]')) d.remove(); };
+    extInit(d, () => text);
   }
   window.SEC = window.SEC || {};
   window.SEC.helper = { title: 'ИИ-Агент', open };
