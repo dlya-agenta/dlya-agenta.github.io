@@ -756,5 +756,32 @@
     } finally { URL.revokeObjectURL(url); }
   }
 
+  // v5.63: загрузка файла из расширения («Перенести свои Эксклюзивы ВТОРИЧЕК»): каждый объект — черновик (excl_save) + фото (excl_photo).
+  // Повтор (тот же адрес, площадь и цена среди моих) — пропуск. Поля в файле уже приведены к форме: kind, rooms 0–4, район из 6, finish.
+  async function importFile(file) {
+    let j; try { j = JSON.parse(await file.text()); } catch { return H.toast ? H.toast('Это не файл расширения') : alert('Это не файл расширения'); }
+    if (j?.format !== 'dlya-agenta-excl' || !Array.isArray(j.items)) return alert('Это не файл «Эксклюзивов» из расширения');
+    const mine = (await H.call('excl_my')).items || [];
+    const key = x => [String(x.address || '').toLowerCase().replace(/\s+/g, ''), Math.round(+x.area || 0), Math.round((+x.price || 0) / 1000)].join('|');
+    const have = new Set(mine.map(key));
+    const el = $('#ex'); let ok = 0, skip = 0, err = 0, ph = 0;
+    for (let i = 0; i < j.items.length; i++) {
+      const x = j.items[i];
+      el.innerHTML = `<p class="muted">Загружаю ${i + 1} из ${j.items.length}… черновиков ${ok}, фото ${ph}${skip ? `, повторов ${skip}` : ''}</p>`;
+      if (have.has(key(x))) { skip++; continue; }
+      try {
+        const body = {}; for (const k of ['kind', 'rooms', 'area', 'floor', 'floors', 'land', 'price', 'district', 'sub', 'address', 'complex', 'finish', 'descr', 'comm_pct']) if (x[k] != null && x[k] !== '') body[k] = x[k];
+        if (x.lat && x.lng) { body.lat = x.lat; body.lng = x.lng; }
+        const r = await H.call('excl_save', body);
+        const id = r.item.id; ok++; have.add(key(x));
+        for (const d of (x.photos || []).slice(0, 15)) { try { await H.call('excl_photo', { id, data: d }); ph++; } catch { /* одно фото не прошло — дальше */ } }
+      } catch (e) { err++; if (/больше|подписк/i.test(e.message)) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; break; } }
+    }
+    my = null;
+    alert(`Готово: черновиков ${ok}, фото ${ph}${skip ? `, повторов пропущено ${skip}` : ''}${err ? `, ошибок ${err}` : ''}. Проверьте их в «Мои размещения» и опубликуйте.`);
+    location.hash = '#my'; route();
+  }
+  document.addEventListener('change', e => { if (e.target?.id === 'ex-imp' && e.target.files?.[0]) { importFile(e.target.files[0]); e.target.value = ''; } });
+
   document.addEventListener('DOMContentLoaded', start);
 })();
