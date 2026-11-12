@@ -376,11 +376,8 @@
       let svcs = null;
       try { svcs = await call('own_init', { _fn: 'auto' }); } catch (e) { svcs = { error: e.message }; }
       if (mod !== el) return;
-      // v5.67: «💻 Через мой браузер» (расширение) — все три мессенджера; выбор способа — общий с «Написать всем» (localStorage sa:via)
-      const ex = svcs.ext, srvOk = (svcs.svcs ?? []).filter(s => s.ok && !s.soon);
-      let via = (() => { try { return JSON.parse(localStorage.getItem('sa:via')); } catch { return null; } })() || (ex?.on || !srvOk.length ? 'ext' : 'srv');
-      if (via === 'ext' && !ex) via = 'srv';
-      const ok = via === 'ext' ? [['tg', 'Telegram'], ['wa', 'WhatsApp'], ['max', 'MAX']].map(([svc, title]) => ({ svc, title, ok: true })) : srvOk;
+      // v5.69: «сначала свой компьютер» — способ решает WAYS (ways.js): компьютер с расширением → сервер только по галочке → окно «Включите компьютер»
+      const ok = [['tg', 'Telegram'], ['wa', 'WhatsApp'], ['max', 'MAX']].map(([svc, title]) => ({ svc, title, ok: true }));
       const box = $('#pk-ask');
       if (svcs.error || !ok.length) { box.innerHTML = `<p class="err">${eh(svcs.error || 'Мессенджер не подключён.')}</p><a class="btn soft" href="hub.html#msg">🔗 Подключить мессенджеры</a><p class="hint">MAX — только вручную: отправка всем сразу выключена.</p>`; return; }
       // R21: объекты без открытого телефона — с кнопкой «Открыть телефон» (то же действие phone, что в карточках: лимиты тарифа действуют)
@@ -392,31 +389,31 @@
         <label class="sa-lbl" for="pk-ask-t">Текст сообщения</label>
         <textarea id="pk-ask-t" rows="3" maxlength="1500">${eh(ASK_TPL)}</textarea>
         <p class="hint">Подставятся объект, ЖК и вопрос клиента (без телефонов и ссылок). К первому сообщению добавится № объекта.</p>
-        ${ex ? `<div class="pk-svcs"><button type="button" class="btn ${via === 'srv' ? 'primary' : 'ghost'}" data-ask-via="srv"${srvOk.length ? '' : ' disabled'}>☁️ Через сервер</button><button type="button" class="btn ${via === 'ext' ? 'primary' : 'ghost'}" data-ask-via="ext">💻 Через мой браузер${ex.on ? ' · на связи' : ''}</button></div>` : ''}
         <div class="pk-svcs">${ok.map(s => `<button type="button" class="btn soft" data-ask-svc="${eh(s.svc)}">${eh(s.title)}: предпросмотр</button>`).join('')}</div>
+        <div id="pk-wy"></div>
         <small class="muted">${svcs.day_left != null ? `Сегодня можно отправить ещё ${svcs.day_left}. ` : ''}Сообщения уходят по одному с паузами. Ответы проверяю через 30, 60, 90, 120 минут и через 12 часов.</small>
         <div id="pk-prev"></div>`;
       const sel = () => [...box.querySelectorAll('.pk-ask-list input:checked')].map(i => +i.value);
       const needOpen = () => { const n = [...box.querySelectorAll('.pk-ask-list input:checked')].filter(i => i.dataset.ph === '0').length; $('#pk-open-n').textContent = n ? `У ${n} ${pl(n, 'объекта', 'объектов', 'объектов')} телефон не открыт — откройте телефон кнопкой в списке.` : ''; };
       needOpen();
+      window.WAYS?.box($('#pk-wy'), ['tg', 'wa', 'max'], { mass: true });   // v5.69: компьютер, галочка облака, вручную
       let lastSvc = null;
       async function preview(svc) {
         const nums = sel(), text = $('#pk-ask-t').value.trim();
         if (!nums.length) return toast('Отметьте хотя бы один объект');
         lastSvc = svc; $('#pk-prev').innerHTML = '<p class="muted">Собираю текст…</p>';
         try {
-          const r = await call('own_send', { _fn: 'auto', svc, text, nums, dry: true, via });
+          const r = await call('own_send', { _fn: 'auto', svc, text, nums, dry: true });
           $('#pk-prev').innerHTML = `<div class="sa-prev">${(r.preview ?? []).map(p => `<div class="sa-pv"><p>${eh(p.text)}</p></div>`).join('')}</div>
             ${r.planned > 2 ? `<p class="muted">…и ещё ${r.planned - 2}.</p>` : ''}${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — откройте телефон в списке; им сообщение не уйдёт.</p>` : ''}
             <div id="pk-ways"></div>
             <div class="sa-cfoot"><button type="button" class="btn primary" data-ask-go="${eh(svc)}">Отправить ${r.planned ?? nums.length}</button></div>`;
-          window.MSGAPP?.waysNote?.($('#pk-ways'), svc, via);   // v5.68: как уйдёт (браузер → сервер → вручную) и чего не хватает
+          window.WAYS?.box($('#pk-ways'), svc, { mass: true, action: 'передать вопросы' });   // v5.69: сначала свой компьютер
         } catch (er) { $('#pk-prev').innerHTML = `<p class="err">${eh(er.message)}</p>`; }
       }
       box.addEventListener('change', needOpen);
       box.addEventListener('click', async e => {
-        const b = e.target.closest('[data-ask-svc]'), go = e.target.closest('[data-ask-go]'), op = e.target.closest('[data-ask-open]'), vw = e.target.closest('[data-ask-via]');
-        if (vw) { try { localStorage.setItem('sa:via', JSON.stringify(vw.dataset.askVia)); } catch { /* приватный режим */ } closeMod(); return ask(); }
+        const b = e.target.closest('[data-ask-svc]'), go = e.target.closest('[data-ask-go]'), op = e.target.closest('[data-ask-open]');
         if (op) {
           const x = byNum.get(+op.dataset.askOpen); op.disabled = true; op.textContent = 'Открываю…';
           try {
@@ -434,7 +431,11 @@
           const text = $('#pk-ask-t').value.trim(), nums = sel();
           go.disabled = true; go.textContent = 'Отправляю…';
           try {
-            const r = await call('own_send', { _fn: 'auto', svc: go.dataset.askGo, text, nums, via });
+            const svc = go.dataset.askGo;
+            let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, action: 'передать вопросы' }) : 'ext';
+            if (via === 'off') { go.disabled = false; go.textContent = 'Отправить'; return; }
+            let r; try { r = await call('own_send', { _fn: 'auto', svc, text, nums, ...window.WAYS?.via(via) }); }
+            catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true })) === 'off') throw e1; r = await call('own_send', { _fn: 'auto', svc, text, nums, ...window.WAYS?.via(via) }); }
             if (via === 'ext' && document.documentElement.dataset.daExt) window.postMessage({ da: 'sendPoll' }, location.origin);
             window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
             $('#pk-prev').innerHTML = `<p class="pk-ok" role="status">Поставил в очередь: ${r.planned ?? nums.length}. Отправка идёт по одному с паузами — состояние вопроса обновится на этой странице.</p>${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — им не отправлено.</p>` : ''}`;

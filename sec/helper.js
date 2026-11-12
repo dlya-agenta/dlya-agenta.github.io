@@ -424,29 +424,27 @@
       } catch (er) { H.toast(er.message, 6000); b.disabled = false; b.textContent = 'Открыть телефоны и подготовить'; }
     };
   }
-  // v5.67a: «💻 Отправить всем через мой браузер» — расширение «Для Агента» на компьютере агента (auto own_ext_send: открытые телефоны, отметки, проверки ответов)
-  const extBox = (nums, text) => `<div class="hub-extsend" data-ext-nums="${nums.join(',')}"><b>💻 Отправить всем через мой браузер</b>
-    <span class="hint" data-ext-st>Проверяю расширение…</span><span class="hub-ext-wy" data-ext-wy></span>
-    <span class="hub-ext-btns">${[['wa', 'WhatsApp'], ['tg', 'Telegram'], ['max', 'MAX']].map(([k, t]) => `<button type="button" class="btn soft" data-ext-svc="${k}" disabled>${t}</button>`).join('')}</span></div>`;
+  // v5.67a → v5.69: «Отправить всем» — сначала свой компьютер (расширение «Для Агента»), сервер сервиса — только по галочке агента (WAYS, ways.js);
+  // компьютер выключен — окно «Включите компьютер» с инструкцией, молча не шлём. auto own_ext_send: открытые телефоны, отметки, проверки ответов.
+  const extBox = (nums, text) => `<div class="hub-extsend" data-ext-nums="${nums.join(',')}"><b>💻 Отправить всем — с вашего компьютера</b>
+    <span class="hint" data-ext-st>По одному с паузой, ответы проверю сам.</span><span class="hub-ext-wy" data-ext-wy></span>
+    <span class="hub-ext-btns">${[['wa', 'WhatsApp'], ['tg', 'Telegram'], ['max', 'MAX']].map(([k, t]) => `<button type="button" class="btn soft" data-ext-svc="${k}">${t}</button>`).join('')}</span></div>`;
   async function extInit(d, getText) {
     const box = d.querySelector('.hub-extsend'); if (!box) return;
     const st = box.querySelector('[data-ext-st]');
-    const ex = await (window.MSGAPP?.extState?.() ?? null);
-    if (!ex) { st.innerHTML = 'Нужно расширение «Для Агента» в браузере компьютера — <a href="ext.html" target="_blank">установить за 2 минуты</a>. Пока — кнопками у каждого собственника.'; return; }
-    st.textContent = ex.on ? 'Компьютер с расширением на связи — сообщения уйдут сами, по одному с паузой, ответы проверю сам.' : 'Компьютер с расширением сейчас не на связи — сообщения уйдут, когда он включится.';
-    box.querySelectorAll('[data-ext-svc]').forEach(b => { b.disabled = false; const s = ex.svcs?.[b.dataset.extSvc]; if (s === 'ok') b.textContent += ' ✓'; if (s === 'auth') b.title = 'Войдите в этот мессенджер в браузере с расширением'; });
-    // v5.68: как уйдёт (браузер → сервер → вручную) — для мессенджера под мышью / в фокусе, сначала WhatsApp
-    const wy = box.querySelector('[data-ext-wy]'), note = svc => window.MSGAPP?.waysNote?.(wy, svc, 'ext', true);
-    note('wa');
-    box.querySelectorAll('[data-ext-svc]').forEach(b => { b.addEventListener('mouseenter', () => note(b.dataset.extSvc)); b.addEventListener('focus', () => note(b.dataset.extSvc)); });
+    window.WAYS?.box(box.querySelector('[data-ext-wy]'), ['wa', 'tg', 'max'], { mass: true });
     box.onclick = async e => {
       const b = e.target.closest('[data-ext-svc]'); if (!b) return;
+      const svc = b.dataset.extSvc, arg = () => ({ svc, ...window.WAYS?.via(via), text: getText(), nums: box.dataset.extNums.split(',').map(Number) });
       box.querySelectorAll('[data-ext-svc]').forEach(x => x.disabled = true);
+      let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, action: 'написать собственникам' }) : 'ext';
+      if (via === 'off') { box.querySelectorAll('[data-ext-svc]').forEach(x => x.disabled = false); st.textContent = 'Не отправлено — компьютер с расширением не на связи.'; return; }
       try {
-        const r = await window.MSGAPP.auto('own_ext_send', { svc: b.dataset.extSvc, text: getText(), nums: box.dataset.extNums.split(',').map(Number) });
+        let r; try { r = await window.MSGAPP.auto('own_ext_send', arg()); }
+        catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true })) === 'off') throw e1; r = await window.MSGAPP.auto('own_ext_send', arg()); }
         try { (window.top || window).postMessage({ da: 'sendPoll' }, location.origin); } catch { /* нет */ }
-        window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
-        st.innerHTML = `<b class="ok">✓ В очереди: ${r.planned}</b>${r.need_open ? ` · у ${r.need_open} телефон не открыт` : ''}${r.cut ? ` · ${r.cut} — завтра (предел в сутки)` : ''}. ${r.on ? 'Уходят из вашего браузера по одному.' : 'Компьютер не на связи — через 5 мин перейду на ☁️ сервер или пришлю список «вручную».'}`;
+        window.MSGAPP?.watch?.(r.id);   // v5.68: следить; не ушло — окно «вручную»
+        st.innerHTML = `<b class="ok">✓ В очереди: ${r.planned}</b>${r.need_open ? ` · у ${r.need_open} телефон не открыт` : ''}${r.cut ? ` · ${r.cut} — завтра (предел в сутки)` : ''}. ${r.via === 'srv' || via === 'srv' ? 'Уходят через сервер сервиса по одному.' : 'Уходят с вашего компьютера по одному.'}`;
       } catch (er) { st.innerHTML = `<span class="err">${esc(er.message)}</span>`; box.querySelectorAll('[data-ext-svc]').forEach(x => x.disabled = false); }
     };
   }

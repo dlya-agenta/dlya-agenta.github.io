@@ -33,12 +33,16 @@
     // v5.54 (Алексей 11.11): «🔌 Подключения» — всё внешнее в одной вкладке: мессенджеры, соцсети, реклама и площадки, прокси; у каждого — «Как войти»
     const GR = [['m', '💬 Мессенджеры', ['tg', 'max', 'wa']], ['s', '📱 Соцсети', ['vk', 'ig', 'yt']], ['r', '📣 Реклама и площадки', ['dc', 'av', 'cian']], ['p', '🌐 Прокси', []]];
     const tab = GR.some(g => g[0] === arg) ? arg : (GR.find(g => g[2].includes(arg))?.[0] ?? ((() => { try { return JSON.parse(localStorage.getItem('conn_tab')); } catch { return null; } })() || 'm'));
-    const card = x => `<div class="conn-card"><h3>${x.icon} ${esc(x.name)}</h3>${st(x)}
+    // v5.69: «сначала свой компьютер» — у сервисов, где нужен вход для работы сервиса, сверху состояние компьютера агента и галочка облака (WAYS);
+    // ниже — вход на сервере сервиса (запасной путь, работает, когда компьютер выключен)
+    const WY = new Set(['tg', 'max', 'wa', 'dc', 'av', 'cian']);
+    const wyBox = id => WY.has(id) ? `<div class="conn-wy" data-wy-svc="${id}"></div><small class="muted conn-cl">☁️ Вход на сервере сервиса — запасной путь:</small>` : '';
+    const card = x => `<div class="conn-card"><h3>${x.icon} ${esc(x.name)}</h3>${wyBox(x.id)}${st(x)}
         <small class="muted">Для чего: ${esc(USE[x.id] ?? '')}</small><small>${esc(x.note)}</small>
         ${HOW[x.id] ? `<details class="conn-how"><summary>Как войти — ${HOW[x.id][0]}</summary><ol>${HOW[x.id][1].map(t => `<li>${t}</li>`).join('')}</ol></details>` : ''}
         <div class="row">${x.status === 'ok' ? `<button class="btn soft" data-in="${x.id}">Войти заново</button><button class="btn ghost bad" data-out="${x.id}">Отключить</button>`
           : `<button class="btn primary" data-in="${x.id}"${r.online ? '' : ' disabled'}>Войти</button>`}${x.id === 'tg' && x.status === 'ok' ? '<a class="btn soft" href="mail.html">✉️ Рассылки</a>' : ''}</div></div>`;
-    const rkCard = `<div class="conn-card"><h3>📣 Реклама</h3><span class="st muted">Вход по СМС</span><small class="muted">Для чего: черновики объявлений в вашем кабинете партнёра</small>
+    const rkCard = `<div class="conn-card"><h3>📣 Реклама</h3>${wyBox('dc')}<span class="st muted">Вход по СМС</span><small class="muted">Для чего: черновики объявлений в вашем кабинете партнёра</small>
           <details class="conn-how"><summary>Как войти — номер и код из СМС</summary><ol><li>Нажмите «Войти» — откроется раздел «📣 Реклама».</li><li>Введите номер телефона кабинета и код из СМС.</li><li>Дальше черновики объявлений создаются из выбранных объектов кнопкой «📣 В рекламу».</li></ol></details>
           <div class="row"><a class="btn primary" href="./#rk=login">Войти</a></div></div>`;
     const pxBox = `<div class="conn-list"><div class="conn-card"><h3>🌐 Свой прокси</h3><span class="st muted">Постоянный адрес для ваших входов</span>
@@ -51,6 +55,7 @@
     const pane = g => g[0] === 'p' ? pxBox : `<div class="conn-list">${r.items.filter(x => g[2].includes(x.id)).map(card).join('')}${g[0] === 'r' && !r.items.some(x => x.id === 'dc') ? rkCard : ''}</div>`;
     const cnt = g => r.items.filter(x => g[2].includes(x.id) && x.status === 'ok').length;
     el.innerHTML = `<h2>🔌 Подключения</h2>
+      <p class="hint conn-pc">💻 <b>Сначала — ваш компьютер.</b> Сообщения, реклама и проверки идут с вашего компьютера: Chrome с расширением «Для Агента» (<a href="ext.html" target="_blank" rel="noopener">установить</a>) и вход в веб-версию сервиса в нём. Вход на нашем сервере ниже — запасной путь: он работает, только если вы разрешили его галочкой «☁️ Можно через сервер сервиса».</p>
       <p class="hint">Всё внешнее — в одном месте: мессенджеры, соцсети, реклама и прокси. Вход — как в обычном браузере: на нашем сервере открывается настоящая страница сервиса, вы видите её здесь и входите сами (QR-код, номер и код, пароль). Ключи API не нужны.
       Сессия хранится на нашем сервере <b>в зашифрованном виде</b> и используется только для ваших действий. Отключить — кнопкой «Отключить».</p>
       ${window.MSGAPP?.warn() ?? ''}
@@ -58,6 +63,7 @@
       <nav class="conn-tabs" role="tablist">${GR.map(g => `<button type="button" role="tab" class="conn-tab${g[0] === tab ? ' on' : ''}" data-ctab="${g[0]}" aria-selected="${g[0] === tab}">${g[1]}${cnt(g) ? ` <b>${cnt(g)}</b>` : ''}</button>`).join('')}</nav>
       ${GR.map(g => `<section class="conn-pane" data-cpane="${g[0]}"${g[0] === tab ? '' : ' hidden'}>${pane(g)}</section>`).join('')}
       <p class="hint">⚠ WhatsApp и Instagram официально не разрешают сторонние программы — используйте рабочие аккаунты. Telegram: завершить сеанс можно и в самом Telegram (Настройки → Устройства).</p>`;
+    el.querySelectorAll('[data-wy-svc]').forEach(b => window.WAYS?.box(b, b.dataset.wySvc, { title: '💻 Ваш компьютер — главный путь', manual: false }));
     if (!el._ct) el._ct = 1, el.addEventListener('click', e => { const t = e.target.closest('[data-ctab]'); if (!t) return; el.querySelectorAll('[data-ctab]').forEach(b => { const on = b === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
       el.querySelectorAll('[data-cpane]').forEach(p => { p.hidden = p.dataset.cpane !== t.dataset.ctab; }); try { localStorage.setItem('conn_tab', JSON.stringify(t.dataset.ctab)); } catch { /* приватный режим */ } });
     el.onclick = async e => {

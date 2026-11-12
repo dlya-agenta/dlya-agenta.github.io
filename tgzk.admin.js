@@ -56,6 +56,7 @@ window.TGZKADM = (() => {
       <p><label><input type="checkbox" id="tz-on" ${st.on ? 'checked' : ''}> Собирать автоматически</label>
         <button class="btn soft" id="tz-run">Собрать сейчас</button>
         <button class="btn ghost" id="tz-full" title="Заново за год по новым правилам — поймать пропущенное; уже разобранное не трогается">Пересобрать за год</button></p>
+      <div id="tz-wy"></div>
       <div id="tz-chats" hidden></div>
       <details><summary>Последние запуски</summary><ul>${st.runs.map(r => `<li>${when(r.created_at)} — ${RUN[r.status] ?? r.status}${r.done_at ? `, закончен ${when(r.done_at)}` : ''}${r.error ? ` · <span class="err">${esc(r.error)}</span>` : ''}<br><small class="muted">${stats(r.stats)}</small></li>`).join('') || '<li>Пока не было</li>'}</ul></details>
       <h3>Ждут решения (${L.items.length})</h3>
@@ -74,10 +75,13 @@ window.TGZKADM = (() => {
         .tz-tbl tr.off td{opacity:.55}.btn.sm{padding:4px 10px;font-size:13px}button.adm-tile{cursor:pointer;text-align:left;font:inherit;color:inherit}.lnk{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font:inherit;text-decoration:underline}
         .tz-pics{display:flex;gap:6px;overflow-x:auto;margin:6px 0}.tz-pics img{height:110px;border-radius:8px}.tz-item{padding:14px;margin:10px 0}</style>`;
     el.querySelector('#tz-on').onchange = async e => { try { await call('tgzk_set', { on: e.target.checked }); H.toast(e.target.checked ? 'Сбор включён' : 'Сбор выключен'); } catch (er) { H.toast(er.message, 5000); } };
-    el.querySelector('#tz-full').onclick = async e => { if (!confirm('Пересобрать объявления за год по новым правилам? Сбор идёт 1–2 часа, уже разобранное не трогается.')) return;
+    // v5.69: «сначала свой компьютер» — сбор через Telegram Web на компьютере агента, сервер — только по галочке; иначе окно «Включите компьютер»
+    window.WAYS?.box(el.querySelector('#tz-wy'), 'tgzk', { title: '💻 Сбор — с вашего компьютера', manual: false });
+    const wyOk = async () => true;   // v5.69: эту работу пока делает только сервер/Mac (расширение не умеет) — не блокируем; через компьютер — вторая волна v5.70
+    el.querySelector('#tz-full').onclick = async e => { if (!(await wyOk())) return; if (!confirm('Пересобрать объявления за год по новым правилам? Сбор идёт 1–2 часа, уже разобранное не трогается.')) return;
       e.target.disabled = true; try { await call('tgzk_run', { full: true }); H.toast('Запущено — сервер проснётся за 1–2 минуты'); render(el); } catch (er) { H.toast(er.message, 5000); e.target.disabled = false; } };
     el.querySelectorAll('.tz-chats-b').forEach(b => b.onclick = () => chats(el.querySelector('#tz-chats')));
-    el.querySelector('#tz-run').onclick = async e => { e.target.disabled = true; try { await call('tgzk_run'); H.toast('Запущено — сервер проснётся за 1–2 минуты, сбор идёт около часа'); render(el); } catch (er) { H.toast(er.message, 5000); e.target.disabled = false; } };
+    el.querySelector('#tz-run').onclick = async e => { if (!(await wyOk())) return; e.target.disabled = true; try { await call('tgzk_run'); H.toast('Запущено — сервер проснётся за 1–2 минуты, сбор идёт около часа'); render(el); } catch (er) { H.toast(er.message, 5000); e.target.disabled = false; } };
     el.querySelectorAll('[data-as]').forEach(b => b.onclick = async () => {
       const box = b.closest('.tz-item'); box.querySelectorAll('button').forEach(x => x.disabled = true);
       try { await call('tgzk_decide', { id: +box.dataset.id, as: b.dataset.as }); box.remove(); H.toast({ new: 'Показано на сайте', dup: 'Отмечено как дубль', reject: 'Убрано' }[b.dataset.as]); }

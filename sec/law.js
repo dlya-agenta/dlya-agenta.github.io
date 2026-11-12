@@ -326,8 +326,10 @@
           ${Object.values(conn).every(Boolean) ? '' : '<p class="hint">Другие мессенджеры — <a href="hub.html#msg">🔗 Мессенджеры</a>.</p>'}`
         : `<div class="lw-noconn"><b>Сначала подключите мессенджер</b><p>Войдите в Telegram, WhatsApp или MAX в разделе «🔗 Мессенджеры» — после этого юриста можно подключить к группе сделки.</p>
           <a class="btn primary" href="hub.html#msg">🔗 Подключить мессенджер</a></div>`}
+      <div class="lw-wy" data-lw-wy></div>
       <div class="lw-gs">${gs.map(grpHtml).join('') || (any ? '<p class="muted">Групп пока нет — укажите название группы выше.</p>' : '')}</div></section>`;
     if (!any) window.CONN?.warn?.('law');
+    window.WAYS?.box(p.querySelector('[data-lw-wy]'), ['tg', 'wa', 'max'].filter(k => conn[k] || !any), { action: 'группа' });   // v5.69: сначала свой компьютер
     p.onclick = onGrpClick;
   }
   const grpHtml = g => `<div class="lw-g" data-g="${g.id}"><div class="lw-gh"><b>${esc(SVC[g.svc] ?? g.svc)} · ${esc(g.chat)}</b>
@@ -368,6 +370,9 @@
     const g = t.closest('[data-g]'); if (!g) return;
     const out = g.querySelector('[data-out]');
     const rd = t.closest('[data-read]');
+    // v5.69: перед чтением и записью группы — WAYS.pick (компьютер выключен и сервер не разрешён → окно «Включите компьютер»)
+    const gsvc = (S.st.groups ?? []).find(x => x.id === +g.dataset.g)?.svc;
+    // (группу читает только сервер — правило «сначала компьютер» здесь во второй волне v5.70)
     if (rd) {
       rd.disabled = true;
       try { const r = await H.call('law_grp_read', { id: +rd.dataset.read, question: g.querySelector('[data-gq]').value.trim() || undefined }); await poll(r.job, out, 'read'); }

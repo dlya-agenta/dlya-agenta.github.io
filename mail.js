@@ -113,6 +113,7 @@
       <div class="ml-grid"><section class="ml-card" id="ml-step">${[s1, s2, s3, s4, s5][step - 1]()}</section>${okAcc() ? side() : ''}</div></div>`;
     if (step === 1 && a.qr) loadQr().then(() => { const el = $('#ml-qr'); if (el && !el.dataset.v) { el.dataset.v = a.qr; new window.QRCode(el, { text: a.qr, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M }); } }).catch(() => null);
     if (step === 3 && !isChat()) preview();
+    document.querySelectorAll('[data-ml-wy]').forEach(el => window.WAYS?.box(el, M, { mass: true, action: 'рассылки' }));
     if (busy || (S.groups ?? []).some(g => g.status === 'search')) poll = setTimeout(refresh, 2500);
   }
   async function refresh() {
@@ -120,7 +121,9 @@
       if (was !== 'ok' && S.acc.status === 'ok') { S = await call('mail_init'); step = 2; toast('Вход выполнен'); } } catch { /* следующая попытка */ }
     if (!location.hash) wizard();
   }
-  const warn = () => `<p class="ml-warn">⚠️ ${esc(S.warn)}.</p>`;
+  // v5.69: «сначала свой компьютер» — блок WAYS (ways.js) у входа; перед рассылкой — WAYS.pick: компьютер выключен и сервер не разрешён → окно, молча не шлём
+  const warn = () => `<p class="ml-warn">⚠️ ${esc(S.warn)}.</p><div class="ml-wy" data-ml-wy></div>`;
+  const wyOk = async () => true;   // v5.69: эту работу пока делает только сервер/Mac (расширение не умеет) — не блокируем; через компьютер — вторая волна v5.70
   function s1() {
     const a = S.acc;
     if (M !== 'tg') return a.status === 'ok' ? `<h3>1. Вход в ${MN[M]}</h3><p class="ml-ok">✓ Вход выполнен${a.name ? `: <b>${esc(a.name)}</b>` : ''}</p>${warn()}
@@ -275,6 +278,7 @@
         const hours = [...document.querySelectorAll('.ml-hours input:checked')].map(i => +i.value);
         S.acc = (await call('mail_sched', { hours, auto: $('#ml-auto').checked, markup: S.acc.markup, src: S.acc.src })).acc; toast(S.acc.auto ? 'Расписание включено' : 'Расписание сохранено, автоматическая рассылка выключена'); wizard();
       }
+      if ((id === 'ml-test' || id === 'ml-now') && !(await wyOk())) return;
       if (id === 'ml-test') confirmRun('Тестовая отправка: 3 объявления', 3, async () => {
         try { const r = await call('mail_test', { group_id: +$('#ml-tg').value }); toast(runText(r), 7000); S = await call('mail_init'); step = 5; wizard(); } catch (er) { toast(er.message, 6000); } });
       if (id === 'ml-now') confirmRun('Рассылка во все группы сейчас', S.limit, async () => {

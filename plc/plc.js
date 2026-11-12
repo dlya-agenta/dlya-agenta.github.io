@@ -16,6 +16,8 @@ window.RK = (() => {
   const body = () => $('#sheet-body');
   const bind = fn => { const b = body(); b.onclick = fn; b.onchange = null; b.oninput = null; b.onsubmit = null; };
 
+  // v5.69: «сначала свой компьютер» — компьютер выключен и сервер не разрешён галочкой → окно «Включите компьютер», в очередь не ставим
+  const wyOk = async () => true;   // v5.69: эту работу пока делает только сервер/Mac (расширение не умеет) — не блокируем; через компьютер — вторая волна v5.70
   async function call(action, extra = {}) {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: ui.auth(), ...extra }) });
     const d = await r.json().catch(() => ({ error: 'server', message: `Ошибка сервера (HTTP ${r.status})` }));
@@ -80,7 +82,7 @@ window.RK = (() => {
       const d = e.target.closest('[data-del]');
       if (d) { try { await call('rk_del', { num: +d.dataset.del }); render(); } catch (er) { ui.toast(er.message); } return; }
       const a = e.target.closest('[data-again]');
-      if (a) { try { const x = await call('rk_add', { nums: [+a.dataset.again] }); ui.toast(x.added ? 'Снова в очереди' : stText(x.items[0]?.st)); render(); } catch (er) { ui.toast(er.message); } }
+      if (a) { if (!(await wyOk())) return; try { const x = await call('rk_add', { nums: [+a.dataset.again] }); ui.toast(x.added ? 'Снова в очереди' : stText(x.items[0]?.st)); render(); } catch (er) { ui.toast(er.message); } }
     });
     if (items.some(x => x.status === 'new' || x.status === 'work')) poll = setTimeout(() => { if (!$('#sheet').hidden && view === 'list' && $('.rk')) render(); }, 8000);
   }
@@ -127,6 +129,7 @@ window.RK = (() => {
     };
     go.onclick = async () => {
       go.disabled = true;
+      if (!(await wyOk())) { go.disabled = false; return; }
       try { const x = await call('rk_add', { nums: [...picked], kind: 'daily' }); report(x); view = 'list'; render(); } catch (e) { ui.toast(e.message, 5000); go.disabled = false; }
     };
     body().onclick = e => tabs(e);
@@ -142,11 +145,14 @@ window.RK = (() => {
       : `<label class="field">Телефон, на который зарегистрирован ваш рекламный кабинет<input id="rk-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 900 123-45-67"></label>
          <div class="sheet-foot"><button class="btn primary" id="rk-phone-go">Получить код</button></div>`;
     body().innerHTML = `<div class="rk">${head()}<div class="rk-login">
+      <div id="rk-wy"></div>
+      <p class="hint">☁️ Вход на сервере сервиса (запасной путь — работает, когда ваш компьютер выключен):</p>
       ${a.status === 'ok' ? `<p class="rk-ok">✓ Кабинет подключён${a.phone ? ` · ${esc(a.phone)}` : ''}${a.ok_at ? ` · с ${day(a.ok_at)}` : ''}</p>${a.message && a.message !== 'Вход выполнен' ? `<p class="hint">${esc(a.message)}</p>` : ''}
         <div class="sheet-foot"><button class="btn ghost" id="rk-out">Выйти и удалить сессию</button></div>`
       : wait ? `<p class="muted rk-wait">${esc(a.message || 'Подождите…')}</p>`
       : `${a.message ? `<p class="${a.status === 'error' || a.status === 'need' ? 'err' : 'hint'}">${esc(a.message)}</p>` : ''}${form}`}
       <p class="hint">Телефон и код из СМС нужны только для входа и не сохраняются. Сессия кабинета хранится в зашифрованном виде и используется только для ваших черновиков. Ничего не публикуется без вас.</p></div></div>`;
+    window.WAYS?.box(document.getElementById('rk-wy'), 'dc', { title: '💻 Ваш компьютер — главный путь', manual: false });   // v5.69: сначала свой компьютер
     bind(async e => {
       if (tabs(e)) return;
       const id = e.target.closest('button')?.id;
@@ -226,6 +232,7 @@ window.RK = (() => {
     body().onclick = async e => {
       if (e.target.id !== 'rk-send') return;
       e.target.disabled = true;
+      if (!(await wyOk())) { e.target.disabled = false; return; }
       try { const x = await call('rk_add', { nums: [...pick] }); report(x); ui.done?.(); await open('list'); } catch (er) { ui.toast(er.message, 5000); e.target.disabled = false; }
     };
   }

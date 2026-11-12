@@ -8,6 +8,9 @@
 // v5.67 (п. 2 Алексея): есть расширение «Для Агента» (в этом браузере или на включённом компьютере агента) — у ссылки WhatsApp с текстом
 // выбор из двух: «📱 Открыть приложение» или «💻 Отправить через мой браузер» (auto own_ext_msg: сообщение уйдёт из WhatsApp Web агента сразу).
 // window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
+// v5.69: ways.js (window.WAYS — «сначала свой компьютер») подгружается отсюда на всех страницах, где есть msgapp.js
+(() => { if (window.WAYS || document.querySelector('script[src^="ways.js"]')) return; const s = document.createElement('script'); s.src = 'ways.js?v=5.69b'; s.defer = true; document.head.appendChild(s); })();
+const waysReady = () => window.WAYS ? Promise.resolve(true) : new Promise(ok => { let n = 0; const t = setInterval(() => { if (window.WAYS || ++n > 40) { clearInterval(t); ok(!!window.WAYS); } }, 100); });
 window.MSGAPP = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const SV = { wa: 'WhatsApp', tg: 'Telegram', max: 'MAX' };
@@ -85,7 +88,7 @@ window.MSGAPP = (() => {
   async function auto(action, extra = {}) {
     const r = await fetch(AUTO(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: tok() }, ...extra }) });
     const j = await r.json().catch(() => ({ error: 'server', message: 'Сервер не ответил' }));
-    if (!r.ok || j.error) throw new Error(j.message || j.error || 'Не получилось');
+    if (!r.ok || j.error) throw Object.assign(new Error(j.message || j.error || 'Не получилось'), { code: j.error, status: r.status, data: j, howto: j.howto });   // v5.69: need_pc (409) — WAYS
     return j;
   }
   let extC = (() => { try { return JSON.parse(sessionStorage.getItem('daExtC') || 'null'); } catch { return null; } })();
@@ -103,7 +106,7 @@ window.MSGAPP = (() => {
     d.innerHTML = `<div class="sheet-box ma-box" role="dialog" aria-modal="true" aria-label="Как отправить">
       <b class="ma-t">Как отправить в ${SV[svc]}?</b>
       <div class="ma-ways">
-        <button type="button" class="ma-way" data-way="ext"><b>💻 Через мой браузер</b><small>Уйдёт само из вашего ${SV[svc]} Web на компьютере с расширением — сразу, без копирования</small></button>
+        <button type="button" class="ma-way" data-way="ext"><b>💻 Отправить само</b><small>Сначала — с вашего компьютера (${SV[svc]} Web в Chrome с расширением), сервер — только если разрешили галочкой ниже</small></button>
         <button type="button" class="ma-way" data-way="app"><b>📱 Открыть приложение</b><small>Текст уже в поле — останется нажать «Отправить»</small></button>
       </div>
       <p class="ma-pv">${esc(text.length > 220 ? text.slice(0, 220) + '…' : text)}</p>
@@ -117,7 +120,10 @@ window.MSGAPP = (() => {
       if (w.dataset.way === 'app') { d.remove(); return app(); }
       w.disabled = true; w.querySelector('small').textContent = 'Ставлю в очередь…';
       try {
-        const r = await auto('own_ext_msg', { svc, phone, text });
+        // v5.69: «сначала свой компьютер» — компьютер выключен и облако не разрешено → окно «Включите компьютер», молча не шлём
+        if (await waysReady()) { const p = await window.WAYS.pick(svc, { action: 'отправить сообщение', mass: false }); if (p === 'off') { w.disabled = false; w.querySelector('small').textContent = 'Не отправлено — компьютер не на связи'; return; } }
+        let r; try { r = await auto('own_ext_msg', { svc, phone, text }); }
+        catch (e1) { if (!window.WAYS?.isNeedPc(e1) || await window.WAYS.needPc(svc, e1, { mass: false }) === 'off') throw e1; r = await auto('own_ext_msg', { svc, phone, text }); }
         if (here()) (window.top || window).postMessage({ da: 'sendPoll' }, location.origin);
         d.remove(); watch(r.id);
         toast(r.via === 'srv' ? `☁️ В браузере нет входа ${SV[svc]} — отправляю через сервер сервиса.` : r.on ? `💻 Сообщение уходит из вашего ${SV[svc]} в браузере — 10–40 секунд.` : `💻 Компьютер с расширением не на связи — жду 5 мин, потом ☁️ сервер или ✋ вручную.`, 6000);
@@ -199,8 +205,10 @@ window.MSGAPP = (() => {
     return `<div class="ma-wy${okAny ? '' : ' bad'}" role="note"><b class="ma-t">Как уйдёт${okAny ? '' : ' — автоматически не получится'}</b><ol>${rows.map(([ok, t]) => `<li class="${ok ? 'ok' : 'no'}"><i aria-hidden="true">${ok ? '✓' : '✗'}</i><span>${t}</span></li>`).join('')}</ol>
       ${okAny ? `<small>Каждый следующий способ — если предыдущий за ${M} мин ничего не отправил.</small>` : `<small>Сначала исправьте то, что отмечено ✗, — иначе через ${M} мин сообщения придётся отправить вручную.</small>`}</div>`;
   }
+  // v5.69: блок «сначала свой компьютер» — общий модуль WAYS (ways.js); first больше не нужен (порядок решает правило), оставлен для старых вызовов
   async function waysNote(el, svc, first = 'ext', mass = true) {
     if (!el) return null;
+    if (await waysReady()) return window.WAYS.box(el, svc, { mass });
     const w = await ways(); el.innerHTML = w ? waysHtml(w, svc, first, mass) : '';
     return w;
   }
@@ -282,5 +290,5 @@ window.MSGAPP = (() => {
 .ma-ih{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}.ma-ih span{opacity:.75}.ma-it .ma-pv{max-height:72px;margin-top:6px}.ma-it .ma-btns{margin-top:8px}
 .ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay, auto, ways, waysHtml, waysNote, watch, manual };
+  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay, auto, ways, waysHtml, waysNote, waysReady, watch, manual };
 })();
