@@ -504,9 +504,11 @@
     }
     function jobHtml() {
       if (!job) return '';
-      const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка' };
-      return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${job.via === 'ext' ? '💻 ' : ''}${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
-        · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${job.message ? ` · ${esc(job.message)}` : ''}</div>`;
+      const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением (5 мин, потом — запасной способ)' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка', manual: 'не ушло само — отправьте вручную' };
+      const sw = (job.fb ?? []).some(f => f.to === 'srv') && job.via === 'srv' ? ' · браузер не отправил — перешёл на ☁️ сервер' : '';
+      return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${job.via === 'ext' ? '💻 ' : job.status === 'manual' ? '✋ ' : ''}${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
+        · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${sw}${job.message ? ` · ${esc(job.message)}` : ''}
+        ${job.status === 'manual' && job.id ? ` <button type="button" class="btn primary sm" data-ma-manual="${job.id}">✋ Отправить вручную</button>` : ''}</div>`;
     }
     // сводка и фильтр: «Ответили 4 из 10 · актуально 3 · не актуально 1 · ждём 5»
     function sumHtml() {
@@ -827,8 +829,10 @@
         <p class="muted sa-sh-sub">Отправить ${who} через ${SV[svc]} с вашего аккаунта. Так увидят собственники первые сообщения:</p>
         <div class="sa-prev" id="sa-prev"><p class="muted">Собираю текст…</p></div>
         <p class="muted sa-sh-sub">Незнакомым — не больше 30 в день: мессенджер может посчитать это спамом. Сообщения уходят по одному с паузами.</p>
+        <div id="sa-ways"></div>
         <div class="sa-cfoot"><button type="button" class="btn primary" data-go-send disabled>Отправить ${nums.length}</button><button type="button" class="btn ghost" data-close>Изменить текст</button></div>`);
       el._send = { svc, nums };
+      window.MSGAPP?.waysNote?.($('#sa-ways'), svc, svcs?.svcs ? viaPick() : 'srv');   // v5.68: как уйдёт и чего не хватает
       try {
         const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, dry: true, via: svcs?.svcs ? viaPick() : 'srv', ...selArg() });
         if ($('#sa-note') !== el) return;
@@ -843,7 +847,8 @@
         const via = viaPick();
         const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, via, ...selArg() });
         if (via === 'ext' && here()) window.postMessage({ da: 'sendPoll' }, location.origin);   // расширение в этом браузере заберёт сразу
-        job = { id: r.id, svc, via, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
+        window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
+        job = { id: r.id, svc, via: r.via ?? via, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
       } catch (err) { if (b) b.disabled = false; toast(err.message, 6000); job = { svc, status: 'error', message: err.message, total: nums.length }; $('#sa-job').innerHTML = jobHtml(); }
     }
     // v5.31a → вкладка B: «🤖 Позвать помощника ИИ» — window.SELAI.open({ sel_id, t }) из selai.js (если ещё не загрузился — подгрузить и повторить)

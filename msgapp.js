@@ -107,8 +107,10 @@ window.MSGAPP = (() => {
         <button type="button" class="ma-way" data-way="app"><b>📱 Открыть приложение</b><small>Текст уже в поле — останется нажать «Отправить»</small></button>
       </div>
       <p class="ma-pv">${esc(text.length > 220 ? text.slice(0, 220) + '…' : text)}</p>
+      <div class="ma-wyb"></div>
       <div class="ma-btns"><button type="button" class="btn ghost" data-x>Отмена</button></div></div>`;
     document.body.appendChild(d);
+    waysNote(d.querySelector('.ma-wyb'), svc, 'ext', false);   // v5.68: как уйдёт и чего не хватает
     d.addEventListener('click', async e => {
       if (e.target === d || e.target.closest('[data-x]')) return d.remove();
       const w = e.target.closest('[data-way]'); if (!w) return;
@@ -117,8 +119,8 @@ window.MSGAPP = (() => {
       try {
         const r = await auto('own_ext_msg', { svc, phone, text });
         if (here()) (window.top || window).postMessage({ da: 'sendPoll' }, location.origin);
-        d.remove();
-        toast(r.on ? `💻 Сообщение уходит из вашего ${SV[svc]} в браузере — 10–40 секунд.` : `💻 Сообщение в очереди: уйдёт, когда компьютер с расширением будет на связи.`, 6000);
+        d.remove(); watch(r.id);
+        toast(r.via === 'srv' ? `☁️ В браузере нет входа ${SV[svc]} — отправляю через сервер сервиса.` : r.on ? `💻 Сообщение уходит из вашего ${SV[svc]} в браузере — 10–40 секунд.` : `💻 Компьютер с расширением не на связи — жду 5 мин, потом ☁️ сервер или ✋ вручную.`, 6000);
       } catch (err) { w.disabled = false; w.querySelector('small').textContent = err.message; }
     });
   }
@@ -168,6 +170,97 @@ window.MSGAPP = (() => {
     if (m.svc === 'wa' && wph.length >= 10 && wtx.trim().length > 1 && (here() || extC?.v)) return chooseWay('wa', wph, wtx, app);
     app();
   }, true);
+  // ---------- v5.68 (п. 2 Алексея): какими способами уйдёт сообщение и запасной путь ----------
+  // Порядок: 💻 расширение в браузере агента → (5 мин без отправки) ☁️ сервер сервиса, если там подключён вход → ✋ вручную (окно со списком).
+  // Переключает сервер (auto own_fb, раз в минуту); сайт только показывает: waysNote перед отправкой, watch(id) — следит, manual(id) — список «вручную».
+  let wayC = null;
+  async function ways(force = false) {
+    if (!tok() || !window.API) return null;
+    if (!force && wayC && Date.now() - wayC.t < 60e3) return wayC.v;
+    let v = null; try { v = await auto('own_ways'); } catch { v = null; }
+    wayC = { t: Date.now(), v }; return v;
+  }
+  const hAgo = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60e3); return m < 60 ? `${m} мин` : m < 1440 ? `${Math.round(m / 60)} ч` : `${Math.round(m / 1440)} дн`; };
+  // строка «Как уйдёт» для мессенджера svc; first — с чего начнём ('ext' | 'srv'); mass — «всем сразу» (сервер в MAX всем не пишет)
+  function waysHtml(w, svc, first = 'ext', mass = true) {
+    const W = w?.svcs?.[svc]; if (!W) return '';
+    const S = SV[svc], M = w.wait_min ?? 5, rows = [];
+    const host = svc === 'wa' ? 'web.whatsapp.com' : svc === 'tg' ? 'web.telegram.org' : 'web.max.ru';
+    const e = W.ext, eOk = !!(e && e.on && e.login === 'ok');
+    const eTxt = !e ? `нет расширения — <a href="ext.html" target="_blank" rel="noopener">установить</a>` : !e.on ? `компьютер с расширением не на связи (был ${hAgo(e.seen_at)} назад) — включите его`
+      : e.login === 'auth' ? `нет входа — откройте ${host} в этом браузере и войдите` : e.login === 'ok' ? `вход ${S} есть` : `вход ${S} не проверен — откройте ${host}`;
+    const sOk = W.srv.ok && (W.srv.mass || !mass);
+    const sTxt = !W.srv.ok ? `вход ${S} не подключён — <a href="hub.html#msg" target="_blank" rel="noopener">«🔌 Подключения» → ${S}</a>`
+      : !sOk ? `в ${S} сервер всем сразу не пишет` : `вход${W.srv.name ? ` «${esc(W.srv.name)}»` : ''} подключён${w.srv_seen_h > 48 ? ` · сервер не отвечал ${w.srv_seen_h} ч — может не сработать` : ''}`;
+    const ext = [eOk, `💻 Ваш браузер: ${eTxt}`], srv = [sOk, `☁️ Сервер сервиса: ${sTxt}`];
+    (first === 'srv' ? [srv] : [ext, srv]).forEach(r => rows.push(r));
+    rows.push([true, `✋ Вручную: не ушло за ${M} мин — пришлю список с кнопками «Открыть ${S}» и готовым текстом`]);
+    const okAny = rows.slice(0, -1).some(r => r[0]);
+    return `<div class="ma-wy${okAny ? '' : ' bad'}" role="note"><b class="ma-t">Как уйдёт${okAny ? '' : ' — автоматически не получится'}</b><ol>${rows.map(([ok, t]) => `<li class="${ok ? 'ok' : 'no'}"><i aria-hidden="true">${ok ? '✓' : '✗'}</i><span>${t}</span></li>`).join('')}</ol>
+      ${okAny ? `<small>Каждый следующий способ — если предыдущий за ${M} мин ничего не отправил.</small>` : `<small>Сначала исправьте то, что отмечено ✗, — иначе через ${M} мин сообщения придётся отправить вручную.</small>`}</div>`;
+  }
+  async function waysNote(el, svc, first = 'ext', mass = true) {
+    if (!el) return null;
+    const w = await ways(); el.innerHTML = w ? waysHtml(w, svc, first, mass) : '';
+    return w;
+  }
+  // следить за отправкой: переключение на сервер — подсказка, «вручную» — окно со списком. Список следимых — в localStorage (после перезагрузки тоже)
+  const JK = 'maJobs';
+  const jobsGet = () => { try { return JSON.parse(localStorage.getItem(JK) || '[]').filter(j => Date.now() - j.t < 864e5); } catch { return []; } };
+  const jobsPut = v => { try { localStorage.setItem(JK, JSON.stringify(v.slice(-10))); } catch { /* приватный режим */ } };
+  let wT = null;
+  function watch(id) { if (!(+id > 0)) return; const v = jobsGet().filter(j => j.id !== +id); v.push({ id: +id, t: Date.now(), via: null }); jobsPut(v); wayC = null; clearTimeout(wT); wT = setTimeout(tick, 20e3); }
+  async function tick() {
+    const v = jobsGet(); if (!v.length || !tok()) return;
+    const keep = [];
+    for (const j of v) {
+      let r = null; try { r = await auto('own_job', { id: j.id }); } catch { continue; }
+      const S = SV[r.svc] ?? '';
+      if (r.status === 'manual') { manual(j.id, r); continue; }
+      if (!['new', 'run'].includes(r.status)) { if (j.via && r.sent) toast(`☁️ ${S}: отправлено ${r.sent} из ${r.total} через сервер сервиса.`, 6000); continue; }
+      if (j.via && j.via !== r.via && r.via === 'srv') toast(`💻 Расширение за 5 мин не отправило — отправляю ☁️ через сервер (${S}).`, 8000);
+      keep.push({ ...j, via: r.via });
+    }
+    jobsPut(keep);
+    if (keep.length) wT = setTimeout(tick, document.hidden ? 60e3 : 20e3);
+  }
+  // окно «✋ Отправить вручную»: по каждому — «Открыть <мессенджер>» (текст уже в поле; Telegram и MAX — текст копируется), «✓ Отправил» — отметка на сервере
+  async function manual(id, r) {
+    if (document.querySelector(`.ma-man[data-id="${id}"]`)) return;
+    if (!r) { try { r = await auto('own_job', { id }); } catch (e) { return toast(e.message); } }
+    const S = SV[r.svc] ?? '', left = (r.items ?? []).filter(x => x.ok !== true && x.phone);
+    if (!left.length) return toast(r.status === 'manual' ? 'Все сообщения уже отмечены как отправленные.' : 'Эта отправка ещё идёт автоматически.', 5000);
+    const why = (r.fb ?? []).map(f => f.to === 'srv' ? `💻 браузер не отправил за 5 мин → ☁️ сервер` : `✋ ${esc(f.why)}`).join(' · ');
+    const d = document.createElement('div');
+    d.className = 'sheet ma-sheet ma-man'; d.dataset.id = id;
+    d.innerHTML = `<div class="sheet-box ma-box" role="dialog" aria-modal="true" aria-label="Отправить вручную">
+      <b class="ma-t">✋ Отправьте вручную — ${left.length} в ${S}</b>
+      <p class="ma-sub">Автоматически не ушло${why ? `: ${why}` : ''}. Нажмите «Открыть ${S}»${r.svc === 'wa' ? ' — текст уже в поле' : ' — текст скопируется, вставьте его в чат'}, отправьте и отметьте «✓ Отправил».</p>
+      <div class="ma-list">${left.map(x => `<div class="ma-it" data-num="${x.num}" data-ph="${esc(x.phone)}">
+        <div class="ma-ih"><b>${esc(x.name || (x.num ? `№ ${x.num}` : 'Клиент'))}</b><span>${esc(x.phone)}</span></div>
+        <p class="ma-pv">${esc(x.text.length > 260 ? x.text.slice(0, 260) + '…' : x.text)}</p>
+        <div class="ma-btns"><button type="button" class="btn primary sm" data-mo>Открыть ${S}</button><button type="button" class="btn soft sm" data-mc>📋 Текст</button><button type="button" class="btn ghost sm" data-md>✓ Отправил</button></div></div>`).join('')}</div>
+      <div class="ma-btns"><button type="button" class="btn ghost" data-x>Закрыть</button></div></div>`;
+    document.body.appendChild(d);
+    const T = new Map(left.map(x => [x.phone, x]));
+    d.addEventListener('click', async e => {
+      if (e.target === d || e.target.closest('[data-x]')) return d.remove();
+      const it = e.target.closest('.ma-it'); if (!it) return;
+      const x = T.get(it.dataset.ph); if (!x) return;
+      if (e.target.closest('[data-mc]')) { const ok = await navigator.clipboard?.writeText(x.text).then(() => true, () => false); return toast(ok ? 'Текст скопирован' : 'Скопируйте текст из окна', 3000); }
+      if (e.target.closest('[data-mo]')) { if (r.svc !== 'wa') navigator.clipboard?.writeText(r.svc === 'max' ? `${x.phone}\n${x.text}` : x.text).catch(() => {}); return open(r.svc, x.phone, r.svc === 'wa' ? x.text : ''); }
+      const b = e.target.closest('[data-md]'); if (!b) return;
+      b.disabled = true;
+      try { await auto('own_manual', { id, num: x.num, phone: x.phone }); it.classList.add('done'); b.textContent = '✓ Отмечено';
+        if (!d.querySelector('.ma-it:not(.done)')) { toast(`Готово: все ${left.length} отмечены. Ответы проверю, как обычно.`, 5000); setTimeout(() => d.remove(), 900); } }
+      catch (err) { b.disabled = false; toast(err.message, 5000); }
+    });
+  }
+  document.addEventListener('click', e => { const m = e.target.closest?.('[data-ma-manual]'); if (m) { e.preventDefault(); manual(+m.dataset.maManual); } });
+  // ссылка из уведомления: …/#ownjob=<id> — сразу окно «вручную»
+  const hj = /^#ownjob=(\d+)$/.exec(location.hash);
+  if (hj && tok()) setTimeout(() => { history.replaceState(null, '', location.pathname + location.search); manual(+hj[1]); }, 1200);
+  if (tok() && jobsGet().length) setTimeout(tick, 4000);
   if (tok()) setTimeout(() => extState(), 2500);   // заранее (раз в 3 минуты на вкладку): есть ли компьютер с расширением
   // стили — здесь же (файл подключается на всех страницах, в том числе s.html со своим s.css)
   const st = document.createElement('style');
@@ -181,7 +274,13 @@ window.MSGAPP = (() => {
 .ma-pv{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--text,#1f2a33) 5%,transparent);font-size:13px;line-height:1.4;white-space:pre-wrap;max-height:120px;overflow:auto}
 .ma-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5001;max-width:min(520px,calc(100vw - 24px));background:var(--text,#1f2a33);color:var(--card,#fff);padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 .ma-toast[hidden]{display:none}
+.ma-wy{margin:10px 0 0;padding:9px 11px;border-radius:12px;border:1px solid var(--line,#d8dee6);font-size:13px;line-height:1.4}.ma-wy.bad{border-color:color-mix(in srgb,var(--warn,#9a5b00) 55%,transparent);background:color-mix(in srgb,var(--warn,#9a5b00) 8%,transparent)}
+.ma-wy ol{list-style:none;margin:6px 0 4px;padding:0;display:grid;gap:4px}.ma-wy li{display:flex;gap:7px}.ma-wy li i{font-style:normal;font-weight:700;width:14px;flex:none}
+.ma-wy li.ok i{color:var(--ok,#15803d)}.ma-wy li.no i{color:var(--bad,#c2410c)}.ma-wy li.no span{opacity:.85}.ma-wy small{opacity:.7;font-size:12px}.ma-wy a{color:var(--accent,#2563eb)}
+.ma-man .ma-box{max-width:560px;max-height:calc(100vh - 32px);display:flex;flex-direction:column}.ma-sub{margin:6px 0 0;font-size:13px;opacity:.8;line-height:1.4}
+.ma-list{display:grid;gap:8px;margin-top:10px;overflow:auto;min-height:0}.ma-it{border:1px solid var(--line,#d8dee6);border-radius:12px;padding:9px 11px}.ma-it.done{opacity:.55}
+.ma-ih{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}.ma-ih span{opacity:.75}.ma-it .ma-pv{max-height:72px;margin-top:6px}.ma-it .ma-btns{margin-top:8px}
 .ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay, auto };
+  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay, auto, ways, waysHtml, waysNote, watch, manual };
 })();

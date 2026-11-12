@@ -408,7 +408,9 @@
           const r = await call('own_send', { _fn: 'auto', svc, text, nums, dry: true, via });
           $('#pk-prev').innerHTML = `<div class="sa-prev">${(r.preview ?? []).map(p => `<div class="sa-pv"><p>${eh(p.text)}</p></div>`).join('')}</div>
             ${r.planned > 2 ? `<p class="muted">…и ещё ${r.planned - 2}.</p>` : ''}${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — откройте телефон в списке; им сообщение не уйдёт.</p>` : ''}
+            <div id="pk-ways"></div>
             <div class="sa-cfoot"><button type="button" class="btn primary" data-ask-go="${eh(svc)}">Отправить ${r.planned ?? nums.length}</button></div>`;
+          window.MSGAPP?.waysNote?.($('#pk-ways'), svc, via);   // v5.68: как уйдёт (браузер → сервер → вручную) и чего не хватает
         } catch (er) { $('#pk-prev').innerHTML = `<p class="err">${eh(er.message)}</p>`; }
       }
       box.addEventListener('change', needOpen);
@@ -434,6 +436,7 @@
           try {
             const r = await call('own_send', { _fn: 'auto', svc: go.dataset.askGo, text, nums, via });
             if (via === 'ext' && document.documentElement.dataset.daExt) window.postMessage({ da: 'sendPoll' }, location.origin);
+            window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
             $('#pk-prev').innerHTML = `<p class="pk-ok" role="status">Поставил в очередь: ${r.planned ?? nums.length}. Отправка идёт по одному с паузами — состояние вопроса обновится на этой странице.</p>${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — им не отправлено.</p>` : ''}`;
             setTimeout(() => reload().catch(() => {}), 20000);
           } catch (er) { go.disabled = false; go.textContent = 'Отправить'; $('#pk-prev').insertAdjacentHTML('afterbegin', `<p class="err">${eh(er.message)}</p>`); }

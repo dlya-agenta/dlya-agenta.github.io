@@ -22,7 +22,7 @@ window.CMPADM = (() => {
   async function count() { try { const r = await H.web('admin_complaints', { status: 'new' }); badge(r.counts?.new ?? 0); } catch { /* старый сервер — без счётчика */ } }
 
   // v5.67: эксклюзив ↔ собственник — две карточки рядом, договор, решения
-  const mini = (o, tag) => !o ? '<div class="xd-c muted">не найдено</div>' : `<a class="xd-c" href="./?q=${o.num}" target="_blank" rel="noopener">
+  const mini = (o, tag) => !o ? '<div class="xd-c muted">не найдено</div>' : `<a class="xd-c" href="./?q=${o.num}#o=${o.num}" target="_blank" rel="noopener">
     ${o.photo ? `<img src="${esc(o.photo)}" alt="" loading="lazy">` : '<span class="xd-np">без фото</span>'}
     <span><small>${tag}</small><b>№ ${o.num}</b> ${esc(what(o))}${o.zk ? `<br>${esc(o.zk)}` : ''}${o.addr ? `<br><span class="muted">${esc(o.addr)}</span>` : ''}${o.hidden ? ' <span class="cmp-tag">скрыто</span>' : ''}${o.contract_ok ? ' <span class="cmp-tag">договор ✓</span>' : ''}</span></a>`;
   const pair = (own, ex, doc = '', until = null) => `<div class="xd-pair">${mini(own, 'Собственник')}<span class="xd-eq">=</span>${mini(ex, '💎 Эксклюзив')}</div>
@@ -60,7 +60,7 @@ window.CMPADM = (() => {
     try { r = await H.web('admin_complaints', { status: tab }); } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     badge(r.counts?.new ?? 0);
     const row = c => `<div class="cmp-row" data-id="${c.id}">
-      <div class="cmp-main"><a href="./?q=${c.num}" target="_blank" rel="noopener"><b>№ ${c.num}</b></a> · ${esc(what(c.obj))}${c.obj?.zk ? ` · ${esc(c.obj.zk)}` : ''}${c.obj?.addr ? ` · ${esc(c.obj.addr)}` : ''}
+      <div class="cmp-main"><a href="./?q=${c.num}#o=${c.num}" target="_blank" rel="noopener"><b>№ ${c.num}</b></a> · ${esc(what(c.obj))}${c.obj?.zk ? ` · ${esc(c.obj.zk)}` : ''}${c.obj?.addr ? ` · ${esc(c.obj.addr)}` : ''}
         ${c.obj?.hidden_kind ? `<span class="cmp-tag">${c.obj.hidden_kind === 'del' ? 'удалено' : 'скрыто'}</span>` : c.obj?.gone ? '<span class="cmp-tag">снято</span>' : ''}
         ${c.n > 1 ? `<span class="cmp-tag hot">жалоб на объект: ${c.n}</span>` : ''}</div>
       <div class="cmp-why"><b>${esc(WHY[c.reason] ?? c.reason)}</b>${c.text ? ` — ${esc(c.text)}` : ''}</div>
