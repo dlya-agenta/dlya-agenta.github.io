@@ -1,9 +1,9 @@
 {
- "rev": "2026-11-12e",
- "ver": "0.7.21",
+ "rev": "2026-11-12j",
+ "ver": "0.7.26",
  "zip": "https://dlya-agenta.github.io/dlya-agenta-ext.zip",
  "page": "https://dlya-agenta.github.io/ext.html",
- "note": "Фото квартиры в WhatsApp — с подписью одним сообщением; MAX по номеру.",
+ "note": "Работа в фоне: вкладки мессенджеров не выгружаются, фото в WhatsApp — без переключения вашей вкладки, ваш открытый чат не перехватывается.",
  "wa": {
   "ok": "#side, #pane-side, [data-testid=\"chat-list\"]",
   "qr": "canvas[aria-label*=\"QR\" i], [data-ref] canvas, [data-testid=\"qrcode\"]",
