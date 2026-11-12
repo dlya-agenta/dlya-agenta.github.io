@@ -5,13 +5,15 @@
 // v5.25b (Алексей 04.11): приложение не установлено — веб-версия: кнопка «Открыть веб-версию» в подсказке; выбрал её — дальше этот мессенджер
 // сразу открывается в веб-версии (localStorage msgappWeb:<svc>, «Снова через приложение» — сброс).
 // v5.46a: ссылки на Telegram-ботов (MSGAPP.isBot) не перехватываются.
+// v5.67 (п. 2 Алексея): есть расширение «Для Агента» (в этом браузере или на включённом компьютере агента) — у ссылки WhatsApp с текстом
+// выбор из двух: «📱 Открыть приложение» или «💻 Отправить через мой браузер» (auto own_ext_msg: сообщение уйдёт из WhatsApp Web агента сразу).
 // window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
 window.MSGAPP = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const SV = { wa: 'WhatsApp', tg: 'Telegram', max: 'MAX' };
   const KEY = 'msgappWarn', day = () => new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
   const TEXT = {
-    app: 'Пишите через <b>приложение</b> WhatsApp, Telegram или MAX на телефоне или компьютере. Если приложения нет — откроется веб-версия в браузере; она может сбить вход нашего сервера (рассылки и проверка ответов), если он подключён к тому же аккаунту, — тогда войдите на сервере заново.',
+    app: 'Пишите через <b>приложение</b> WhatsApp, Telegram или MAX на телефоне или компьютере. Если приложения нет — откроется веб-версия в браузере; она может сбить вход нашего сервера (рассылки и проверка ответов), если он подключён к тому же аккаунту, — тогда войдите на сервере заново. С <a href="ext.html" target="_blank">расширением «Для Агента»</a> веб-версия — ваш способ отправки «💻 Через мой браузер».',
     spam: '<b>Не больше 30 незнакомым людям в день</b> — иначе мессенджер посчитает это спамом и может заблокировать аккаунт. Лучше писать с <b>не основного</b> аккаунта.',
   };
   const warn = (where = '') => `<div class="ma-warn" role="note"><b class="ma-t">⚠️ Перед тем как писать${where ? ` ${esc(where)}` : ''}</b><p>${TEXT.app}</p><p>${TEXT.spam}</p></div>`;
@@ -73,6 +75,50 @@ window.MSGAPP = (() => {
         ${web ? `<a class="btn primary sm ma-web" href="${esc(web)}" target="_blank" rel="noopener" data-web data-ma-web="${svc}">Открыть веб-версию ${SV[svc]}</a>` : ''}`, 12000);
     }, 1600);
   }
+  // v5.67: расширение на связи? (в этом браузере — метка data-da-ext; иначе — сервер: компьютер отметился за 3 минуты); кэш на минуту
+  const here = () => !!document.documentElement.dataset.daExt;
+  const tok = () => { try { return JSON.parse(localStorage.getItem('token') || 'null'); } catch { return null; } };
+  const AUTO = () => String(window.API || '').replace(/\/web$/, '/auto');
+  async function auto(action, extra = {}) {
+    const r = await fetch(AUTO(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, auth: { token: tok() }, ...extra }) });
+    const j = await r.json().catch(() => ({ error: 'server', message: 'Сервер не ответил' }));
+    if (!r.ok || j.error) throw new Error(j.message || j.error || 'Не получилось');
+    return j;
+  }
+  let extC = (() => { try { return JSON.parse(sessionStorage.getItem('daExtC') || 'null'); } catch { return null; } })();
+  async function extState() {
+    if (!tok() || !window.API) return null;
+    if (extC && Date.now() - extC.t < 3 * 60e3) return extC.v;
+    let v = null; try { v = (await auto('own_ext_state')).ext; } catch { v = null; }
+    extC = { t: Date.now(), v: v && (v.on || Date.now() - Date.parse(v.seen_at) < 864e5) ? v : null };
+    try { sessionStorage.setItem('daExtC', JSON.stringify(extC)); } catch { /* приватный режим */ }
+    return extC.v;
+  }
+  function chooseWay(svc, phone, text, app) {
+    const d = document.createElement('div');
+    d.className = 'sheet ma-sheet';
+    d.innerHTML = `<div class="sheet-box ma-box" role="dialog" aria-modal="true" aria-label="Как отправить">
+      <b class="ma-t">Как отправить в ${SV[svc]}?</b>
+      <div class="ma-ways">
+        <button type="button" class="ma-way" data-way="ext"><b>💻 Через мой браузер</b><small>Уйдёт само из вашего ${SV[svc]} Web на компьютере с расширением — сразу, без копирования</small></button>
+        <button type="button" class="ma-way" data-way="app"><b>📱 Открыть приложение</b><small>Текст уже в поле — останется нажать «Отправить»</small></button>
+      </div>
+      <p class="ma-pv">${esc(text.length > 220 ? text.slice(0, 220) + '…' : text)}</p>
+      <div class="ma-btns"><button type="button" class="btn ghost" data-x>Отмена</button></div></div>`;
+    document.body.appendChild(d);
+    d.addEventListener('click', async e => {
+      if (e.target === d || e.target.closest('[data-x]')) return d.remove();
+      const w = e.target.closest('[data-way]'); if (!w) return;
+      if (w.dataset.way === 'app') { d.remove(); return app(); }
+      w.disabled = true; w.querySelector('small').textContent = 'Ставлю в очередь…';
+      try {
+        const r = await auto('own_ext_msg', { svc, phone, text });
+        if (here()) window.postMessage({ da: 'sendPoll' }, location.origin);
+        d.remove();
+        toast(r.on ? `💻 Сообщение уходит из вашего ${SV[svc]} в браузере — 10–40 секунд.` : `💻 Сообщение в очереди: уйдёт, когда компьютер с расширением будет на связи.`, 6000);
+      } catch (err) { w.disabled = false; w.querySelector('small').textContent = err.message; }
+    });
+  }
   function confirmOnce(svc, then) {
     let seen = null; try { seen = localStorage.getItem(KEY); } catch { /* приватный режим */ }
     if (seen === day()) return then();
@@ -114,8 +160,12 @@ window.MSGAPP = (() => {
     let wph = '', wtx = '';
     try { const u = new URL(a.getAttribute('href'), location.href); wph = m.svc === 'tg' ? (/^\/\+(\d{6,})$/.exec(u.pathname)?.[1] ?? '') : digits(u.pathname.slice(1)) || digits(u.searchParams.get('phone')); wtx = u.searchParams.get('text') ?? ''; } catch { /* нет */ }
     const web = m.svc === 'tg' && !wph ? a.getAttribute('href') : webUrl(m.svc, wph, wtx);
-    confirmOnce(m.svc, () => go(m.svc, m.url, /^https:/.test(web) ? web : ''));
+    const app = () => confirmOnce(m.svc, () => go(m.svc, m.url, /^https:/.test(web) ? web : ''));
+    // v5.67: номер и готовый текст есть (WhatsApp) и расширение на связи — два способа; проверка без ожидания: состояние уже в кэше или метка браузера
+    if (m.svc === 'wa' && wph.length >= 10 && wtx.trim().length > 1 && (here() || extC?.v)) return chooseWay('wa', wph, wtx, app);
+    app();
   }, true);
+  if (tok()) setTimeout(() => extState(), 2500);   // заранее (раз в 3 минуты на вкладку): есть ли компьютер с расширением
   // стили — здесь же (файл подключается на всех страницах, в том числе s.html со своим s.css)
   const st = document.createElement('style');
   st.textContent = `.ma-warn{border:1px solid color-mix(in srgb,var(--warn,#9a5b00) 45%,transparent);background:color-mix(in srgb,var(--warn,#9a5b00) 9%,var(--card,#fff));color:var(--text,#1f2a33);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4}
@@ -123,9 +173,12 @@ window.MSGAPP = (() => {
 .ma-sheet{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,16,24,.45)}
 .ma-box{background:var(--card,#fff);color:var(--text,#1f2a33);border-radius:16px;padding:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .ma-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ma-ways{display:grid;gap:8px;margin-top:10px}.ma-way{display:grid;gap:3px;text-align:left;padding:11px 13px;border-radius:12px;border:1.5px solid var(--line,#d8dee6);background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}
+.ma-way:hover{border-color:var(--accent,#2563eb)}.ma-way b{font-size:15px}.ma-way small{font-size:12.5px;opacity:.75;line-height:1.35}.ma-way[data-way="ext"]{border-color:color-mix(in srgb,var(--accent,#2563eb) 55%,transparent)}
+.ma-pv{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--text,#1f2a33) 5%,transparent);font-size:13px;line-height:1.4;white-space:pre-wrap;max-height:120px;overflow:auto}
 .ma-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5001;max-width:min(520px,calc(100vw - 24px));background:var(--text,#1f2a33);color:var(--card,#fff);padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 .ma-toast[hidden]{display:none}
 .ma-toast .ma-web{display:inline-flex;margin:8px 0 0;min-height:36px}.ma-toast .link{color:inherit;text-decoration:underline;background:none;border:0;padding:0;font:inherit;cursor:pointer}`;
   document.head.appendChild(st);
-  return { warn, open, appUrl, webUrl, isBot, text: TEXT };
+  return { warn, open, appUrl, webUrl, isBot, text: TEXT, extState, chooseWay };
 })();

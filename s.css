@@ -394,3 +394,13 @@ html[data-icons=emoji] .sa-ic::before { content: none; }
 .pk-gal .s-im { aspect-ratio: auto; height: 100%; }
 .pk-gal :is(.s-nav, .s-cnt) { display: none; }
 .pk-gal .s-dots { bottom: 4px; }
+/* v5.67: два способа отправки — сервер сервиса или мой браузер (расширение) */
+.sa-via { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.sa-way { text-align: left; display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font: inherit; transition: border-color .15s, box-shadow .15s; }
+.sa-way b { font-size: 14.5px; }
+.sa-way small { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.sa-way:hover { border-color: color-mix(in srgb, var(--accent, #1453d8) 45%, var(--line)); }
+.sa-way.on { border-color: var(--accent, #1453d8); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #1453d8) 14%, transparent); background: color-mix(in srgb, var(--accent, #1453d8) 5%, var(--card)); }
+.sa-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; vertical-align: 1px; }
+.sa-dot.on { background: #1f9d55; box-shadow: 0 0 0 3px color-mix(in srgb, #1f9d55 22%, transparent); }
+@media (max-width: 560px) { .sa-via { grid-template-columns: 1fr; } }

@@ -573,10 +573,17 @@
   async function showMy() {
     const el = $('#ex');
     el.innerHTML = '<p class="muted">Загрузка…</p>';
-    try { my = await H.call('excl_my'); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    let dups = [];
+    try { [my, dups] = await Promise.all([H.call('excl_my'), H.call('xdup_my').then(r => r.items || [], () => [])]); } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     const xs = my.items, act = xs.filter(x => x.status === 'active');
+    // v5.67: эксклюзив совпал с объявлением собственника — приложить договор (жалоба «💎 У меня эксклюзив» в объявлении собственника)
+    const DS = { new: ['🔁 Похоже на объявление собственника', 'warn'], dup: ['🔁 Помечено дублем — договор не приложен', 'warn'], excl: ['✅ Договор подтверждён — объявление собственника снято', 'ok'] };
+    const dupHtml = dups.length ? `<div class="ex-dups">${dups.map(d => `<div class="ex-dup ${DS[d.status]?.[1] ?? ''}"><b>${DS[d.status]?.[0] ?? d.status}</b>
+      <span>Ваш № ${d.excl?.num} = собственник <a href="./?q=${d.own?.num}" target="_blank" rel="noopener">№ ${d.own?.num}</a>${d.why ? ` — ${esc(d.why)}` : ''}</span>
+      ${d.status !== 'excl' ? `<span class="muted">Есть эксклюзивный договор? Откройте объявление собственника → «⚠ Пожаловаться» → «💎 У меня эксклюзив» и приложите договор — модератор снимет объявление.</span>
+        <a class="btn primary sm" href="./?q=${d.own?.num}" target="_blank" rel="noopener">Приложить договор</a>` : ''}</div>`).join('')}</div>` : '';
     const views = xs.reduce((n, x) => n + (x.views || 0), 0), favs = xs.reduce((n, x) => n + (x.favs || 0), 0);
-    el.innerHTML = `<div class="ex-stats"><div><b>${act.length}</b><small>в ленте</small></div><div><b>${xs.filter(x => x.status === 'draft').length}</b><small>черновиков</small></div>
+    el.innerHTML = `${dupHtml}<div class="ex-stats"><div><b>${act.length}</b><small>в ленте</small></div><div><b>${xs.filter(x => x.status === 'draft').length}</b><small>черновиков</small></div>
       <div><b>${views}</b><small>просмотров коллег</small></div><div><b>${favs}</b><small>в избранном у коллег</small></div><div><b>${xs.filter(x => x.status === 'sold').length}</b><small>продано</small></div></div>
       <p class="hint">Размещение — бесплатно: без подписки до 100 объектов, с подпиской — больше (сейчас ${my.count ?? 0} из ${my.max ?? 100}). Объект в ленте 30 дней; раз в месяц подтвердите,
         что он продаётся, — «✅ Актуально» (ещё 30 дней и подъём наверх), за 3 дня напомним. Не подтвердили — объект уходит в «Мой архив»; через 3 месяца в архиве фото и видео удаляются.</p>

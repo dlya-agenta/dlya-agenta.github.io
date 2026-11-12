@@ -464,22 +464,48 @@
         </div></article>`;
     }
     const sendList = () => data.items.filter(x => !unpicked.has(x.num) && x.phone && (data.kind === 'excl' || !cpick || clPick(x)));
+    // v5.67 (п. 2 Алексея): два способа отправки — «☁️ Сервер сервиса» (вход хранится на сервере) и «💻 Мой браузер» (расширение «Для Агента»,
+    // вход агента в WhatsApp Web / Telegram Web / MAX в его браузере; компьютер включён — можно отправлять и с телефона)
+    const here = () => !!document.documentElement.dataset.daExt;   // расширение стоит в ЭТОМ браузере
+    const agoTxt = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60e3); return m < 2 ? 'только что' : m < 60 ? `${m} мин назад` : m < 1440 ? `${Math.round(m / 60)} ч назад` : `${Math.round(m / 1440)} дн. назад`; };
+    function viaPick() {
+      const srvOk = svcs.svcs?.some(v => v.ok), ex = svcs.ext;
+      const saved = get('sa:via', null);
+      if (saved === 'ext' || saved === 'srv') return saved;
+      return ex?.on || (!srvOk && (ex || here())) ? 'ext' : 'srv';
+    }
+    function viaHtml(via) {
+      const srvN = svcs.svcs?.filter(v => v.ok).length ?? 0, ex = svcs.ext;
+      const exSt = ex?.on ? '<i class="sa-dot on"></i>компьютер на связи' : ex ? `<i class="sa-dot"></i>был на связи ${agoTxt(ex.seen_at)} — уйдёт, когда включите` : here() ? '<i class="sa-dot"></i>расширение есть — войдите на сайт в этом браузере' : 'нужно расширение «Для Агента»';
+      return `<div class="sa-via" role="radiogroup" aria-label="Как отправить">
+        <button type="button" class="sa-way${via === 'srv' ? ' on' : ''}" data-via="srv" role="radio" aria-checked="${via === 'srv'}"><b>☁️ Через сервер сервиса</b>
+          <small>${srvN ? `подключено: ${svcs.svcs.filter(v => v.ok).map(v => SV[v.svc]).join(', ')}` : 'мессенджеры не подключены'} · работает и при выключенном компьютере</small></button>
+        <button type="button" class="sa-way${via === 'ext' ? ' on' : ''}" data-via="ext" role="radio" aria-checked="${via === 'ext'}"><b>💻 Через мой браузер</b>
+          <small>${exSt} · вход в мессенджеры остаётся у вас</small></button></div>`;
+    }
     function svcHtml() {
       const n = sendList().length;
       if (!svcs) return '<p class="muted">Проверяю подключённые мессенджеры…</p>';
       if (svcs.error) return `<p class="muted">Отправка всем сразу пока недоступна: ${esc(svcs.error)}</p>
         <a class="btn soft sa-conn" href="hub.html#msg">🔗 Подключить мессенджеры</a>`;
-      return `<div class="sa-svcs">${['tg', 'wa', 'max'].map(k => { const s = svcs.svcs.find(v => v.svc === k);
-        if (s?.soon) return `<span class="btn ghost" aria-disabled="true" title="MAX не всегда находит человека по номеру — пишите вручную кнопкой «MAX» у собственника">${SV[k]} — вручную</span>`;
-        return s?.ok ? `<button type="button" class="btn soft" data-all="${k}"${n && !job?.live ? '' : ' disabled'}>${SV[k]} — ${cpick && data.kind !== 'excl' ? 'отмеченным' : 'всем'} (${n})</button>`
-          : `<a class="btn ghost" href="hub.html#msg" title="Войдите в ${SV[k]} на сервере — один раз">Подключить ${SV[k]}</a>`; }).join('')}</div>
+      const via = viaPick(), ex = svcs.ext, lbl = `${cpick && data.kind !== 'excl' ? 'отмеченным' : 'всем'} (${n})`, dis = n && !job?.live ? '' : ' disabled';
+      const btns = via === 'ext'
+        ? (!ex && !here() ? `<a class="btn soft sa-conn" href="ext.html" target="_blank">🧩 Установить расширение — 2 минуты</a>`
+          : ['tg', 'wa', 'max'].map(k => { const st = ex?.svcs?.[k];
+            return `<button type="button" class="btn soft" data-all="${k}" data-via-go="ext"${dis} title="${st === 'auth' ? `Сначала войдите в ${SV[k]} Web в браузере с расширением` : st === 'ok' ? 'Вход в браузере есть' : `Откройте ${SV[k]} Web в браузере с расширением и войдите — один раз`}">${SV[k]} — ${lbl}${st === 'ok' ? ' ✓' : ''}</button>`; }).join(''))
+        : ['tg', 'wa', 'max'].map(k => { const s = svcs.svcs.find(v => v.svc === k);
+          if (s?.soon) return `<span class="btn ghost" aria-disabled="true" title="Через сервер MAX не всегда находит человека по номеру. Через «Мой браузер» — можно">${SV[k]} — через браузер</span>`;
+          return s?.ok ? `<button type="button" class="btn soft" data-all="${k}"${dis}>${SV[k]} — ${lbl}</button>`
+            : `<a class="btn ghost" href="hub.html#msg" title="Войдите в ${SV[k]} на сервере — один раз">Подключить ${SV[k]}</a>`; }).join('');
+      return `${viaHtml(via)}<div class="sa-svcs">${btns}</div>
+        ${via === 'ext' && ex && !ex.on ? '<small class="muted">Компьютер с расширением сейчас не на связи — сообщения встанут в очередь и уйдут, когда он включится.</small>' : ''}
         ${svcs.day_left != null ? `<small class="muted">Сегодня можно отправить ещё ${svcs.day_left}. Сообщения уходят по одному с паузами, чтобы мессенджер не счёл их рассылкой. Ответы проверю сам: через 30, 60, 90 и 120 минут, затем через 12 часов.</small>` : ''}
         ${!cpick && n < data.items.length ? `<small class="muted">Написать можно только тем, чей телефон открыт (${n} из ${data.items.length}).</small>` : ''}`;
     }
     function jobHtml() {
       if (!job) return '';
-      const S = { new: 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка' };
-      return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
+      const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка' };
+      return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${job.via === 'ext' ? '💻 ' : ''}${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
         · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${job.message ? ` · ${esc(job.message)}` : ''}</div>`;
     }
     // сводка и фильтр: «Ответили 4 из 10 · актуально 3 · не актуально 1 · ждём 5»
@@ -729,7 +755,7 @@
         if (rp && nx) {
           const v = $('#sa-rt').value.trim(), svc = $('#sa-rs')?.value || rp.dataset.reply; if (v.length < 2) return toast('Напишите текст ответа');
           rp.disabled = true;
-          try { await call('own_reply', { _fn: 'auto', num: nx.num, svc, text: v }); $('#sa-rt').value = '';
+          try { const rr = await call('own_reply', { _fn: 'auto', num: nx.num, svc, text: v }); $('#sa-rt').value = ''; if (rr.via === 'ext' && here()) window.postMessage({ da: 'sendPoll' }, location.origin);
             const ch = $('#sa-chat'); if (ch.querySelector('p.muted')) ch.innerHTML = ''; ch.insertAdjacentHTML('beforeend', bub({ who: 'me', text: v, svc, pending: true })); ch.scrollTop = 1e6;
             toast('Ответ в очереди — уйдёт с вашего аккаунта за 1–3 минуты'); }
           catch (err) { toast(err.message, 6000); }
@@ -784,6 +810,8 @@
         for (let k = 0; k < list.length; k++) { oa.textContent = `Открываю ${k + 1} из ${list.length}…`; if (!(await openPhone(list[k]))) break; }
         return redraw();
       }
+      const vw = e.target.closest('[data-via]');
+      if (vw) { put('sa:via', vw.dataset.via); const el = $('#sa-svc'); if (el) el.innerHTML = svcHtml(); return; }
       const all = e.target.closest('[data-all]');
       if (all) {
         const svc = all.dataset.all, nums = sendList().map(i => i.num), xw = data.kind === 'excl';
@@ -802,7 +830,7 @@
         <div class="sa-cfoot"><button type="button" class="btn primary" data-go-send disabled>Отправить ${nums.length}</button><button type="button" class="btn ghost" data-close>Изменить текст</button></div>`);
       el._send = { svc, nums };
       try {
-        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, dry: true, ...selArg() });
+        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, dry: true, via: svcs?.svcs ? viaPick() : 'srv', ...selArg() });
         if ($('#sa-note') !== el) return;
         $('#sa-prev').innerHTML = (r.preview ?? []).map(p => `<div class="sa-pv">${p.photo ? `<img src="${esc(p.photo)}" alt="Фото к сообщению" loading="lazy" referrerpolicy="no-referrer">` : '<div class="sa-pv-no">без фото</div>'}<p>${esc(p.text)}</p></div>`).join('')
           + (r.planned > 2 ? `<p class="muted">…и ещё ${r.planned - 2} — у каждого свои ЖК, адрес, цена и № объекта.</p>` : '');
@@ -812,8 +840,10 @@
     async function sendNow(svc, nums) {
       const b = document.querySelector(`[data-all="${svc}"]`); if (b) b.disabled = true;
       try {
-        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...selArg() });
-        job = { id: r.id, svc, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
+        const via = viaPick();
+        const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, via, ...selArg() });
+        if (via === 'ext' && here()) window.postMessage({ da: 'sendPoll' }, location.origin);   // расширение в этом браузере заберёт сразу
+        job = { id: r.id, svc, via, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
       } catch (err) { if (b) b.disabled = false; toast(err.message, 6000); job = { svc, status: 'error', message: err.message, total: nums.length }; $('#sa-job').innerHTML = jobHtml(); }
     }
     // v5.31a → вкладка B: «🤖 Позвать помощника ИИ» — window.SELAI.open({ sel_id, t }) из selai.js (если ещё не загрузился — подгрузить и повторить)
@@ -832,7 +862,7 @@
       draw();
       await loadMarks(); if (d.kind !== 'excl') await migrate(); redraw();
       if (d.kind === 'excl' && !d.can_view) return;   // v5.25b: без подписки «Написать всем» нет (сервер мессенджеров — по подписке)
-      call('own_init', { _fn: 'auto', ...selArg() }).then(r => { svcs = { svcs: r.svcs ?? [], day_left: r.day_left ?? null }; }, e => { svcs = { error: e.message }; })
+      call('own_init', { _fn: 'auto', ...selArg() }).then(r => { svcs = { svcs: r.svcs ?? [], day_left: r.day_left ?? null, ext: r.ext ?? null }; }, e => { svcs = { error: e.message }; })
         .finally(() => { const el = $('#sa-svc'); if (el) el.innerHTML = svcHtml(); });
     }, e => fail2(e.data?.error === 'owner' ? 'Чужая подборка' : 'Подборка недоступна', e.message));
   }

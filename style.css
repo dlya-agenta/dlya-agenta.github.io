@@ -931,6 +931,21 @@ html[data-icons=emoji] :is(main h1, main h2, main h3, main h4, .sheet-head b) > 
 .iv-cmpf textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .iv-cmpf .hint { margin: 0; font-size: 12.5px; color: var(--muted); }
 .iv-thanks { margin: 0; font-weight: 600; color: var(--ok); }
+/* v5.67: «💎 У меня эксклюзив» — свой эксклюзив, договор, срок; пометка дубля */
+.iv-cmpf .cmpx-chip { border-color: color-mix(in srgb, #c9a227 55%, var(--line)); }
+.cmpx { display: grid; gap: 8px; padding: 10px; border-radius: 10px; background: var(--card); border: 1px dashed color-mix(in srgb, #c9a227 50%, var(--line)); }
+.cmpx-h { font-weight: 700; font-size: 13.5px; }
+.cmpx-list { display: grid; gap: 4px; max-height: 190px; overflow: auto; }
+.cmpx-it { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 13.5px; line-height: 1.35; }
+.cmpx-it:hover { background: var(--soft); }
+.cmpx-it input { margin-top: 3px; accent-color: #c9a227; }
+.cmpx-it em { font-style: normal; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, #c9a227 18%, var(--card)); color: color-mix(in srgb, #8a6a00 80%, var(--ink)); margin-left: 4px; }
+.cmpx-file { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; cursor: pointer; }
+.cmpx-file small { font-size: 12.5px; overflow-wrap: anywhere; }
+.cmpx-until { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.cmpx-until input { font: inherit; font-size: 16px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+.iv-xdup { padding: 8px 12px; border-radius: 10px; font-size: 13.5px; background: color-mix(in srgb, #c9a227 12%, var(--card)); border: 1px solid color-mix(in srgb, #c9a227 40%, var(--line)); }
+.iv-xdup a { font-weight: 700; }
 .iv-lk:empty { display: none; }
 .iv-mod { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; border: 1px dashed var(--line); }
 .iv-mod b { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 4px; }

@@ -281,3 +281,9 @@ body.ex-hassel .sup-fab { bottom: calc(96px + env(safe-area-inset-bottom)); }
 /* v5.48 G: видео объекта (до 2 минут) */
 .ex-video { width: 100%; max-height: 420px; border-radius: 12px; background: #000; margin: 8px 0; display: block; }
 .ex-up.disabled { opacity: .5; pointer-events: none; }
+
+/* v5.67: совпадения эксклюзива с объявлением собственника */
+.ex-dups { display: grid; gap: 8px; margin: 0 0 14px; }
+.ex-dup { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, #c9a227 45%, var(--line)); background: color-mix(in srgb, #c9a227 10%, var(--card)); font-size: 14px; }
+.ex-dup.ok { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--card)); }
+.ex-dup .btn { justify-self: start; }

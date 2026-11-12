@@ -1119,36 +1119,71 @@ function ivTools(x) {
     agent && window.MINE && !x.mine ? '<button type="button" class="btn ghost sm" data-myrm title="Пропадёт только у вас: в поиске, на карте и в «Контакте»">🗑 Убрать у себя</button>' : ''].filter(Boolean).join('');
   const mod = adm ? `<div class="iv-mod"><b>Модерация</b>${window.EDITMAIN && !x.hidden_kind ? `<button type="button" class="btn ghost sm" data-edit title="Цена, описание, фото — правка видна всем">✏️ Править</button>${x.edited ? '<span class="muted">изменено Main</span>' : ''}` : ''}${x.hidden_kind ? `<span class="muted">${x.hidden_kind === 'del' ? 'удалено' : 'скрыто'} у всех</span><button type="button" class="btn ghost sm" data-adm="back">↩ Вернуть</button>`
     : '<button type="button" class="btn ghost sm" data-adm="hide" title="Пропадёт у всех, будет в «🙈 Скрытые»">🙈 Скрыть</button><button type="button" class="btn ghost sm bad" data-adm="del" title="Пропадёт у всех, ночная загрузка не вернёт">🗑 Удалить</button>'}</div>` : '';
-  return row || mod ? `<div class="iv-tools agent-only">${row ? `<div class="iv-row">${row}</div>` : ''}<div class="iv-lk" data-ivlk="${x.num}"></div><div class="iv-cmpf" hidden></div>${mod}</div>` : '';
+  // v5.67: дубль эксклюзива коллеги (модератор пометил: та же квартира, договора нет) — ссылка на эксклюзив
+  const xd = x.excl_dup && agent ? `<div class="iv-xdup">🔁 Эта квартира есть в эксклюзивах коллеги — <a href="./?q=${x.excl_dup}">№ ${x.excl_dup}</a></div>` : '';
+  return row || mod ? `<div class="iv-tools agent-only">${xd}${row ? `<div class="iv-row">${row}</div>` : ''}<div class="iv-lk" data-ivlk="${x.num}"></div><div class="iv-cmpf" hidden></div>${mod}</div>` : '';
 }
 // «⚠ Пожаловаться»: причина кнопкой + текст (у «Другое» — обязательно) → web complain → очередь модерации админа; объявление само не снимается
-const CMP = [['sold', 'Продано'], ['changed', 'Передумал продавать'], ['later', 'Отложил продажу'], ['agent', 'Это агент'], ['other', 'Другое']];
-function complainForm(cardEl, num, btn) {
+// v5.67: «💎 У меня эксклюзив» — свой эксклюзив (похожие — первыми) + файл договора (PDF / фото) + «действует до»; модератор снимает объявление собственника
+const CMP = [['sold', 'Продано'], ['changed', 'Передумал продавать'], ['later', 'Отложил продажу'], ['agent', 'Это агент'], ['excl', '💎 У меня эксклюзив'], ['other', 'Другое']];
+function complainForm(cardEl, num, btn, pre) {
   const box = cardEl.querySelector('.iv-cmpf'); if (!box) return;
-  if (!box.hidden) { box.hidden = true; return; }
-  let why = '';
-  box.innerHTML = `<div class="iv-h">Что не так с объявлением?</div><div class="chips">${CMP.map(([k, t]) => `<button type="button" class="chip" data-why="${k}">${t}</button>`).join('')}</div>
+  if (!box.hidden && !pre) { box.hidden = true; return; }
+  let why = '', xs = null, file = null, xnum = 0;
+  box.innerHTML = `<div class="iv-h">Что не так с объявлением?</div><div class="chips">${CMP.map(([k, t]) => `<button type="button" class="chip${k === 'excl' ? ' cmpx-chip' : ''}" data-why="${k}">${t}</button>`).join('')}</div>
+    <div class="cmpx" hidden></div>
     <textarea rows="2" maxlength="1000" placeholder="Подробнее (необязательно)"></textarea>
     <div class="iv-row"><button type="button" class="btn primary sm" data-send disabled>Отправить</button><button type="button" class="btn ghost sm" data-cancel>Отмена</button></div>
     <p class="hint">Объявление не снимется сразу — его проверит администратор.</p>`;
   box.hidden = false;
-  const ta = box.querySelector('textarea'), send = box.querySelector('[data-send]');
-  const ok = () => { send.disabled = !why || (why === 'other' && ta.value.trim().length < 3); };
+  const ta = box.querySelector('textarea'), send = box.querySelector('[data-send]'), xb = box.querySelector('.cmpx'), hint = box.querySelector('.hint');
+  const ok = () => { send.disabled = !why || (why === 'other' && ta.value.trim().length < 3) || (why === 'excl' && (!xnum || !file)); };
+  const what = x => [x.rooms === 0 ? 'студия' : x.rooms ? `${x.rooms}-комн.` : x.kind, x.area ? `${x.area} м²` : '', x.floor ? `${x.floor}/${x.floors ?? '?'} эт.` : '', x.zk || x.addr || ''].filter(Boolean).join(' · ');
+  async function exclBox() {
+    xb.hidden = false; hint.textContent = 'Договор увидят только модераторы. Действующий договор — объявление собственника снимут, нет договора — объект пометят как дубль.';
+    if (!xs) { xb.innerHTML = '<p class="muted">Загружаю ваши эксклюзивы…</p>';
+      try { xs = (await call('complain_excl', { num })).items ?? []; } catch (e) { xb.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; } }
+    if (!xs.length) { xb.innerHTML = '<p class="muted">У вас нет размещённых эксклюзивов. Сначала разместите объект: <a href="./#excl">💎 Эксклюзивы</a> → «Разместить».</p>'; return; }
+    xnum = xnum || (xs.find(x => x.like) ?? (xs.length === 1 ? xs[0] : null))?.num || 0;
+    xb.innerHTML = `<div class="cmpx-h">Ваш эксклюзив на этот объект</div>
+      <div class="cmpx-list">${xs.map(x => `<label class="cmpx-it${x.like ? ' like' : ''}"><input type="radio" name="cmpx${num}" value="${x.num}"${x.num === xnum ? ' checked' : ''}>
+        <span><b>№ ${x.num}</b> ${esc(what(x))}${x.price ? ` · ${(x.price / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} млн` : ''}${x.like ? ' <em>похоже</em>' : ''}</span></label>`).join('')}</div>
+      <label class="cmpx-file"><input type="file" accept="application/pdf,image/jpeg,image/png,image/heic,image/webp" hidden>
+        <span class="btn soft sm">📎 Приложить договор</span><small class="muted" data-fname>PDF или фото страниц, до 15 МБ</small></label>
+      <label class="cmpx-until"><span>Договор действует до</span><input type="date" data-until></label>`;
+    xb.querySelector('input[type=file]').onchange = e => { const f = e.target.files?.[0]; if (!f) return;
+      if (f.size > 15e6) { toast('Файл больше 15 МБ — сожмите или приложите фото страниц'); return; }
+      file = f; xb.querySelector('[data-fname]').textContent = `✓ ${f.name}`; ok(); };
+    xb.onchange = e => { if (e.target.name === `cmpx${num}`) { xnum = +e.target.value; ok(); } };
+    ok();
+  }
   ta.oninput = ok;
   box.onclick = async e => {
     e.stopPropagation();
     const w = e.target.closest('[data-why]');
-    if (w) { why = w.dataset.why; box.querySelectorAll('[data-why]').forEach(b => b.classList.toggle('on', b === w)); ta.placeholder = why === 'other' ? 'Напишите, что не так (обязательно)' : 'Подробнее (необязательно)'; ok(); return; }
+    if (w) { why = w.dataset.why; box.querySelectorAll('[data-why]').forEach(b => b.classList.toggle('on', b === w)); ta.placeholder = why === 'other' ? 'Напишите, что не так (обязательно)' : 'Подробнее (необязательно)';
+      if (why === 'excl') exclBox(); else { xb.hidden = true; hint.textContent = 'Объявление не снимется сразу — его проверит администратор.'; } ok(); return; }
     if (e.target.closest('[data-cancel]')) { box.hidden = true; return; }
     if (!e.target.closest('[data-send]') || send.disabled) return;
     send.disabled = true;
     try {
-      const r = await call('complain', { num, reason: why, text: ta.value.trim() });
+      let extra = {};
+      if (why === 'excl') {
+        send.textContent = 'Загружаю договор…';
+        const type = file.type || (/\.pdf$/i.test(file.name) ? 'application/pdf' : /\.heic$/i.test(file.name) ? 'image/heic' : 'image/jpeg');
+        const up = await call('complain_doc', { type, size: file.size });
+        if (up.ok === false) throw new Error(up.error);
+        const r = await fetch(up.upload, { method: 'PUT', body: file, headers: { 'content-type': type } });
+        if (!r.ok) throw new Error('Договор не загрузился — попробуйте ещё раз');
+        extra = { excl_num: xnum, doc_path: up.path, doc_name: file.name, until: xb.querySelector('[data-until]')?.value || null };
+      }
+      const r = await call('complain', { num, reason: why, text: ta.value.trim(), ...extra });
       if (r.ok === false) throw new Error(r.error || 'Не получилось');
-      box.innerHTML = `<p class="iv-thanks">✓ ${r.again ? 'Вы уже жаловались на это объявление — администратор проверит.' : 'Спасибо, проверим. Объявление пока остаётся в поиске.'}</p>`;
+      box.innerHTML = `<p class="iv-thanks">✓ ${r.again ? 'Вы уже жаловались на это объявление — администратор проверит.' : why === 'excl' ? 'Договор отправлен модератору. Решение придёт уведомлением.' : 'Спасибо, проверим. Объявление пока остаётся в поиске.'}</p>`;
       btn.disabled = true;
-    } catch (err) { send.disabled = false; toast(err.message); }
+    } catch (err) { send.disabled = false; send.textContent = 'Отправить'; toast(err.message); }
   };
+  if (pre === 'excl') box.querySelector('[data-why="excl"]').click();
 }
 // другое фото в окне объявления: большое фото, счётчик, выделенная миниатюра
 function ivShow(el, x, k) {

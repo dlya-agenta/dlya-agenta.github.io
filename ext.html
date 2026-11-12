@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="favicon.ico?v=5.51b" sizes="16x16 32x32 48x48">
+<link rel="icon" href="icons/logo.svg?v=5.51b" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-180.png?v=5.51b">
+<link rel="manifest" href="manifest.json?v=5.51b">
+<meta name="theme-color" content="#fbf7ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1a22" media="(prefers-color-scheme: dark)">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://telegram.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://arojogajdamsyrrpcmso.supabase.co https://zpkqduhbymvadtwgcyhp.supabase.co https://*.tile.openstreetmap.org https://cdnjs.cloudflare.com https://*.ru; connect-src 'self' https://arojogajdamsyrrpcmso.supabase.co/functions/v1/; frame-src tg:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расширение «Для Агента» — установка</title>
+<link rel="stylesheet" href="doc.css">
+<link rel="stylesheet" href="support.css?v=5.58">
+<script src="scrolllock.js?v=5.26" defer></script>
+<style>
+.ext-hero{display:grid;gap:10px;padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,#0ea5b7 12%,transparent),color-mix(in srgb,#1e4db3 12%,transparent));margin:0 0 18px}
+.ext-hero p{margin:0}.ext-dl{display:inline-flex;gap:8px;align-items:center;justify-self:start;padding:11px 18px;border-radius:12px;background:#1e4db3;color:#fff;font-weight:700;text-decoration:none}
+.ext-steps{counter-reset:st;list-style:none;padding:0;display:grid;gap:10px}.ext-steps li{counter-increment:st;position:relative;padding:10px 12px 10px 48px;border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:12px}
+.ext-steps li::before{content:counter(st);position:absolute;left:12px;top:10px;width:26px;height:26px;border-radius:50%;background:#1e4db3;color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.ext-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ext-two>div{padding:12px;border-radius:12px;border:1px solid color-mix(in srgb,currentColor 14%,transparent)}
+code{background:color-mix(in srgb,currentColor 8%,transparent);padding:1px 6px;border-radius:6px}
+@media(max-width:600px){.ext-two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<a class="top" href="./"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg-doc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0ea5b7"/><stop offset="1" stop-color="#1e4db3"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lg-doc)"/><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="13" fill="none" stroke="#bde9f0" stroke-width="1.2" opacity=".75"/><path d="M9.5 31 20.5 21l11 10v13.5h-22z" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="34.5" r="2.8" fill="#fff"/><path d="M31.5 38h23M49 38v6.5M43.5 38v4.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span><b>Для Агента</b><small>5 минут — вместо тысячи часов!</small></span></a>
+<div class="doc">
+<h1>🧩 Расширение «Для Агента»</h1>
+<div class="ext-hero">
+  <p><b>Сообщения собственникам и клиентам — из вашего WhatsApp, Telegram и MAX, прямо из сайта.</b> Вы один раз входите в мессенджеры в своём браузере, дальше сайт сам отправляет вопросы, подборки и «Написать всем» — по одному, с паузами, и сам проверяет ответы.</p>
+  <p>Плюс перенос своих объявлений с Авито и Циана в ДомКлик и в «Эксклюзивы».</p>
+  <a class="ext-dl" href="dlya-agenta-ext.zip" download>⬇ Скачать расширение (ZIP)</a>
+</div>
+
+<h2>Установка — 2 минуты (Chrome, Яндекс Браузер, Edge)</h2>
+<ol class="ext-steps">
+  <li>Скачайте ZIP по кнопке выше и распакуйте его — появится папка <code>dlya-agenta-ext</code>.</li>
+  <li>Откройте в адресной строке <code>chrome://extensions</code> (в Яндекс Браузере — <code>browser://extensions</code>) и включите справа вверху <b>«Режим разработчика»</b>.</li>
+  <li>Нажмите <b>«Загрузить распакованное»</b> и выберите папку <code>dlya-agenta-ext</code>. Закрепите значок «Для Агента» на панели.</li>
+  <li>Войдите на <a href="./">сайт «Для Агента»</a> в этом браузере — расширение подхватит вход само.</li>
+  <li>Откройте и войдите один раз: <a href="https://web.whatsapp.com/" target="_blank" rel="noopener">web.whatsapp.com</a> (QR-код с телефона), <a href="https://web.telegram.org/k/" target="_blank" rel="noopener">web.telegram.org</a>, <a href="https://web.max.ru/" target="_blank" rel="noopener">web.max.ru</a>.</li>
+</ol>
+
+<h2>Как отправлять</h2>
+<div class="ext-two">
+  <div><b>💻 Через мой браузер</b><p>Сообщения уходят из ваших мессенджеров в этом браузере. Ключи входа остаются у вас — на сервер ничего не передаётся. Компьютер и браузер должны быть включены — тогда отправлять можно <b>и с телефона</b>: сайт ставит задание, компьютер его выполняет.</p></div>
+  <div><b>☁️ Через сервер сервиса</b><p>Вход в мессенджер хранится на нашем сервере («🔗 Мессенджеры»). Работает при выключенном компьютере.</p></div>
+</div>
+<p>В «Написать всем» в подборке, в ответах собственникам и у кнопок WhatsApp с готовым текстом сайт предложит оба способа.</p>
+
+<h2>Правила, чтобы аккаунт не заблокировали</h2>
+<ul>
+  <li>Не больше 40 сообщений в сутки (незнакомым — лучше до 30), по одному с паузой 25–60 секунд — расширение делает это само.</li>
+  <li>Лучше писать с <b>не основного</b> номера.</li>
+  <li>В MAX сообщение уходит, только если по номеру нашёлся ровно один человек — иначе пропуск, чтобы не написать не тому.</li>
+  <li>Во время отправки вкладка WhatsApp Web перезагружается на чат с нужным номером — это нормально; не закрывайте её, пока идёт отправка.</li>
+</ul>
+
+<h2>А на телефоне?</h2>
+<p>Расширения для Chrome на телефоне не работают (на iPhone — совсем, на Android — только в отдельных браузерах, и WhatsApp Web там не открывается). Поэтому на телефоне работает так: <b>компьютер с расширением включён — вы отправляете с телефона</b>, сообщение уходит с компьютера. Без компьютера — «📱 Открыть приложение» с готовым текстом или «☁️ Через сервер».</p>
+</div>
+</main>
+</body>
+</html>
