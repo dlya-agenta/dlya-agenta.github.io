@@ -71,8 +71,9 @@ window.WAYS = (() => {
     return v;
   }
   async function setCloud(svc, on) {
-    try { localStorage.setItem(PK(svc), JSON.stringify(!!on)); } catch { /* приватный режим */ }
+    // единственный источник — сервер (web_users.cloud_ok); localStorage — только для заглушки, если auth_pref на сервере ещё нет
     if (!noApi) { try { await auto('auth_pref', { svc, cloud: !!on }); } catch (e) { if (e.status === 400 || /неизвестн|unknown/i.test(e.message)) noApi = true; else throw e; } }
+    if (noApi) { try { localStorage.setItem(PK(svc), JSON.stringify(!!on)); } catch { /* приватный режим */ } }
     for (const k of [...C.keys()]) if (k.startsWith(`${svc}|`)) C.delete(k);
   }
   const forget = svc => { for (const k of [...C.keys()]) if (k.startsWith(`${svc}|`)) C.delete(k); };
