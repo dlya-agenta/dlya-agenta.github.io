@@ -1253,15 +1253,7 @@ $('#sel-ai').onclick = () => { if (!sel.size) return; if (window.AGENT?.withPick
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
-  // v5.48 G: эксклюзивы коллег — своя подборка (страница «Эксклюзивы»: ссылка клиенту, PDF, «Написать всем» агентам); смешанный выбор — разделить
-  const xs = [...sel].filter(n => n >= 900001), os = [...sel].filter(n => n < 900001);
-  if (xs.length && !os.length) { location.href = `excl.html#sel=${xs.join(',')}`; return; }
-  if (xs.length && !$('#s-split-ok')) {
-    sheet('Подборка', `<p>Выбраны эксклюзивы коллег (${xs.length}) и объявления собственников (${os.length}). Их собирают разными подборками: у эксклюзивов — контакты агентов и «Написать всем» агентам.</p>
-      <div class="sheet-foot"><a class="btn ghost" href="excl.html#sel=${xs.join(',')}">💎 Подборка эксклюзивов</a><button class="btn primary" id="s-split-ok">Подборка собственников (${os.length})</button></div>`);
-    $('#s-split-ok').onclick = () => { xs.forEach(n => sel.delete(n)); store.set('sel', [...sel]); selbar(); xs.forEach(pickSync); $('#sel-make').onclick(); };
-    return;
-  }
+  // v5.65: эксклюзивы коллег и объявления собственников — одной подборкой (ссылка, PDF, отклики клиента — как у собственников)
   let selectionDraft = {edits:{},intro:''};
   const prof = store.get('agent', { name: me.name || '', phone: '' });
   const n = Math.min(sel.size, MAXSEL);
