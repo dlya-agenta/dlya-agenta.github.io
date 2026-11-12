@@ -225,7 +225,7 @@
       if (e.target.closest('[data-lp-test]')) { lawPaid(true); return; }
       if (e.target.closest('[data-photo-test]')) { try { const x = await H.call('adm_photo_test'); H.toast(x.ok ? `Ключ BetterToken «${x.name}» работает · всего списано ${x.used_rub} ₽` : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.50
       if (e.target.closest('[data-night-save]')) { const v = id => document.getElementById(id);
-        try { await H.call('adm_night_set', { photo_ai: { on: v('na-on').checked, kinds: [...document.querySelectorAll('[data-na-kind]:checked')].map(x => x.dataset.naKind), days: v('na-days').value, max_rub: v('na-rub').value, parallel: v('na-par').value, min_sim: v('na-sim').value },
+        try { await H.call('adm_night_set', { photo_ai: { on: v('na-on').checked, kinds: [...document.querySelectorAll('[data-na-kind]:checked')].map(x => x.dataset.naKind), days: v('na-days').value, max_rub: v('na-rub').value, day_usd: v('na-day').value, parallel: v('na-par').value, min_sim: v('na-sim').value },
           phones: { on: v('np-on').checked, target: v('np-target').value, max: v('np-max').value, until: v('np-until').value } }); H.toast('Настройки ночи сохранены — действуют со следующей ночи'); night(); } catch (er) { H.toast(er.message, 6000); } return; }
       if (e.target.closest('[data-speech-test]')) { try { const x = await H.call('adm_speech_test'); H.toast(x.ok ? 'Ключ SpeechKit принят — голосовые в боте работают' : x.error, 8000); } catch (er) { H.toast(er.message, 5000); } return; }   // v5.46a
       const lpOn = e.target.closest('[data-lp-on]');
@@ -259,6 +259,10 @@
       return `<li><small class="muted">${when(l.at)}</small> ${t}</li>`; }).join('');
     box.innerHTML = `<h3>🌙 Ночная работа — выгрузка, номера, фото ИИ</h3>
       <p class="hint">Каждую ночь в ${esc(x.start)} работу запускает Mac (пока GitHub Actions не оплачен). Ключ BetterToken для фото — в «Ключах сервисов» ниже («BetterToken — улучшение фото»): <span class="${x.key_set ? 'tag ok' : 'tag warn'}">${x.key_set ? 'задан ••••' : 'не задан'}</span> <button class="btn ghost" data-photo-test>Проверить ключ</button></p>
+      ${(() => { const t = x.today; if (!t) return ''; const cap = +(p.day_usd ?? 11), pc = Math.min(100, Math.round(t.usd / cap * 100));
+        return `<div class="tip" style="margin:8px 0;padding:8px 10px;border-radius:10px;border:1px solid ${pc >= 80 ? '#c2410c' : 'var(--line,#d8dee6)'}"><b>ИИ сегодня: ${t.usd.toLocaleString('ru-RU')} $ из ${cap} $</b> · фото ИИ ${t.photo_rub} ₽ из ${esc(p.max_rub ?? 600)} ₽
+          <div style="height:6px;border-radius:4px;background:rgba(127,127,127,.2);margin:6px 0"><div style="height:6px;border-radius:4px;width:${pc}%;background:${pc >= 80 ? '#c2410c' : '#15803d'}"></div></div>
+          <small class="muted">${t.top.map(z => `${esc(z.f)} ${z.usd} $`).join(' · ') || 'пока ничего'}</small></div>`; })()}
       <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0">
         <label class="hub-chk"><input type="checkbox" id="na-on"${p.on !== false ? ' checked' : ''}> Улучшать фото ИИ (gpt-image-2.5-flare, 1K, ~0,86 ₽ за фото)</label>
         <span style="display:flex;flex-wrap:wrap;gap:4px 16px">Какие объекты: ${x.kinds.map(k => `<label class="hub-chk"><input type="checkbox" data-na-kind="${esc(k)}"${(p.kinds ?? []).includes(k) ? ' checked' : ''}> ${esc(k)}</label>`).join('')}</span>
@@ -266,7 +270,8 @@
       </div>
       <div class="hub-form">
         <label class="field">Новые — за последние, дней<input type="number" id="na-days" value="${esc(p.days ?? 3)}" min="1" max="14"></label>
-        <label class="field">Не больше ₽ за ночь<input type="number" id="na-rub" value="${esc(p.max_rub ?? 600)}" min="0" max="10000"></label>
+        <label class="field">Фото ИИ: не больше ₽ за сутки<input type="number" id="na-rub" value="${esc(p.max_rub ?? 600)}" min="0" max="10000"></label>
+        <label class="field">Всё ИИ: потолок $ за сутки<input type="number" id="na-day" value="${esc(p.day_usd ?? 11)}" min="1" max="100" step="0.5"></label>
         <label class="field">Фото одновременно<input type="number" id="na-par" value="${esc(p.parallel ?? 4)}" min="1" max="8"></label>
         <label class="field">Порог похожести (0,5–0,95)<input id="na-sim" value="${esc(p.min_sim ?? 0.7)}"></label>
       </div>
