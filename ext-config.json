@@ -1,6 +1,6 @@
 {
- "rev": "2026-11-12b",
- "ver": "0.7.11",
+ "rev": "2026-11-12c",
+ "ver": "0.7.14",
  "zip": "https://dlya-agenta.github.io/dlya-agenta-ext.zip",
  "page": "https://dlya-agenta.github.io/ext.html",
  "note": "Отправка через WhatsApp, Telegram и MAX из сайта; MAX — «Найти по номеру».",
@@ -11,7 +11,7 @@
   "badText": "недействител|invalid|не зарегистрирован|isn.t on WhatsApp",
   "box": "#main footer div[contenteditable=\"true\"]",
   "send": "#main footer button[aria-label=\"Отправить\"], #main footer button[aria-label=\"Send\"], #main footer span[data-icon=\"send\"], #main footer span[data-icon=\"wds-ic-send-filled\"]",
-  "previewSend": "div[role=\"button\"][aria-label=\"Отправить\"], div[role=\"button\"][aria-label=\"Send\"], span[data-icon=\"wds-ic-send-filled\"], span[data-icon=\"send\"]",
+  "previewSend": "[aria-label*=\"выбранный объект\"], [aria-label*=\"выбранных объект\"], [aria-label*=\"selected item\"], div[role=\"button\"][aria-label=\"Отправить\"], div[role=\"button\"][aria-label=\"Send\"], span[data-icon=\"wds-ic-send-filled\"], span[data-icon=\"send\"]",
   "msgs": "#main div.message-in, #main div.message-out",
   "out": "message-out",
   "pre": "[data-pre-plain-text]",
