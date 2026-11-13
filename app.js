@@ -1312,13 +1312,14 @@ $('#sel-make').onclick = () => {
     <details class="agent-only" open><summary>Цены перед созданием</summary><div id="s-costs" class="hint" aria-live="polite">Рассчитываю…</div></details>
     <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span></div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
+    <p class="hint s-trial" id="s-trial" aria-live="polite" hidden></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   SHARE.mount();
   { const t = $('#s-an-t'), pv = $('.s-an-pv'), draw = () => { if (pv && window.AIMD) pv.innerHTML = window.AIMD.md(t.value); }; if (t) { t.addEventListener('input', draw); $('.s-an-d').addEventListener('toggle', draw, { once: true }); } }
   $('#s-mk').oninput = () => { $('#s-mk-v').textContent = `${$('#s-mk').value}%`; quote.refresh(); };
   // v5.23e: галочка телефонов по умолчанию выключена (раньше на каждую ссылку незаметно уходило до 20 номеров); рядом — сколько новых номеров уйдёт.
   // sel_check только считает (номер не открывает): по одному запросу на вид (ссылкой — 20 первых, PDF — 10)
-  let phInfo = null, generating = false;
+  let phInfo = null, generating = false, trialOut = false;
   const phHint = () => {
     const el = $('#s-ph-n'); if (!el) return;
     const k = SHARE.format() === 'link' ? MAXSEL : MAXPDF, nums = [...sel].slice(0, k), c = phInfo;
@@ -1329,13 +1330,21 @@ $('#sel-make').onclick = () => {
       : `Номера не тратятся${need != null ? ` (новых в подборке: ${need})` : ''}. ${later[0].toUpperCase()}${later.slice(1)}.`;
   };
   const costsRoot = $('#s-costs');
+  // этап 04 качества: пробному — сколько подборок осталось на весь пробный период; кончились — сразу предложение подписки, кнопка «Сформировать» не активна
+  const trialLine = t => {
+    const el = $('#s-trial'); if (!el) return false;
+    el.hidden = !t; if (!t) return false;
+    el.innerHTML = t.left > 0 ? `Пробный доступ: осталось <b>${t.left} из ${t.max}</b> ${t.max === 1 ? 'подборки' : 'подборок'}. Повтор после обрыва связи подборку не тратит.`
+      : PLANS.limitHtml(`Пробные подборки закончились (${t.max} из ${t.max}). Подписка — без этого ограничения.`, 'paid');
+    return t.left <= 0;
+  };
   const quote = SELECTION_QUOTE.create({delay: 200,
     read: () => ({nums: [...sel].slice(0, SHARE.format() === 'link' ? MAXSEL : MAXPDF), markup: +$('#s-mk').value, edits: selectionDraft.edits}),
     load: args => call('sel_check', args),
     render: state => {
       if ($('#s-costs') !== costsRoot) return;
       phInfo = state.value ?? null; phHint();
-      $('#s-go').disabled = generating || !state.value;
+      $('#s-go').disabled = generating || !state.value || trialLine(state.value?.trial_sel);
       if (state.pending) costsRoot.textContent = 'Рассчитываю цены и новые телефоны…';
       else if (state.error) { costsRoot.innerHTML = `${esc(state.error)} <button type="button" class="btn ghost" data-quote-retry>Повторить расчёт</button>`; costsRoot.querySelector('[data-quote-retry]').onclick = () => quote.refresh(true); }
       else {
@@ -1412,8 +1421,10 @@ $('#sel-make').onclick = () => {
       if ($('#s-an')?.checked) store.set('sel_an', null);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
       window.INVITE?.hit('sel');
-    } catch (e) { if (e.gate) return showLogin(e.gate); if ($('#s-costs') === costsRoot) { $('#s-err').textContent = e.message; b.textContent = 'Сформировать'; } }
-    finally { generating = false; locked.forEach(([el, was]) => { if (el.isConnected) el.disabled = was; }); }
+    } catch (e) { if (e.gate) return showLogin(e.gate); if ($('#s-costs') === costsRoot) {
+      if (e.data?.error === 'trial_limit') { $('#s-err').textContent = ''; $('#s-lim').innerHTML = `<div class="lim">${PLANS.limitHtml(e.message, 'paid')}</div>`; trialOut = true; trialLine(e.data.trial_sel); b.textContent = 'Сформировать'; return; }
+      $('#s-err').textContent = e.message; b.textContent = 'Сформировать'; } }
+    finally { generating = false; locked.forEach(([el, was]) => { if (el.isConnected) el.disabled = was; }); if (trialOut && $('#s-go')) $('#s-go').disabled = true; }
   };
 };
 // ---------- «Мои подборки» — раздел на главной (v5.23): ./#sels, ./#sels=all | own | fb (меню — nav.js, вкладка C) ----------
