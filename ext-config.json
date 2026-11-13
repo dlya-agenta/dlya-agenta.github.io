@@ -1,6 +1,6 @@
 {
- "rev": "2026-11-13a",
- "ver": "0.7.31",
+ "rev": "2026-11-14a",
+ "ver": "0.7.32",
  "zip": "https://dlya-agenta.github.io/dlya-agenta-ext.zip",
  "page": "https://dlya-agenta.github.io/ext.html",
  "note": "Фото в WhatsApp — внутренними функциями WhatsApp Web: вкладка остаётся в фоне, фокус не отнимается, работает и когда Chrome не на экране.",
