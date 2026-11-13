@@ -52,7 +52,7 @@
       const cred = x => { const k = x.indexOf(':'); return k < 0 ? [x, ''] : [x.slice(0, k), x.slice(k + 1)]; };
       if (hp(b)) { const k = b.lastIndexOf(':'), [u, p] = cred(a); return { scheme, host: b.slice(0, k), port: +b.slice(k + 1), user: dec(u), pass: dec(p) }; }
       if (hp(a)) { const k = a.lastIndexOf(':'), [u, p] = cred(b); return { scheme, host: a.slice(0, k), port: +a.slice(k + 1), user: dec(u), pass: dec(p) }; }
-      return null;
+      // «@» может быть частью пароля в host:port:user:pass — пробуем разбор ниже.
     }
     const pt = s.split(/[\s:|;,]+/).filter(Boolean);
     if (pt.length === 2 && isHost(pt[0]) && isPort(pt[1])) return { scheme, host: pt[0], port: +pt[1], user: '', pass: '' };

@@ -117,7 +117,7 @@ window.NAV = (() => {
   function openProxy() {
     if (window.PROXY?.open) return window.PROXY.open();
     say('Окно прокси загружается…');
-    proxyLoading ??= new Promise((ok, bad) => { const sc = document.createElement('script'); sc.src = 'proxy.js?v=5.40'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+    proxyLoading ??= new Promise((ok, bad) => { const sc = document.createElement('script'); sc.src = 'proxy.js?v=5.71q5'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
     proxyLoading.then(() => window.PROXY?.open ? window.PROXY.open() : say('Прокси пока недоступен — попробуйте позже'))
       .catch(() => { proxyLoading = null; say('Не удалось открыть настройки прокси — проверьте интернет'); });
   }
