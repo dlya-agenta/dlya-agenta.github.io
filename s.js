@@ -486,8 +486,8 @@
       const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением (5 мин, потом — запасной способ)' : job.waiting ? 'сохранено до подключения сервера' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка', manual: 'не ушло само — отправьте вручную' };
       const sw = (job.fb ?? []).some(f => f.to === 'srv') && job.via === 'srv' ? ' · браузер не отправил — перешёл на ☁️ сервер' : '';
       return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${job.via === 'ext' ? '💻 ' : job.status === 'manual' ? '✋ ' : ''}${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
-        · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${sw}${job.message ? ` · ${esc(job.message)}` : ''}
-        ${job.status === 'manual' && job.id ? ` <button type="button" class="btn primary sm" data-ma-manual="${job.id}">✋ Отправить вручную</button>` : ''}</div>`;
+        · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${job.unknown ? ` · ⚠️ не подтверждено ${job.unknown} — проверьте чат` : ''}${sw}${job.message ? ` · ${esc(job.message)}` : ''}
+        ${(job.status === 'manual' || job.unknown && !job.live) && job.id ? ` <button type="button" class="btn primary sm" data-ma-manual="${job.id}">${job.status === 'manual' ? '✋ Отправить вручную' : '⚠️ Проверить неподтверждённые'}</button>` : ''}</div>`;
     }
     // сводка и фильтр: «Ответили 4 из 10 · актуально 3 · не актуально 1 · ждём 5»
     function sumHtml() {

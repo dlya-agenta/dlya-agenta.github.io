@@ -225,7 +225,9 @@ window.MSGAPP = (() => {
       let r = null; try { r = await auto('own_job', { id: j.id }); } catch { continue; }
       const S = SV[r.svc] ?? '';
       if (r.status === 'manual') { manual(j.id, r); continue; }
-      if (!['new', 'run'].includes(r.status)) { if (j.via && r.sent) toast(`☁️ ${S}: отправлено ${r.sent} из ${r.total} через сервер сервиса.`, 6000); continue; }
+      if (!['new', 'run'].includes(r.status)) {
+        if (r.unknown) { toast(`⚠️ ${S}: не подтверждено ${r.unknown} — откройте чат и проверьте, повторно не отправляю.`, 9000); continue; }
+        if (j.via && r.sent) toast(`☁️ ${S}: отправлено ${r.sent} из ${r.total} через сервер сервиса.`, 6000); continue; }
       if (j.via && j.via !== r.via && r.via === 'srv') toast(`💻 Расширение за 5 мин не отправило — отправляю ☁️ через сервер (${S}).`, 8000);
       keep.push({ ...j, via: r.via });
     }
@@ -237,17 +239,20 @@ window.MSGAPP = (() => {
     if (document.querySelector(`.ma-man[data-id="${id}"]`)) return;
     if (!r) { try { r = await auto('own_job', { id }); } catch (e) { return toast(e.message); } }
     const S = SV[r.svc] ?? '', left = (r.items ?? []).filter(x => x.ok !== true && x.phone);
+    // 03.4: «не подтверждено» — только «Открыть чат и проверить» и «✓ Ушло»; готового текста для повтора нет (могло уже уйти)
     if (!left.length) return toast(r.status === 'manual' ? 'Все сообщения уже отмечены как отправленные.' : 'Эта отправка ещё идёт автоматически.', 5000);
     const why = (r.fb ?? []).map(f => f.to === 'srv' ? `💻 браузер не отправил за 5 мин → ☁️ сервер` : `✋ ${esc(f.why)}`).join(' · ');
     const d = document.createElement('div');
     d.className = 'sheet ma-sheet ma-man'; d.dataset.id = id;
     d.innerHTML = `<div class="sheet-box ma-box" role="dialog" aria-modal="true" aria-label="Отправить вручную">
-      <b class="ma-t">✋ Отправьте вручную — ${left.length} в ${S}</b>
+      <b class="ma-t">${left.every(x => x.unknown) ? `⚠️ Проверьте чат — ${left.length} в ${S}` : `✋ Отправьте вручную — ${left.length} в ${S}`}</b>
       <p class="ma-sub">Автоматически не ушло${why ? `: ${why}` : ''}. Нажмите «Открыть ${S}»${r.svc === 'wa' ? ' — текст уже в поле' : ' — текст скопируется, вставьте его в чат'}, отправьте и отметьте «✓ Отправил».</p>
       <div class="ma-list">${left.map(x => `<div class="ma-it" data-num="${x.num}" data-ph="${esc(x.phone)}">
         <div class="ma-ih"><b>${esc(x.name || (x.num ? `№ ${x.num}` : 'Клиент'))}</b><span>${esc(x.phone)}</span></div>
-        <p class="ma-pv">${esc(x.text.length > 260 ? x.text.slice(0, 260) + '…' : x.text)}</p>
-        <div class="ma-btns"><button type="button" class="btn primary sm" data-mo>Открыть ${S}</button><button type="button" class="btn soft sm" data-mc>📋 Текст</button><button type="button" class="btn ghost sm" data-md>✓ Отправил</button></div></div>`).join('')}</div>
+        ${x.unknown ? `<p class="ma-pv">⚠️ Не подтверждено: сообщение могло уже уйти. Откройте чат и проверьте — повторите, только если его там нет.</p>
+        <div class="ma-btns"><button type="button" class="btn primary sm" data-mo>Открыть чат</button><button type="button" class="btn ghost sm" data-md>✓ Ушло</button></div></div>`
+        : `<p class="ma-pv">${esc(x.text.length > 260 ? x.text.slice(0, 260) + '…' : x.text)}</p>
+        <div class="ma-btns"><button type="button" class="btn primary sm" data-mo>Открыть ${S}</button><button type="button" class="btn soft sm" data-mc>📋 Текст</button><button type="button" class="btn ghost sm" data-md>✓ Отправил</button></div></div>`}`).join('')}</div>
       <div class="ma-btns"><button type="button" class="btn ghost" data-x>Закрыть</button></div></div>`;
     document.body.appendChild(d);
     const T = new Map(left.map(x => [x.phone, x]));
@@ -256,6 +261,7 @@ window.MSGAPP = (() => {
       const it = e.target.closest('.ma-it'); if (!it) return;
       const x = T.get(it.dataset.ph); if (!x) return;
       if (e.target.closest('[data-mc]')) { const ok = await navigator.clipboard?.writeText(x.text).then(() => true, () => false); return toast(ok ? 'Текст скопирован' : 'Скопируйте текст из окна', 3000); }
+      if (e.target.closest('[data-mo]') && x.unknown) return open(r.svc, x.phone, '');   // без текста: только посмотреть чат
       if (e.target.closest('[data-mo]')) { if (r.svc !== 'wa') navigator.clipboard?.writeText(r.svc === 'max' ? `${x.phone}\n${x.text}` : x.text).catch(() => {}); return open(r.svc, x.phone, r.svc === 'wa' ? x.text : ''); }
       const b = e.target.closest('[data-md]'); if (!b) return;
       b.disabled = true;
