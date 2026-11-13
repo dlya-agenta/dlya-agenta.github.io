@@ -3,7 +3,7 @@
 // Сервер — hub sel_ai {sel_id} (что понял, альтернативы, текст клиенту; ai: true — переписал ИИ, false — по правилам) и sel_ai_make {sel_id, nums, text} → новая подборка ссылкой.
 (() => {
   if (window.SELAI) return;
-  const V = '5.53a', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
+  const V = '5.71q6', HUB = 'https://arojogajdamsyrrpcmso.supabase.co/functions/v1/hub';
   // v5.53: окно объявления поверх Помощника и на страницах без objpop.js (страница агента s.html)
   // (только когда агент открыл Помощник — у клиента на s.html номера ссылками не становятся)
   const objpop = () => { if (!window.OBJPOP && !document.querySelector('script[src^="objpop.js"]')) { const sc = document.createElement('script'); sc.src = 'objpop.js?v=5.58h'; document.head.appendChild(sc); } };
@@ -13,17 +13,18 @@
   const mln = p => p ? `${(Math.round(p / 1e5) / 10).toLocaleString('ru-RU')} млн` : '';
   const n1 = n => n == null ? '' : String(Math.round(n * 10) / 10).replace('.', ',');
   const sea = m => !m ? '' : m < 1000 ? `${Math.round(m / 10) * 10} м до моря` : `${n1(m / 1000)} км до моря`;
-  async function hub(action, body = {}) {
+  async function hub(action, body = {}, url = HUB) {
     const t = tok();
     if (!t) throw Object.assign(new Error('Войдите на сайт, чтобы позвать помощника'), { code: 'no_auth' });
     let r, j;
     for (let i = 0; i < 2; i++) {
-      try { r = await fetch(HUB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, auth: { token: t }, ...body }) }); j = await r.json().catch(() => ({})); break; }
+      try { r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, auth: { token: t }, ...body }) }); j = await r.json().catch(() => ({})); break; }
       catch (e) { if (i) throw new Error('Нет связи с сервером — проверьте интернет и попробуйте ещё раз'); await new Promise(res => setTimeout(res, 1200)); }
     }
-    if (!r.ok || j.error) throw Object.assign(new Error(j.message || `Ошибка ${r.status}`), { code: j.error, extra: j });
+    if (!r.ok || j.error) throw Object.assign(new Error(j.message || `Ошибка ${r.status}`), { code: j.error, extra: j, data: j });
     return j;
   }
+  const web = (action, body) => hub(action, body, HUB.replace(/\/hub$/, '/web'));
   let ov = null, state = null;
   function close() { if (!ov) return; ov.classList.add('sai-out'); const o = ov; ov = null; setTimeout(() => o.remove(), 180); document.documentElement.classList.remove('sai-lock'); document.removeEventListener('keydown', onKey); }
   const onKey = e => { if (e.key === 'Escape') close(); };
@@ -131,6 +132,7 @@
         <div class="sai-row sai-act">${alts.length && pk ? '<button class="sai-btn pri" type="button" data-add>➕ Добавить клиенту <span data-cnt></span></button>' : ''}
           ${alts.length ? `<button class="sai-btn${pk ? '' : ' pri'}" type="button" data-make>📄 Собрать доп. подборку${pk ? '' : ' <span data-cnt></span>'}</button>` : ''}
           <button class="sai-btn" type="button" data-copy>📋 Скопировать текст</button></div></div>`;
+    SELECTION_REQUEST.createForUser(web).mount(b, web).catch(() => {});
     const cnt = () => { const n = b.querySelectorAll('.sai-card input:checked:not(:disabled)').length; const c = b.querySelector('[data-cnt]'); if (c) c.textContent = `(${n})`; const c2 = b.querySelector('[data-cnt2]'); if (c2) c2.textContent = n; const mk = b.querySelector('[data-make]'); if (mk) mk.disabled = !n; const ad = b.querySelector('[data-add]'); if (ad) ad.disabled = !n; };
     b.querySelectorAll('.sai-card input').forEach(i => i.onchange = cnt); cnt();
     b.querySelectorAll('.sai-ph img').forEach(im => im.addEventListener('error', () => im.remove(), { once: true }));   // без onerror в разметке — его режет CSP сайта
@@ -163,7 +165,7 @@
     if (!nums.length) return toast('Отметьте варианты');
     btn.disabled = true; btn.textContent = 'Собираю подборку…';
     try {
-      const text = b.querySelector('.sai-ta').value, r = await hub('sel_ai_make', { sel_id: o.sel_id, nums, text });
+      const text = b.querySelector('.sai-ta').value, r = await SELECTION_REQUEST.createForUser(web).send(hub, { sel_id: o.sel_id, nums, text }, 'sel_ai_make');
       const full = `${text.trim()}\n\n${r.link}`;
       box.hidden = false;
       box.innerHTML = `<p>✅ <b>Доп. подборка готова</b> (${r.total} ${r.total % 10 === 1 && r.total % 100 !== 11 ? 'объект' : r.total % 10 >= 2 && r.total % 10 <= 4 && (r.total % 100 < 12 || r.total % 100 > 14) ? 'объекта' : 'объектов'})${r.photos_wait ? ` · фото у ${r.photos_wait} загружаются, 2–4 мин` : ''}</p>

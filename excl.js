@@ -523,6 +523,8 @@
       <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}). Все подборки эксклюзивов — в «Моих подборках» → «Подборки эксклюзивов».</div>
       <p class="err" id="s-err"></p></div>`, '<button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button>');
     SHARE.mount(); SHARE.bind(s, H.toast);
+    const creationRequest = SELECTION_REQUEST.createForUser((a, b) => H.web(a, b));
+    creationRequest.mount(s.querySelector('#sheet-body'), (a, b) => H.web(a, b)).catch(() => {});
     s.querySelector('#s-mk').oninput = e => { s.querySelector('#s-mk-v').textContent = `${e.target.value}%`; };
     s.querySelector('#s-go').onclick = async e => {
       const b = e.target, fmt = SHARE.format(), nums = [...sel];
@@ -530,7 +532,7 @@
       b.disabled = true; b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'; s.querySelector('#s-err').textContent = '';
       jset('agent', { name: s.querySelector('#s-name').value, phone: s.querySelector('#s-phone').value }); jset('exMarkup', +s.querySelector('#s-mk').value);
       try {
-        const r = await H.web('sel_create', { kind: 'excl', nums, format: fmt, title: s.querySelector('#s-title').value, markup: +s.querySelector('#s-mk').value,
+        const r = await creationRequest.send((a, b) => H.web(a, b), { kind: 'excl', nums, format: fmt, title: s.querySelector('#s-title').value, markup: +s.querySelector('#s-mk').value,
           agent: s.querySelector('#s-name').value, agent_phone: s.querySelector('#s-phone').value });
         s.querySelector('#sheet-body').innerHTML = `<p>Подборка готова — ${fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента'}.</p>
           ${r.url ? `<div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener">PDF клиенту</a></div><p class="hint">Ссылка на PDF действует час; сам PDF хранится 7 дней в «Моих подборках».</p>` : ''}

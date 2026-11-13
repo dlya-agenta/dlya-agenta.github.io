@@ -94,7 +94,7 @@ window.WAYS = (() => {
     const K = s.cloud;
     if (s.capability?.cloud === false) return [false, 'в MAX сообщения по номеру — только через ваш компьютер'];
     if (!K.ok && K.alive !== false) return [false, `вход ${esc(name(svc))} на сервере не подключён — ${s.capability?.op === 'mail' ? '«Рассылки» → «Войти»' : '<a href="hub.html#msg" target="_blank" rel="noopener">«🔌 Подключения»</a>'}`];
-    if (K.alive !== true) return [false, 'готовность сервера к этой операции не подтверждена — пока через ваш компьютер или вручную'];
+    if (K.alive !== true) return [false, K.queueable === true ? 'сервер сейчас не на связи; можно сохранить задание до подключения' : 'готовность сервера к этой операции не подтверждена — пока через ваш компьютер или вручную'];
     return [true, 'вход на сервере подключён'];
   }
   const DIFF = `<details class="wy-diff"><summary>В чём разница</summary><div class="wy-cols">
@@ -174,7 +174,8 @@ window.WAYS = (() => {
       const slot = d.querySelector('.wy-slot'), go = d.querySelector('[data-go]');
       let cur = 'off';
       const sync = s => { const one = Array.isArray(s) ? s[0] : s; cur = one ? (one.capability?.cloud === false && one.pick === 'srv' ? 'off' : one.pick) : 'off';
-        go.disabled = cur === 'off'; go.textContent = cur === 'ext' ? '💻 Отправить с компьютера' : cur === 'srv' ? '☁️ Отправить через сервер' : 'Отправить'; };
+        if (cur === 'off' && o.allowWait === true && one?.cloud?.allowed === true && one.cloud.ok === true && one.cloud.queueable === true && one.capability?.cloud !== false) cur = 'srv_wait';
+        go.disabled = cur === 'off'; go.textContent = cur === 'ext' ? '💻 Отправить с компьютера' : cur === 'srv' ? '☁️ Отправить через сервер' : cur === 'srv_wait' ? 'Сохранить до подключения' : 'Отправить'; };
       box(slot, svc, { ...o, inWin: true, openHow: true, force: true, onChange: sync }).then(sync);
       const end = v => { d.remove(); done(v); };
       d.addEventListener('click', e => { if (e.target === d || e.target.closest('[data-x]')) return end('off'); if (e.target.closest('[data-go]') && cur !== 'off') end(cur); });
@@ -200,6 +201,6 @@ window.WAYS = (() => {
 .wy-h{display:block;font-size:16px}.wy-ho{margin:8px 0 0;padding-left:20px;font-size:13.5px;line-height:1.45}.wy-p{margin:6px 0 0;font-size:14px;line-height:1.4}.wy-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}`;
   document.head.appendChild(st);
     // поле via для запросов отправки: сервер решает сам; 'srv' — только когда агент сам разрешил облако галочкой и компьютер выключен
-  const via = p => p === 'srv' ? { via: 'srv' } : {};
+  const via = p => p === 'srv_wait' ? {via:'srv',wait:true} : p === 'srv' ? { via: 'srv' } : {};
   return { box, pick, state, setCloud, isNeedPc, needPc, via, name, howto: howtoOf, _decide: decide };
 })();

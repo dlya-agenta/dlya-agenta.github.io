@@ -242,6 +242,7 @@
   function agent(d, call) {
     const hs = location.hash.slice(1), t = hs.split(/[?&]/)[0], root = $('#s-app');
     const clientLink = () => `${location.href.split('#')[0]}#${t}`;
+    const creationRequest = SELECTION_REQUEST.createForUser(call);
     const toast = (m, ms) => S().toast(m, ms);
     let flt = 'all', marks = {}, mod = null;
     document.title = `Самоподбор — ${d.title || 'ссылка'}`;
@@ -343,6 +344,7 @@
         ${L.advised.length ? `<section class="pk-sec"><h2>Советует агент <span class="pk-cnt">${L.advised.length}</span></h2><p class="hint">Эти объекты клиент видит на вкладке «Советует агент».</p>
           <div class="pk-list">${L.advised.map(x => card(x, 'adv')).join('')}</div></section>` : ''}`;
       if (moreOpen) root.querySelector('.pk-more').open = true;
+      creationRequest.mount(root, call).catch(() => {});
     }
 
     // ---------- данные
@@ -350,7 +352,7 @@
     // v5.48 H2: «🤖 Позвать ИИ» — окно помощника (selai.js); добавленное в «Советует агент» → страница перечитывается
     async function aiOpen() {
       const arg = { sel_id: d.id, t, pick: true };
-      if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.51'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+      if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.71q6'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
     if (window.__pkAdded) document.removeEventListener('selai:added', window.__pkAdded);   // один обработчик на страницу
@@ -408,7 +410,7 @@
             ${r.planned > 2 ? `<p class="muted">…и ещё ${r.planned - 2}.</p>` : ''}${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — откройте телефон в списке; им сообщение не уйдёт.</p>` : ''}
             <div id="pk-ways"></div>
             <div class="sa-cfoot"><button type="button" class="btn primary" data-ask-go="${eh(svc)}">Отправить ${r.planned ?? nums.length}</button></div>`;
-          window.WAYS?.box($('#pk-ways'), svc, { mass: true, action: 'передать вопросы' });   // v5.69: сначала свой компьютер
+          window.WAYS?.box($('#pk-ways'), svc, { mass: true, allowWait: true, action: 'передать вопросы' });   // v5.69: сначала свой компьютер
         } catch (er) { $('#pk-prev').innerHTML = `<p class="err">${eh(er.message)}</p>`; }
       }
       box.addEventListener('change', needOpen);
@@ -432,13 +434,13 @@
           go.disabled = true; go.textContent = 'Отправляю…';
           try {
             const svc = go.dataset.askGo;
-            let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, action: 'передать вопросы' }) : 'ext';
+            let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, allowWait: true, action: 'передать вопросы' }) : 'ext';
             if (via === 'off') { go.disabled = false; go.textContent = 'Отправить'; return; }
             let r; try { r = await call('own_send', { _fn: 'auto', svc, text, nums, ...window.WAYS?.via(via) }); }
-            catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true })) === 'off') throw e1; r = await call('own_send', { _fn: 'auto', svc, text, nums, ...window.WAYS?.via(via) }); }
+            catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true, allowWait: true })) === 'off') throw e1; r = await call('own_send', { _fn: 'auto', svc, text, nums, ...window.WAYS?.via(via) }); }
             if (via === 'ext' && document.documentElement.dataset.daExt) window.postMessage({ da: 'sendPoll' }, location.origin);
-            window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
-            $('#pk-prev').innerHTML = `<p class="pk-ok" role="status">Поставил в очередь: ${r.planned ?? nums.length}. Отправка идёт по одному с паузами — состояние вопроса обновится на этой странице.</p>${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — им не отправлено.</p>` : ''}`;
+            if (!r.waiting) window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
+            $('#pk-prev').innerHTML = `<p class="pk-ok" role="status">${r.waiting ? 'Сохранено до подключения сервера' : 'Поставил в очередь'}: ${r.planned ?? nums.length}. ${r.waiting ? 'Сообщения пока не отправлены. Состояние обновится после подключения.' : 'Отправка идёт по одному с паузами — состояние вопроса обновится на этой странице.'}</p>${r.need_open ? `<p class="pk-warn">У ${r.need_open} ${pl(r.need_open, 'объекта', 'объектов', 'объектов')} телефон не открыт — им не отправлено.</p>` : ''}`;
             setTimeout(() => reload().catch(() => {}), 20000);
           } catch (er) { go.disabled = false; go.textContent = 'Отправить'; $('#pk-prev').insertAdjacentHTML('afterbegin', `<p class="err">${eh(er.message)}</p>`); }
         }
@@ -542,7 +544,7 @@
       }
       else if (k === 'resetdev') { const r = await run(b, () => call('pick_reset_dev', { id: d.id }), 'Устройства сброшены — ссылку можно открыть на двух новых'); if (r) { d.devices = 0; draw(); } }
       else if (k === 'sel') {
-        const r = await run(b, () => call('pick_to_sel', { id: d.id }));
+        const r = await run(b, () => creationRequest.send(call, {id: d.id, nums: lists().chosen.map(x => x.num)}, 'pick_to_sel'));
         if (r) {
           const l = r.link || '';
           modal(`${head('Подборка готова')}<p>Обычная подборка-ссылка на 30 дней из выбранного клиентом${r.cut ? ` (не вошло: ${r.cut} — ссылкой до 20 объектов)` : ''}, с той же комиссией. Клиенту её выбирать заново не нужно.</p>

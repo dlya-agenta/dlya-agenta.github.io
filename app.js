@@ -1288,6 +1288,7 @@ $('#sel-ai').onclick = () => { if (!sel.size) return; if (window.AGENT?.withPick
 $('#sel-video').onclick = () => { location.href = `hub.html#video=${[...sel].slice(0, 10).join(',')}`; };   // «🎬 Ролик» — видеообзор (hub.html, sec/video.js; замок MAX — там же)
 $('#sel-clear').onclick = () => { const was = [...sel]; sel.clear(); store.set('sel', []); selbar(); was.forEach(pickSync); };
 $('#sel-make').onclick = () => {
+  const creationRequest = SELECTION_REQUEST.create({scope: me.login});
   // v5.65: эксклюзивы коллег и объявления собственников — одной подборкой (ссылка, PDF, отклики клиента — как у собственников)
   let selectionDraft = {edits:{},intro:''};
   const prof = store.get('agent', { name: me.name || '', phone: '' });
@@ -1347,6 +1348,7 @@ $('#sel-make').onclick = () => {
   $('#s-ph').addEventListener('change', phHint);
   $('#s-fmt')?.addEventListener('change', () => quote.refresh());
   quote.refresh();
+  creationRequest.mount($('#sheet-body'), call);
   let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
     if (generating) return;
@@ -1405,7 +1407,7 @@ $('#sel-make').onclick = () => {
         }
       }
       prog(`${limit ? limit + ' ' : ''}${fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…'}`); b.textContent = fmt === 'link' ? 'Создаю ссылку…' : 'Собираю PDF…';
-      const r = await call('sel_create', { ...args, ...($('#s-an')?.checked && $('#s-an-t')?.value.trim() ? { analysis: $('#s-an-t').value.trim(), analysis_agent: $('#s-an-a')?.value.trim() ?? '' } : {}), edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
+      const r = await creationRequest.send(call, { ...args, ...($('#s-an')?.checked && $('#s-an-t')?.value.trim() ? { analysis: $('#s-an-t').value.trim(), analysis_agent: $('#s-an-a')?.value.trim() ?? '' } : {}), edits:selectionDraft.edits,intro:selectionDraft.intro,arch_nums:store.get('sel_arch',[]).filter(n=>nums.includes(n)), partial: partial || !!limit });
       if (r.used) PLANS.counter(r.used);
       if ($('#s-an')?.checked) store.set('sel_an', null);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
@@ -1498,7 +1500,7 @@ async function onSelPage(e) {
   const ai = e.target.closest('[data-selai]');
   if (ai) {
     const arg = { sel_id: +ai.dataset.selai, t: ai.dataset.t || null, ...(ai.dataset.pick ? { pick: true } : {}) };
-    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53a'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
+    if (!window.SELAI?.open) { toast('Помощник загружается…'); await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.71q6'; el.onload = el.onerror = ok; document.head.appendChild(el); }); }
     if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
   }
 }

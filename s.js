@@ -483,7 +483,7 @@
     }
     function jobHtml() {
       if (!job) return '';
-      const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением (5 мин, потом — запасной способ)' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка', manual: 'не ушло само — отправьте вручную' };
+      const S = { new: job.via === 'ext' ? 'ждёт компьютер с расширением (5 мин, потом — запасной способ)' : job.waiting ? 'сохранено до подключения сервера' : 'в очереди', run: 'идёт отправка', done: 'готово', stopped: 'остановлено', error: 'ошибка', manual: 'не ушло само — отправьте вручную' };
       const sw = (job.fb ?? []).some(f => f.to === 'srv') && job.via === 'srv' ? ' · браузер не отправил — перешёл на ☁️ сервер' : '';
       return `<div class="sa-job${job.status === 'done' ? ' ok' : ''}"><b>${job.via === 'ext' ? '💻 ' : job.status === 'manual' ? '✋ ' : ''}${SV[job.svc] ?? ''}: ${S[job.status] ?? esc(job.status)}</b>
         · отправлено ${job.sent ?? 0} из ${job.total ?? job.planned ?? 0}${job.failed ? ` · не ушло ${job.failed}` : ''}${sw}${job.message ? ` · ${esc(job.message)}` : ''}
@@ -686,6 +686,7 @@
         <div class="sa-cfoot"><button type="button" class="btn primary" data-mk>Сформировать ссылку</button><small class="muted" id="sa-cn"></small></div><div id="sa-cres"></div>`);
       const cnt = () => { const n = document.querySelectorAll('.sa-clist input:checked').length; $('#sa-cn').textContent = n ? `выбрано ${n} (до 20)` : 'выберите объекты'; };
       $('#sa-note').addEventListener('change', cnt); cnt();
+      SELECTION_REQUEST.createForUser(call).mount($('#sa-cres'), call).catch(() => {});
     }
     async function checkedMake(b) {
       const nums = [...document.querySelectorAll('.sa-clist input:checked')].map(i => +i.value);
@@ -693,7 +694,7 @@
       if (nums.length > 20) return toast('В подборке ссылкой — до 20 объектов');
       b.disabled = true; b.textContent = 'Собираю…';
       try {
-        const r = await call('sel_create', { format: 'link', from_sel: data.id || selId || undefined, nums, title: $('#sa-ct').value.trim(), markup: Math.max(0, Math.min(10, +$('#sa-cm').value || 0)),
+        const r = await SELECTION_REQUEST.createForUser(call).send(call, { format: 'link', from_sel: data.id || selId || undefined, nums, title: $('#sa-ct').value.trim(), markup: Math.max(0, Math.min(10, +$('#sa-cm').value || 0)),
           hide_addr: $('#sa-ch').checked, agent: data.agent || undefined, agent_phone: data.agent_phone || undefined, phones: false });
         if (!r.link) throw new Error(r.message || 'Ссылка не получилась');
         $('#sa-cres').innerHTML = `<div class="sa-done-box"><p><b>✓ Проверенная подборка готова</b> — ${r.total ?? nums.length} ${plural(r.total ?? nums.length, 'объект', 'объекта', 'объектов')}</p>
@@ -811,7 +812,7 @@
         <div id="sa-ways"></div>
         <div class="sa-cfoot"><button type="button" class="btn primary" data-go-send disabled>Отправить ${nums.length}</button><button type="button" class="btn ghost" data-close>Изменить текст</button></div>`);
       el._send = { svc, nums };
-      window.WAYS?.box($('#sa-ways'), svc, { mass: true, action: 'написать всем' });   // v5.69: сначала свой компьютер
+      window.WAYS?.box($('#sa-ways'), svc, { mass: true, allowWait: true, action: 'написать всем' });   // v5.69: сначала свой компьютер
       try {
         const r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, dry: true, ...selArg() });
         if ($('#sa-note') !== el) return;
@@ -823,14 +824,14 @@
     async function sendNow(svc, nums) {
       const b = document.querySelector(`[data-all="${svc}"]`); if (b) b.disabled = true;
       try {
-        let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, action: 'написать всем' }) : 'ext';
+        let via = window.WAYS ? await window.WAYS.pick(svc, { mass: true, allowWait: true, action: 'написать всем' }) : 'ext';
         if (via === 'off') { if (b) b.disabled = false; return toast('Не отправлено: включите компьютер с расширением или разрешите сервер галочкой'); }
         let r; try { r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...window.WAYS?.via(via), ...selArg() }); }
-        catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true })) === 'off') throw e1;
+        catch (e1) { if (!window.WAYS?.isNeedPc(e1) || (via = await window.WAYS.needPc(svc, e1, { mass: true, allowWait: true })) === 'off') throw e1;
           r = await call('own_send', { _fn: 'auto', svc, text: text(), nums, ...window.WAYS?.via(via), ...selArg() }); }
         if (via === 'ext' && here()) window.postMessage({ da: 'sendPoll' }, location.origin);   // расширение в этом браузере заберёт сразу
-        window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
-        job = { id: r.id, svc, via: r.via ?? via, status: 'new', total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
+        if (!r.waiting) window.MSGAPP?.watch?.(r.id);   // v5.68: 5 мин без отправки — сервер или окно «вручную»
+        job = { id: r.id, svc, via: r.via ?? via, status: 'new', waiting: r.waiting === true, total: r.planned ?? nums.length, sent: 0, failed: 0, live: true }; $('#sa-job').innerHTML = jobHtml(); setTimeout(poll, 2500);
       } catch (err) { if (b) b.disabled = false; toast(err.message, 6000); job = { svc, status: 'error', message: err.message, total: nums.length }; $('#sa-job').innerHTML = jobHtml(); }
     }
     // v5.31a → вкладка B: «🤖 Позвать помощника ИИ» — window.SELAI.open({ sel_id, t }) из selai.js (если ещё не загрузился — подгрузить и повторить)
@@ -838,7 +839,7 @@
       const arg = { sel_id: data.id || selId || null, t: /^[A-Za-z0-9_-]{22,40}$/.test(t) ? t : null };
       if (window.SELAI?.open) return window.SELAI.open(arg);
       toast('Помощник загружается…');
-      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.53a'; el.onload = el.onerror = ok; document.head.appendChild(el); });
+      await new Promise(ok => { const el = document.createElement('script'); el.src = 'selai.js?v=5.71q6'; el.onload = el.onerror = ok; document.head.appendChild(el); });
       if (window.SELAI?.open) window.SELAI.open(arg); else toast('Помощник пока недоступен — обновите страницу через минуту', 5000);
     }
 
