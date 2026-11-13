@@ -9,7 +9,7 @@
 // выбор из двух: «📱 Открыть приложение» или «💻 Отправить через мой браузер» (auto own_ext_msg: сообщение уйдёт из WhatsApp Web агента сразу).
 // window.MSGAPP.warn(where) — тот же текст строкой (для страниц рассылок и «Мессенджеров»); MSGAPP.open(svc, phone, text) — открыть приложение.
 // v5.69: ways.js (window.WAYS — «сначала свой компьютер») подгружается отсюда на всех страницах, где есть msgapp.js
-(() => { if (window.WAYS || document.querySelector('script[src^="ways.js"]')) return; const s = document.createElement('script'); s.src = 'ways.js?v=5.69b'; s.defer = true; document.head.appendChild(s); })();
+(() => { if (window.WAYS || document.querySelector('script[src^="ways.js"]')) return; const s = document.createElement('script'); s.src = 'ways.js?v=5.71q4'; s.defer = true; document.head.appendChild(s); })();
 const waysReady = () => window.WAYS ? Promise.resolve(true) : new Promise(ok => { let n = 0; const t = setInterval(() => { if (window.WAYS || ++n > 40) { clearInterval(t); ok(!!window.WAYS); } }, 100); });
 window.MSGAPP = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

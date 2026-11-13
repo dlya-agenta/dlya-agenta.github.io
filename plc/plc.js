@@ -206,7 +206,7 @@ window.RK = (() => {
   function stText(st) { return { ok: 'в очереди', repeat: 'уже в вашей рекламе', mine: 'уже в вашей рекламе', busy: 'уже в рекламе у коллеги', limit: 'черновики на этот месяц закончились', gone: 'снят с продажи', dup: 'уже был в вашем кабинете' }[st] ?? st; }
   function report(x) {
     const n = x.items.length, bad = x.items.filter(i => i.st !== 'ok');
-    ui.toast(`В рекламу отправлено: ${x.added} из ${n}${bad.length ? ` · ${bad.map(i => `№${i.num} — ${stText(i.st)}`).slice(0, 3).join('; ')}` : ''}`, bad.length ? 7000 : 3500);
+    ui.toast(`В очередь на создание черновиков: ${x.added} из ${n}. Результат появится в списке${bad.length ? ` · ${bad.map(i => `№${i.num} — ${stText(i.st)}`).slice(0, 3).join('; ')}` : ''}`, bad.length ? 7000 : 5000);
   }
   async function send(nums) {
     if (!nums.length) return ui.toast('Отметьте объекты галочкой');
@@ -225,7 +225,7 @@ window.RK = (() => {
             <input type="checkbox" data-pick="${y.num}" ${pick.has(y.num) ? 'checked' : ''}><span class="rk-ph">${thumb(y)}</span><span class="rk-txt">${line(y)}</span></label>`).join('')}</div>`
             : x.st === 'busy' ? '<small class="muted">Похожих свободных объектов нет.</small>' : ''}</div></div>`).join('')}</div>
         <div class="sheet-foot rk-foot"><span class="muted">${pick.size > room ? `<span class="err">Выбрано ${pick.size}, а осталось ${room}</span>` : `Выбрано: ${pick.size}`}</span>
-          <button class="btn primary" id="rk-send" ${pick.size && pick.size <= room ? '' : 'disabled'}>Отправить в рекламу${pick.size ? ` (${pick.size})` : ''}</button></div></div>`;
+          <button class="btn primary" id="rk-send" ${pick.size && pick.size <= room ? '' : 'disabled'}>Поставить в очередь черновиков${pick.size ? ` (${pick.size})` : ''}</button></div></div>`;
     };
     draw();
     body().onchange = e => { const c = e.target.closest('[data-pick]'); if (!c) return; c.checked ? pick.add(+c.dataset.pick) : pick.delete(+c.dataset.pick); draw(); };

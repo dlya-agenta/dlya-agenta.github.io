@@ -1291,6 +1291,7 @@ $('#sel-make').onclick = () => {
   // v5.65: эксклюзивы коллег и объявления собственников — одной подборкой (ссылка, PDF, отклики клиента — как у собственников)
   let selectionDraft = {edits:{},intro:''};
   const prof = store.get('agent', { name: me.name || '', phone: '' });
+  const markup = Math.max(0, Math.min(10, Number(client.on ? client.cm : store.get('selMarkup', 0)) || 0));
   const n = Math.min(sel.size, MAXSEL);
   // v5.23e: раньше selPhones = true записывался при каждой подборке и с галочкой «по умолчанию вкл.» — один раз сбрасываем, дальше — выбор агента
   if (!store.get('selPh523e', false)) { store.set('selPhones', false); store.set('selPh523e', 1); }
@@ -1299,41 +1300,61 @@ $('#sel-make').onclick = () => {
     <label class="field">Твёрдый бюджет клиента, до (млн ₽)<input id="s-budget" type="number" min="0.1" step="0.1" placeholder="Если клиент назвал предел" value="${client.on && Number(f.pmax) > 0 ? esc(f.pmax) : ''}"></label>
     <p class="hint">Помощник не предложит варианты дороже этого предела. Пустое поле — бюджет пока не задан.</p>
     ${SHARE.formatHtml(n)}
-    <label class="field agent-only">Комиссия сверху цены (для клиента): <b id="s-mk-v">${client.on ? client.cm : 5}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${client.on ? client.cm : 5}"></label>
+    <label class="field agent-only">Комиссия сверху цены (для клиента): <b id="s-mk-v">${markup}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${markup}"></label>
     <div class="hint agent-only">Цены для клиента будут увеличены на этот процент (округление до 50 000 ₽: 12 225 000 → 12 250 000, 12 120 000 → 12 100 000). 0% — цены собственника.</div>
     <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
     <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
     <label class="chk"><input type="checkbox" id="s-hide" ${store.get('hideAddr', true) ? 'checked' : ''}> <span>Скрыть улицу и номер дома от клиента</span></label>
     ${anBox()}
-    <label class="chk agent-only"><input type="checkbox" id="s-ph" ${store.get('selPhones', false) ? 'checked' : ''}> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
+    <label class="chk agent-only"><input type="checkbox" id="s-ph"> <span>Сразу открыть телефоны собственников для ссылки агенту (в пределах тарифа, 10–15 секунд на объект)</span></label>
     <div class="hint agent-only" id="s-ph-n">Номера тратятся из лимита тарифа только с галочкой. Без неё телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны».</div>
+    <details class="agent-only" open><summary>Цены перед созданием</summary><div id="s-costs" class="hint" aria-live="polite">Рассчитываю…</div></details>
     <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}).<span class="pdf-only"> Имя файла PDF будет латиницей (открывается на любом телефоне), PDF хранится 7 дней в «Моих подборках».</span></div>
     <p class="hint" id="s-prog"></p><div id="s-lim"></div><p class="err" id="s-err"></p>
     <div class="sheet-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="s-go">Сформировать</button></div>`);
   SHARE.mount();
   { const t = $('#s-an-t'), pv = $('.s-an-pv'), draw = () => { if (pv && window.AIMD) pv.innerHTML = window.AIMD.md(t.value); }; if (t) { t.addEventListener('input', draw); $('.s-an-d').addEventListener('toggle', draw, { once: true }); } }
-  $('#s-mk').oninput = () => $('#s-mk-v').textContent = `${$('#s-mk').value}%`;
+  $('#s-mk').oninput = () => { $('#s-mk-v').textContent = `${$('#s-mk').value}%`; quote.refresh(); };
   // v5.23e: галочка телефонов по умолчанию выключена (раньше на каждую ссылку незаметно уходило до 20 номеров); рядом — сколько новых номеров уйдёт.
   // sel_check только считает (номер не открывает): по одному запросу на вид (ссылкой — 20 первых, PDF — 10)
-  const phN = {};
+  let phInfo = null, generating = false;
   const phHint = () => {
     const el = $('#s-ph-n'); if (!el) return;
-    const k = SHARE.format() === 'link' ? MAXSEL : MAXPDF, nums = [...sel].slice(0, k), c = phN[k];
-    if (!c && !me.guest && nums.length) { phN[k] = 'wait'; call('sel_check', { nums }).then(r => { phN[k] = r?.need == null ? null : r; phHint(); }).catch(() => { phN[k] = null; }); }
-    const need = c && c !== 'wait' ? c.need : null, room = c && c !== 'wait' ? c.room : null;
+    const k = SHARE.format() === 'link' ? MAXSEL : MAXPDF, nums = [...sel].slice(0, k), c = phInfo;
+    const need = c?.need ?? null, room = c?.room ?? null;
     const later = 'телефоны можно открыть потом — на странице «Ссылка агенту» кнопкой «📞 Открыть телефоны»';
     el.innerHTML = $('#s-ph').checked
       ? `С галочкой из лимита уйдёт новых номеров: <b>${need ?? `до ${nums.length}`}</b>${room != null ? ` (осталось ${({ hour: 'в этот час', day: 'на сегодня', month: 'в этом месяце' })[c.why] ?? ''} ${room})`.replace('  ', ' ') : ''}, уже открытые — бесплатно. Можно не тратить сейчас: ${later}.`
       : `Номера не тратятся${need != null ? ` (новых в подборке: ${need})` : ''}. ${later[0].toUpperCase()}${later.slice(1)}.`;
   };
-  $('#s-preview').onclick=()=>window.SELECTION_EDITOR?.open(0,{nums:[...sel],markup:+$('#s-mk').value,title:$('#s-title').value,...selectionDraft,save:v=>{selectionDraft=v;sel=new Set(v.nums);store.set('sel',v.nums);$('#s-title').value=v.title;selbar();toast('Правки подготовлены. Нажмите «Сформировать».');}});
-  $('#s-ph').addEventListener('change', () => { store.set('selPhones', $('#s-ph').checked); phHint(); });
-  $('#s-fmt')?.addEventListener('change', phHint);
-  phHint();
+  const costsRoot = $('#s-costs');
+  const quote = SELECTION_QUOTE.create({delay: 200,
+    read: () => ({nums: [...sel].slice(0, SHARE.format() === 'link' ? MAXSEL : MAXPDF), markup: +$('#s-mk').value, edits: selectionDraft.edits}),
+    load: args => call('sel_check', args),
+    render: state => {
+      if ($('#s-costs') !== costsRoot) return;
+      phInfo = state.value ?? null; phHint();
+      $('#s-go').disabled = generating || !state.value;
+      if (state.pending) costsRoot.textContent = 'Рассчитываю цены и новые телефоны…';
+      else if (state.error) { costsRoot.innerHTML = `${esc(state.error)} <button type="button" class="btn ghost" data-quote-retry>Повторить расчёт</button>`; costsRoot.querySelector('[data-quote-retry]').onclick = () => quote.refresh(true); }
+      else {
+        const rows = state.value.quote ?? [], money = v => v == null ? 'по запросу' : `${Number(v).toLocaleString('ru-RU')} ₽`;
+        costsRoot.innerHTML = rows.map(x => `<p><b>№ ${esc(x.num)}</b> · исходная ${money(x.owner_price)} → <b>клиенту ${money(x.client_price)}</b><br>${x.edited ? 'Цена задана вами' : 'С учётом комиссии и округления'}${x.added == null ? '' : ` · разница ${x.added > 0 ? '+' : ''}${money(x.added)}`}</p>`).join('') || 'Нет доступных объектов — проверьте выбор.';
+        if (!rows.length) $('#s-go').disabled = true;
+      }
+    }});
+  $('#s-preview').onclick=()=>window.SELECTION_EDITOR?.open(0,{nums:[...sel],markup:+$('#s-mk').value,title:$('#s-title').value,...selectionDraft,save:v=>{selectionDraft=v;sel=new Set(v.nums);store.set('sel',v.nums);$('#s-title').value=v.title;selbar();quote.refresh();toast('Правки подготовлены. Нажмите «Сформировать».');}});
+  $('#s-ph').addEventListener('change', phHint);
+  $('#s-fmt')?.addEventListener('change', () => quote.refresh());
+  quote.refresh();
   let partial = false;   // новых номеров больше остатка — участник сам выбрал «Собрать без части телефонов»
   $('#s-go').onclick = async () => {
+    if (generating) return;
+    generating = true;
+    const locked = [...$('#sheet-body').querySelectorAll('input, textarea, select, button:not([data-close])')].map(el => [el, el.disabled]);
+    locked.forEach(([el]) => { el.disabled = true; });
     const b = $('#s-go'); b.disabled = true; b.textContent = 'Готовлю…'; $('#s-err').textContent = ''; $('#s-lim').innerHTML = '';
-    store.set('agent', { name: $('#s-name').value, phone: $('#s-phone').value }); store.set('hideAddr', $('#s-hide').checked); store.set('selPhones', $('#s-ph').checked);
+    store.set('agent', { name: $('#s-name').value, phone: $('#s-phone').value }); store.set('hideAddr', $('#s-hide').checked); store.set('selMarkup', +$('#s-mk').value);
     const prog = t => { const el = $('#s-prog'); if (el) el.textContent = t; };
     const done = (r, what) => {
       $('#sheet-body').innerHTML = `<p>Подборка готова — ${what}.</p>${r.url ? `<div class="sheet-foot"><a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener" data-url="${esc(r.url)}">PDF клиенту</a></div>
@@ -1389,7 +1410,8 @@ $('#sel-make').onclick = () => {
       if ($('#s-an')?.checked) store.set('sel_an', null);
       done(r, fmt === 'link' ? 'ссылка для клиента' : fmt === 'both' ? 'PDF и ссылка для клиента' : 'PDF для клиента');
       window.INVITE?.hit('sel');
-    } catch (e) { if (e.gate) return showLogin(e.gate); $('#s-err').textContent = e.message; b.disabled = false; b.textContent = 'Сформировать'; }
+    } catch (e) { if (e.gate) return showLogin(e.gate); if ($('#s-costs') === costsRoot) { $('#s-err').textContent = e.message; b.textContent = 'Сформировать'; } }
+    finally { generating = false; locked.forEach(([el, was]) => { if (el.isConnected) el.disabled = was; }); }
   };
 };
 // ---------- «Мои подборки» — раздел на главной (v5.23): ./#sels, ./#sels=all | own | fb (меню — nav.js, вкладка C) ----------

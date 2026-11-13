@@ -678,7 +678,7 @@
       modal(`<div class="sa-sh-head"><b>${ic(I.check)}Проверенная подборка для клиента</b><button type="button" class="s-x2" data-close aria-label="Закрыть">✕</button></div>
         <p class="muted sa-sh-sub">${any ? 'Отмечены объекты, где собственник ответил «актуально». Можно снять или добавить галочки.' : 'Пока никто не ответил «актуально» — отметьте объекты вручную.'} Клиент увидит ссылку без телефонов и цен собственника.</p>
         <label class="field">Название<input id="sa-ct" maxlength="80" value="${esc(`Проверенная подборка — ${data.title || ''}`.slice(0, 80))}"></label>
-        <div class="sa-crow"><label class="field">Комиссия, %<input id="sa-cm" type="number" min="0" max="10" step="0.5" value="${data.markup ?? 5}"></label>
+        <div class="sa-crow"><label class="field">Комиссия, %<input id="sa-cm" type="number" min="0" max="10" step="0.5" value="${data.markup ?? 0}"></label>
           <label class="sa-chk"><input type="checkbox" id="sa-ch"${data.hide_addr !== false ? ' checked' : ''}> скрыть улицу и дом</label></div>
         <div class="sa-clist">${L.map(({ x, m }) => `<label class="sa-chk sa-ci"><input type="checkbox" value="${x.num}"${pre(x.num) ? ' checked' : ''}>
           <span><b>${esc(x.what)}</b> · ${x.price ? `${money(x.price)} ₽` : '—'}<small class="muted">${esc(clip(x.place, 70))}</small></span>

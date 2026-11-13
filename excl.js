@@ -512,12 +512,12 @@
   function selMake() {
     if (!sel.size) return H.toast('Отметьте объекты галочкой «Выбрать»');
     if (!window.SHARE) return H.toast('Страница не догрузилась — обновите её');
-    const prof = jget('agent', { name: '', phone: '' }), n = sel.size, mk = jget('exMarkup', 3);
+    const prof = jget('agent', { name: '', phone: '' }), n = sel.size, mk = jget('exMarkup', 0);
     const s = sheet('Подборка эксклюзивов', `<div id="sheet-body" class="ex-selform">
       <label class="field">Название<input id="s-title" placeholder="Например: Для Ивана — 2к у моря" maxlength="80"></label>
       ${SHARE.formatHtml(n, 'excl')}
       <label class="field">Комиссия сверху цены (для клиента): <b id="s-mk-v">${mk}%</b><input id="s-mk" type="range" min="0" max="10" step="0.5" value="${mk}"></label>
-      <div class="hint">Цены для клиента увеличатся на этот процент (округление до 10 000 ₽). 0% — цены агентов. Адрес дома и контакты коллег клиент не увидит.</div>
+      <div class="hint">Цены для клиента увеличатся на этот процент (округление до 50 000 ₽). 0% — цены агентов. Адрес дома и контакты коллег клиент не увидит.</div>
       <label class="field">Ваше имя для клиента<input id="s-name" value="${esc(prof.name)}"></label>
       <label class="field">Ваш телефон для клиента<input id="s-phone" type="tel" value="${esc(prof.phone)}"></label>
       <div class="hint">Объектов: ${n} (ссылкой до ${MAXSEL}, PDF до ${MAXPDF}). Все подборки эксклюзивов — в «Моих подборках» → «Подборки эксклюзивов».</div>

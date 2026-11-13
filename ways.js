@@ -33,39 +33,41 @@ window.WAYS = (() => {
     'Нажмите «Проверить снова».'];
   // ---------- состояние: сначала сервер (auth_way), иначе — заглушка по прежним действиям ----------
   const C = new Map(); let noApi = false;
-  const decide = s => s.local.on && s.local.login !== 'auth' ? 'ext' : s.cloud.allowed && s.cloud.ok && s.cloud.alive !== false ? 'srv' : 'off';
-  async function stub(svc) {
+  const decide = s => s.local.supported !== false && s.local.on && s.local.login === 'ok' ? 'ext' : s.cloud.allowed && s.cloud.ok && s.cloud.alive === true && s.capability?.cloud !== false ? 'srv' : 'off';
+  async function stub(svc, mass = false, op = '') {
     const base = svc === 'tgzk' ? 'tg' : svc;
-    let ext = null, srvOk = false, alive = true;
+    let ext = null, srvOk = false, alive = false;
     if (MSG.has(base)) {
       const w = window.MSGAPP?.ways ? await window.MSGAPP.ways() : await auto('own_ways').catch(() => null);
       const W = w?.svcs?.[base];
-      ext = W?.ext ?? null; srvOk = !!W?.srv?.ok; alive = !(w?.srv_seen_h > 48);
+      ext = W?.ext ?? null; srvOk = !!W?.srv?.ok; alive = W?.srv?.alive === true;
     } else {
       ext = (await auto('own_ext_state').catch(() => null))?.ext ?? null;
       const ci = await auto('conn_init').catch(() => null);
-      srvOk = ci?.items?.find(x => x.id === base)?.status === 'ok'; alive = !!ci?.online;
+      srvOk = ci?.items?.find(x => x.id === base)?.status === 'ok';
       if (ext) ext = { ...ext, login: ext.svcs?.[base] ?? null };
     }
     const s = {
-      svc, stub: true,
-      local: { on: !!ext?.on, seen_s: ext?.seen_at ? Math.round((Date.now() - Date.parse(ext.seen_at)) / 1e3) : null, ver: ext?.ver ?? null, login: ext ? (ext.login ?? ext.svcs?.[base] ?? null) : null, has: !!ext },
+      svc, mass, stub: true, capability: {op, cloud: op === 'mail' || svc !== 'max'},
+      local: { supported: MSG.has(svc) && op !== 'mail', on: !!ext?.on, seen_s: ext?.seen_at ? Math.round((Date.now() - Date.parse(ext.seen_at)) / 1e3) : null, ver: ext?.ver ?? null, login: ext ? (ext.login ?? ext.svcs?.[base] ?? null) : null, has: !!ext },
       cloud: { allowed: prefLocal(svc), ok: srvOk, alive },
       why: '', howto: null,
     };
     s.pick = decide(s);
     return s;
   }
-  async function state(svc, force = false, mass = false) {
+  async function state(svc, force = false, mass = false, op = '') {
     if (!tok() || !window.API) return null;
-    const key = `${svc}|${mass ? 1 : 0}`, c = C.get(key);
+    const key = `${svc}|${mass ? 1 : 0}|${op}`, c = C.get(key);
     if (!force && c && Date.now() - c.t < 45e3) return c.v;
     let v = null;
     if (!noApi) {
-      try { v = await auto('auth_way', { svc, ...(mass ? { mass: true } : {}) }); v.local ??= {}; v.cloud ??= {}; v.local.has = v.local.installed ?? (v.local.seen_s != null || !!v.local.on); }
+      try { v = await auto('auth_way', { svc, ...(mass ? { mass: true } : {}), ...(op ? {op} : {}) }); v.local ??= {}; v.cloud ??= {}; v.local.has = v.local.installed ?? (v.local.seen_s != null || !!v.local.on);
+        if (op && v.capability?.op !== op) { v.pick = 'off'; v.local.supported = false; v.cloud.alive = false; v.why = 'Готовность этой операции пока не подтверждена сервером'; }
+      }
       catch (e) { if (e.status === 400 || /неизвестн|unknown/i.test(e.message)) noApi = true; else if (e.status === 401 || e.status === 403) return null; }
     }
-    if (!v) v = await stub(svc).catch(() => null);
+    if (!v) v = await stub(svc, mass, op).catch(() => null);
     if (v && !v.pick) v.pick = decide(v);
     C.set(key, { t: Date.now(), v });
     return v;
@@ -81,17 +83,18 @@ window.WAYS = (() => {
   const ago = s => s == null ? '' : s < 120 ? 'только что' : s < 3600 ? `${Math.round(s / 60)} мин назад` : s < 86400 ? `${Math.round(s / 3600)} ч назад` : `${Math.round(s / 86400)} дн. назад`;
   function localTxt(s, svc) {
     const L = s.local;
+    if (L.supported === false) return [false, 'эта операция не запускается с сайта через расширение — выполните вручную или через сервер'];
     if (L.on && L.login === 'ok') return [true, `включён, расширение на связи, вход ${esc(name(svc))} есть`];
     if (L.on && L.login === 'auth') return [false, `включён, но нет входа — откройте ${esc(HOST[svc])} в браузере с расширением и войдите`];
-    if (L.on) return [true, `включён, расширение на связи · вход ${esc(name(svc))} проверю при отправке`];
+    if (L.on) return [false, `расширение на связи, но вход ${esc(name(svc))} ещё не подтверждён — откройте веб-версию и проверьте вход`];
     if (L.has || L.seen_s != null) return [false, `выключен или Chrome закрыт (был на связи ${ago(L.seen_s)})`];
     return [false, `нет расширения «Для Агента» — <a href="ext.html" target="_blank" rel="noopener">установить</a>`];
   }
   function cloudTxt(s, svc, mass) {
     const K = s.cloud;
-    if (mass && svc === 'max') return [false, 'в MAX сервер всем сразу не пишет — только ваш компьютер'];
-    if (!K.ok && K.alive !== false) return [false, `вход ${esc(name(svc))} на сервере не подключён — <a href="hub.html#msg" target="_blank" rel="noopener">«🔌 Подключения»</a>`];
-    if (K.alive === false) return [false, '⚠️ сервер сейчас не работает — пока через ваш компьютер или вручную'];
+    if (s.capability?.cloud === false) return [false, 'в MAX сообщения по номеру — только через ваш компьютер'];
+    if (!K.ok && K.alive !== false) return [false, `вход ${esc(name(svc))} на сервере не подключён — ${s.capability?.op === 'mail' ? '«Рассылки» → «Войти»' : '<a href="hub.html#msg" target="_blank" rel="noopener">«🔌 Подключения»</a>'}`];
+    if (K.alive !== true) return [false, 'готовность сервера к этой операции не подтверждена — пока через ваш компьютер или вручную'];
     return [true, 'вход на сервере подключён'];
   }
   const DIFF = `<details class="wy-diff"><summary>В чём разница</summary><div class="wy-cols">
@@ -112,9 +115,9 @@ window.WAYS = (() => {
       <ol>
         ${one ? row(loc[0][1][0], `💻 Ваш компьютер: ${loc[0][1][1]}`) : !s0.local.on ? row(false, `💻 Ваш компьютер: ${loc[0][1][1]}`)
           : `<li class="wy-g ok"><i aria-hidden="true">✓</i><span>💻 Ваш компьютер включён, расширение на связи:</span></li><ul class="wy-sub">${list.map((svc, i) => { const g = S[i].local.login;
-            return row(g !== 'auth', `${esc(name(svc))} — ${g === 'ok' ? 'вход есть' : g === 'auth' ? `нет входа: откройте ${esc(HOST[svc])} в этом Chrome и войдите` : 'вход проверю при отправке'}`); }).join('')}</ul>`}
-        ${one && o.mass && svc0 === 'max' ? row(false, '☁️ MAX всем сразу — только с вашего компьютера: сервер находит людей в MAX по номеру ненадёжно') : `<li class="wy-cl"><label><input type="checkbox" data-wy-cloud${allowed ? ' checked' : ''}> ☁️ Можно через сервер сервиса, когда компьютер выключен</label>
-          ${!allowed && S.some(x => x.cloud.alive === false) ? `<ul class="wy-sub">${row(false, '⚠️ сервер сейчас не работает — пока через ваш компьютер или вручную')}</ul>` : ''}
+            return row(g === 'ok', `${esc(name(svc))} — ${g === 'ok' ? 'вход есть' : g === 'auth' ? `нет входа: откройте ${esc(HOST[svc])} в этом Chrome и войдите` : 'вход ещё не подтверждён'}`); }).join('')}</ul>`}
+        ${one && s0.capability?.cloud === false ? row(false, '☁️ MAX по номеру — с вашего компьютера: сервер находит людей по номеру ненадёжно') : `<li class="wy-cl"><label><input type="checkbox" data-wy-cloud${allowed ? ' checked' : ''}> ☁️ ${S.every(s => s.local.supported === false) ? 'Можно выполнять эту операцию через сервер сервиса' : 'Можно через сервер сервиса, когда компьютер выключен'}</label>
+          ${!allowed && S.some(x => x.cloud.alive === false) ? `<ul class="wy-sub">${row(false, 'Готовность сервера к этой операции не подтверждена — пока через ваш компьютер или вручную')}</ul>` : ''}
           ${allowed ? `<ul class="wy-sub">${cl.map(([svc, [ok, t]]) => row(ok, `${one ? '' : `${esc(name(svc))} — `}${t}`)).join('')}</ul>` : ''}</li>`}
         ${o.manual === false ? '' : row(true, '✋ Вручную — всегда: не ушло автоматически — пришлю список с готовым текстом и кнопкой «Открыть»')}
       </ol>
@@ -128,7 +131,7 @@ window.WAYS = (() => {
     const list = (Array.isArray(svcs) ? svcs : [svcs]).filter(Boolean);
     if (!list.length) { el.innerHTML = ''; return null; }
     if (!el.innerHTML.trim()) el.innerHTML = '<p class="muted wy-load">Проверяю ваш компьютер…</p>';
-    const S = await Promise.all(list.map(s => state(s, o.force, o.mass)));
+    const S = await Promise.all(list.map(s => state(s, o.force, o.mass, o.op)));
     if (S.some(s => !s)) { el.innerHTML = ''; return null; }
     el.innerHTML = html(list, S, o);
     if (!el._wy) {
@@ -149,19 +152,20 @@ window.WAYS = (() => {
   }
   // ---------- перед отправкой ----------
   async function pick(svc, o = {}) {
-    let s = await state(svc, true, o.mass);
+    let s = await state(svc, true, o.mass, o.op);
     if (!s) return 'off';
-    let p = o.mass && svc === 'max' && s.pick === 'srv' ? 'off' : s.pick;
+    let p = s.capability?.cloud === false && s.pick === 'srv' ? 'off' : s.pick;
     if (p !== 'off') return p;
-    return offWin(svc, o);
+    return offWin(svc, o, {message: s.why, howto: s.howto, local: s.local});
   }
   // окно «Включите компьютер»: инструкция, галочка облака, «Проверить снова». Возвращает 'ext' | 'srv' (если стало можно) или 'off' (Отмена)
   function offWin(svc, o = {}, err = null) {
     return new Promise(done => {
       const d = document.createElement('div');
       d.className = 'sheet wy-sheet';
-      d.innerHTML = `<div class="sheet-box wy-boxw" role="dialog" aria-modal="true" aria-label="Включите компьютер">
-        <b class="wy-h">💻 Включите компьютер</b>
+      const title = (err?.local ?? err?.data?.local)?.supported === false ? 'Подключите способ выполнения' : '💻 Включите компьютер';
+      d.innerHTML = `<div class="sheet-box wy-boxw" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+        <b class="wy-h">${esc(title)}</b>
         <p class="wy-p">${esc(err?.message || `Чтобы ${o.action || 'отправить'} через ${name(svc)}, нужен ваш компьютер: Chrome с расширением «Для Агента» и вход в ${name(svc)} в нём. Сейчас так не получится — ниже, что исправить.`)}</p>
         ${(err?.howto ?? err?.data?.howto)?.length ? `<ol class="wy-ho">${(err.howto ?? err.data.howto).map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
         <div class="wy-slot"></div>
@@ -169,7 +173,7 @@ window.WAYS = (() => {
       document.body.appendChild(d);
       const slot = d.querySelector('.wy-slot'), go = d.querySelector('[data-go]');
       let cur = 'off';
-      const sync = s => { const one = Array.isArray(s) ? s[0] : s; cur = one ? (o.mass && svc === 'max' && one.pick === 'srv' ? 'off' : one.pick) : 'off';
+      const sync = s => { const one = Array.isArray(s) ? s[0] : s; cur = one ? (one.capability?.cloud === false && one.pick === 'srv' ? 'off' : one.pick) : 'off';
         go.disabled = cur === 'off'; go.textContent = cur === 'ext' ? '💻 Отправить с компьютера' : cur === 'srv' ? '☁️ Отправить через сервер' : 'Отправить'; };
       box(slot, svc, { ...o, inWin: true, openHow: true, force: true, onChange: sync }).then(sync);
       const end = v => { d.remove(); done(v); };
